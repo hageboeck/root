@@ -9,11 +9,11 @@
  * For the list of contributors see $ROOTSYS/README/CREDITS.             *
  *************************************************************************/
 
-//______________________________________________________________________________
-// TVirtualGeoPainter
-// ==================
-// ABC for geometry painters
-//______________________________________________________________________________
+/** \class TVirtualGeoPainter
+\ingroup Geometry_classes
+
+Abstract class for geometry painters
+*/
 
 #include "TROOT.h"
 #include "TVirtualGeoPainter.h"
@@ -22,19 +22,17 @@
 
 TVirtualGeoPainter  *TVirtualGeoPainter::fgGeoPainter = 0;
 
-ClassImp(TVirtualGeoPainter)
+ClassImp(TVirtualGeoPainter);
 
 ////////////////////////////////////////////////////////////////////////////////
-///*-*-*-*-*-*-*-*-*-*-*Geometry painter default constructor*-*-*-*-*-*-*-*-*
-///*-*                  ====================================
+/// Geometry painter default constructor
 
 TVirtualGeoPainter::TVirtualGeoPainter(TGeoManager *)
 {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-///*-*-*-*-*-*-*-*-*-*-*Geometry painter default destructor*-*-*-*-*-*-*-*-*
-///*-*                  ===================================
+/// Geometry painter default destructor
 
 TVirtualGeoPainter::~TVirtualGeoPainter()
 {

@@ -13,12 +13,8 @@
 #define ROOT_TGenericClassInfo
 
 #include <vector>
-//#ifndef ROOT_TSchemaHelper
 #include "TSchemaHelper.h"
-//#endif
-//#ifndef ROOT_Rtypes
 #include "Rtypes.h"
-//#endif
 
 // Forward declarations
 class TVirtualIsAProxy;
@@ -28,6 +24,11 @@ class TVirtualIsAProxy;
 
 
 namespace ROOT {
+
+   namespace Internal {
+      /// Returns a string with the demangled and normalized name for the given type.
+      std::string GetDemangledTypeName(const std::type_info&);
+   }
 
    namespace Detail {
       class TCollectionProxyInfo;
@@ -44,7 +45,7 @@ namespace ROOT {
       const char                 *fDeclFileName;
       Int_t                       fDeclFileLine;
       DictFuncPtr_t               fDictionary;
-      const type_info            &fInfo;
+      const std::type_info       &fInfo;
       const char                 *fImplFileName;
       Int_t                       fImplFileLine;
       TVirtualIsAProxy           *fIsA;
@@ -71,13 +72,13 @@ namespace ROOT {
    public:
       TGenericClassInfo(const char *fullClassname,
                        const char *declFileName, Int_t declFileLine,
-                       const type_info &info, const Internal::TInitBehavior *action,
+                       const std::type_info &info, const Internal::TInitBehavior *action,
                        DictFuncPtr_t dictionary,
                        TVirtualIsAProxy *isa, Int_t pragmabits, Int_t sizof);
 
       TGenericClassInfo(const char *fullClassname, Int_t version,
                        const char *declFileName, Int_t declFileLine,
-                       const type_info &info, const Internal::TInitBehavior *action,
+                       const std::type_info &info, const Internal::TInitBehavior *action,
                        DictFuncPtr_t dictionary,
                        TVirtualIsAProxy *isa, Int_t pragmabits, Int_t sizof);
 
@@ -102,7 +103,7 @@ namespace ROOT {
       DirAutoAdd_t                      GetDirectoryAutoAdd() const;
       const char                       *GetImplFileName();
       Int_t                             GetImplFileLine();
-      const type_info                  &GetInfo() const;
+      const std::type_info             &GetInfo() const;
       TVirtualIsAProxy                 *GetIsA() const;
       NewFunc_t                         GetNew() const;
       NewArrFunc_t                      GetNewArray() const;

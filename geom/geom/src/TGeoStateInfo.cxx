@@ -10,11 +10,19 @@
  *************************************************************************/
 
 #include "TGeoStateInfo.h"
-#include "TGeoNode.h"
-#include "TGeoPolygon.h"
-#include "TGeoManager.h"
 
-ClassImp(TGeoStateInfo)
+#include "Rtypes.h"
+#include "TGeoNode.h"
+#include "TGeoManager.h"
+#include "TGeoPolygon.h"
+
+/** \class TGeoStateInfo
+\ingroup Geometry_classes
+Statefull info for the current geometry level.
+*/
+
+ClassImp(TGeoStateInfo);
+
 ////////////////////////////////////////////////////////////////////////////////
 /// Constructor
 

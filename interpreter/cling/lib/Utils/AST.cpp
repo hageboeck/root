@@ -25,6 +25,21 @@
 
 using namespace clang;
 
+namespace {
+  template<typename D>
+  static D* LookupResult2Decl(clang::LookupResult& R)
+  {
+    if (R.empty())
+      return 0;
+
+    R.resolveKind();
+
+    if (R.isSingleResult())
+      return dyn_cast<D>(R.getFoundDecl());
+    return (D*)-1;
+  }
+}
+
 namespace cling {
 namespace utils {
 
@@ -49,7 +64,7 @@ namespace utils {
   NestedNameSpecifier* GetFullyQualifiedNameSpecifier(const ASTContext& Ctx,
                                                       NestedNameSpecifier* scope);
 
-  bool Analyze::IsWrapper(const NamedDecl* ND) {
+  bool Analyze::IsWrapper(const FunctionDecl* ND) {
     if (!ND)
       return false;
 
@@ -86,8 +101,17 @@ namespace utils {
       //Dtor_Deleting, // Deleting dtor
       //Dtor_Complete, // Complete object dtor
       //Dtor_Base      // Base object dtor
-      mangleCtx->mangleCXXDtor(cast<CXXDestructorDecl>(D),
-                               GD.getDtorType(), RawStr);
+#if defined(LLVM_ON_WIN32)
+      // MicrosoftMangle.cpp:954 calls llvm_unreachable when mangling Dtor_Comdat
+      if (GD.getDtorType() == Dtor_Comdat) {
+        if (const IdentifierInfo* II = D->getIdentifier())
+          RawStr << II->getName();
+      } else
+#endif
+      {
+        mangleCtx->mangleCXXDtor(cast<CXXDestructorDecl>(D),
+                                 GD.getDtorType(), RawStr);
+      }
       break;
 
     default :
@@ -145,7 +169,7 @@ namespace utils {
               newBody.insert(newBody.begin() + indexOfLastExpr, DRE);
 
               // Attach the new body (note: it does dealloc/alloc of all nodes)
-              CS->setStmts(S->getASTContext(), &newBody.front(),newBody.size());
+              CS->setStmts(S->getASTContext(), newBody);
               if (FoundAt)
                 *FoundAt = indexOfLastExpr;
               return DRE;
@@ -161,7 +185,13 @@ namespace utils {
 
   const char* const Synthesize::UniquePrefix = "__cling_Un1Qu3";
 
-  Expr* Synthesize::CStyleCastPtrExpr(Sema* S, QualType Ty, uint64_t Ptr) {
+  IntegerLiteral* Synthesize::IntegerLiteralExpr(ASTContext& C, uintptr_t Ptr) {
+    const llvm::APInt Addr(8 * sizeof(void*), Ptr);
+    return IntegerLiteral::Create(C, Addr, C.getUIntPtrType(),
+                                  SourceLocation());
+  }
+
+  Expr* Synthesize::CStyleCastPtrExpr(Sema* S, QualType Ty, uintptr_t Ptr) {
     ASTContext& Ctx = S->getASTContext();
     return CStyleCastPtrExpr(S, Ty, Synthesize::IntegerLiteralExpr(Ctx, Ptr));
   }
@@ -176,11 +206,6 @@ namespace utils {
       = S->BuildCStyleCastExpr(SourceLocation(), TSI,SourceLocation(),E).get();
     assert(Result && "Cannot create CStyleCastPtrExpr");
     return Result;
-  }
-
-  IntegerLiteral* Synthesize::IntegerLiteralExpr(ASTContext& C, uint64_t Ptr) {
-    const llvm::APInt Addr(8 * sizeof(void *), Ptr);
-    return IntegerLiteral::Create(C, Addr, C.UnsignedLongTy, SourceLocation());
   }
 
   static bool
@@ -248,9 +273,7 @@ namespace utils {
         // Keep the argument const to be inline will all the other interfaces
         // like:  NestedNameSpecifier::Create
         ASTContext &mutableCtx( const_cast<ASTContext&>(Ctx) );
-        arg =TemplateArgument(TemplateArgument::CreatePackCopy(mutableCtx,
-                                                               desArgs.data(),
-                                                               desArgs.size()));
+        arg = TemplateArgument::CreatePackCopy(mutableCtx, desArgs);
       }
     }
     return changed;
@@ -282,7 +305,7 @@ namespace utils {
       if (mightHaveChanged) {
         QualType QT
           = Ctx.getTemplateSpecializationType(TST->getTemplateName(),
-                                              desArgs.data(), desArgs.size(),
+                                              desArgs,
                                               TST->getCanonicalTypeInternal());
         return QT.getTypePtr();
       }
@@ -315,9 +338,7 @@ namespace utils {
           if (mightHaveChanged) {
             TemplateName TN(TSTdecl->getSpecializedTemplate());
             QualType QT
-              = Ctx.getTemplateSpecializationType(TN,
-                                                  desArgs.data(),
-                                                  desArgs.size(),
+              = Ctx.getTemplateSpecializationType(TN, desArgs,
                                          TSTRecord->getCanonicalTypeInternal());
             return QT.getTypePtr();
           }
@@ -616,23 +637,7 @@ namespace utils {
     // Return true if the class or template is declared directly in the
     // std namespace (modulo inline namespace).
 
-    const clang::DeclContext *ctx = cl.getDeclContext();
-
-    while (ctx && ctx->isInlineNamespace()) {
-      ctx = ctx->getParent();
-    }
-
-    if (ctx && ctx->isNamespace())
-    {
-      const clang::NamedDecl *parent = llvm::dyn_cast<clang::NamedDecl> (ctx);
-      if (parent) {
-        if (parent->getDeclContext()->isTranslationUnit()
-            && parent->getQualifiedNameAsString()=="std") {
-          return true;
-        }
-      }
-    }
-    return false;
+    return cl.getDeclContext()->isStdNamespace();
   }
 
   // See Sema::PushOnScopeChains
@@ -877,15 +882,49 @@ namespace utils {
         // Keep the argument const to be inline will all the other interfaces
         // like:  NestedNameSpecifier::Create
         ASTContext &mutableCtx( const_cast<ASTContext&>(Ctx) );
-        arg =TemplateArgument(TemplateArgument::CreatePackCopy(mutableCtx,
-                                                               desArgs.data(),
-                                                               desArgs.size()));
+        arg = TemplateArgument::CreatePackCopy(mutableCtx, desArgs);
       }
     }
     return changed;
   }
 
+  static const TemplateArgument*
+  GetTmpltArgDeepFirstIndexPack(size_t &cur,
+                                const TemplateArgument& arg,
+                                size_t idx) {
+    SmallVector<TemplateArgument, 2> desArgs;
+    for (auto I = arg.pack_begin(), E = arg.pack_end();
+         cur < idx && I != E; ++cur,++I) {
+      if ((*I).getKind() == TemplateArgument::Pack) {
+        auto p_arg = GetTmpltArgDeepFirstIndexPack(cur,(*I),idx);
+        if (cur == idx) return p_arg;
+      } else if (cur == idx) {
+        return I;
+      }
+    }
+    return nullptr;
+  }
 
+  // Return the template argument corresponding to the index (idx)
+  // when the composite list of arguement is seen flattened out deep
+  // first (where depth is provided by template argument packs)
+  static const TemplateArgument*
+  GetTmpltArgDeepFirstIndex(const TemplateArgumentList& templateArgs,
+                            size_t idx) {
+
+    for (size_t cur = 0, I = 0, E = templateArgs.size();
+         cur <= idx && I < E; ++I, ++cur) {
+      auto &arg = templateArgs[I];
+      if (arg.getKind() == TemplateArgument::Pack) {
+        // Need to recurse.
+        auto p_arg = GetTmpltArgDeepFirstIndexPack(cur,arg,idx);
+        if (cur == idx) return p_arg;
+     } else if (cur == idx) {
+        return &arg;
+      }
+    }
+    return nullptr;
+  }
 
   static QualType GetPartiallyDesugaredTypeImpl(const ASTContext& Ctx,
     QualType QT, const Transform::Config& TypeConfig,
@@ -1228,7 +1267,9 @@ namespace utils {
                 = TSTdecl->getTemplateArgs();
 
               mightHaveChanged = true;
-              desArgs.push_back(templateArgs[argi]);
+              const TemplateArgument *match
+                  = GetTmpltArgDeepFirstIndex(templateArgs,argi);
+              if (match) desArgs.push_back(*match);
               continue;
             }
           }
@@ -1272,8 +1313,7 @@ namespace utils {
       if (mightHaveChanged) {
         Qualifiers qualifiers = QT.getLocalQualifiers();
         QT = Ctx.getTemplateSpecializationType(TST->getTemplateName(),
-                                               desArgs.data(),
-                                               desArgs.size(),
+                                               desArgs,
                                                TST->getCanonicalTypeInternal());
         QT = Ctx.getQualifiedType(QT, qualifiers);
       }
@@ -1345,8 +1385,7 @@ namespace utils {
           if (mightHaveChanged) {
             Qualifiers qualifiers = QT.getLocalQualifiers();
             TemplateName TN(TSTdecl->getSpecializedTemplate());
-            QT = Ctx.getTemplateSpecializationType(TN, desArgs.data(),
-                                                   desArgs.size(),
+            QT = Ctx.getTemplateSpecializationType(TN, desArgs,
                                          TSTRecord->getCanonicalTypeInternal());
             QT = Ctx.getQualifiedType(QT, qualifiers);
           }
@@ -1409,14 +1448,37 @@ namespace utils {
 
   NamedDecl* Lookup::Named(Sema* S, const char* Name,
                            const DeclContext* Within) {
-    DeclarationName DName = &S->Context.Idents.get(Name);
-    return Lookup::Named(S, DName, Within);
+    return Lookup::Named(S, llvm::StringRef(Name), Within);
   }
 
-  NamedDecl* Lookup::Named(Sema* S, const DeclarationName& Name,
+  NamedDecl* Lookup::Named(Sema* S, const clang::DeclarationName& Name,
                            const DeclContext* Within) {
     LookupResult R(*S, Name, SourceLocation(), Sema::LookupOrdinaryName,
                    Sema::ForRedeclaration);
+    Lookup::Named(S, R, Within);
+    return LookupResult2Decl<clang::NamedDecl>(R);
+  }
+
+  TagDecl* Lookup::Tag(Sema* S, llvm::StringRef Name,
+                       const DeclContext* Within) {
+    DeclarationName DName = &S->Context.Idents.get(Name);
+    return Lookup::Tag(S, DName, Within);
+  }
+
+  TagDecl* Lookup::Tag(Sema* S, const char* Name,
+                       const DeclContext* Within) {
+    return Lookup::Tag(S, llvm::StringRef(Name), Within);
+  }
+
+  TagDecl* Lookup::Tag(Sema* S, const clang::DeclarationName& Name,
+                       const DeclContext* Within) {
+    LookupResult R(*S, Name, SourceLocation(), Sema::LookupTagName,
+                   Sema::ForRedeclaration);
+    Lookup::Named(S, R, Within);
+    return LookupResult2Decl<clang::TagDecl>(R);
+  }
+
+  void Lookup::Named(Sema* S, LookupResult& R, const DeclContext* Within) {
     R.suppressDiagnostics();
     if (!Within)
       S->LookupName(R, S->TUScope);
@@ -1429,19 +1491,10 @@ namespace utils {
       }
       if (!primaryWithin) {
         // No definition, no lookup result.
-        return 0;
+        return;
       }
       S->LookupQualifiedName(R, const_cast<DeclContext*>(primaryWithin));
     }
-
-    if (R.empty())
-      return 0;
-
-    R.resolveKind();
-
-    if (R.isSingleResult())
-      return R.getFoundDecl();
-    return (clang::NamedDecl*)-1;
   }
 
   static NestedNameSpecifier*
@@ -1586,6 +1639,12 @@ namespace utils {
       // Add back the qualifiers.
       QT = Ctx.getQualifiedType(QT, quals);
       return QT;
+    }
+
+    // Strip deduced types.
+    if (const AutoType* AutoTy = dyn_cast<AutoType>(QT.getTypePtr())) {
+      if (!AutoTy->getDeducedType().isNull())
+        return GetFullyQualifiedType(AutoTy->getDeducedType(), Ctx);
     }
 
     // Remove the part of the type related to the type being a template

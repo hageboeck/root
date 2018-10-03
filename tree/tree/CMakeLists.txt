@@ -3,13 +3,112 @@
 # @author Pere Mato, CERN
 ############################################################################
 
-set(libname Tree)
+ROOT_STANDARD_LIBRARY_PACKAGE(Tree
+  HEADERS
+    TBasket.h
+    TBasketSQL.h
+    TBranchBrowsable.h
+    TBranchCacheInfo.h
+    TBranchClones.h
+    TBranchElement.h
+    TBranch.h
+    TBranchObject.h
+    TBranchRef.h
+    TBranchSTL.h
+    TBufferSQL.h
+    TChainElement.h
+    TChain.h
+    TCut.h
+    TEntryListArray.h
+    TEntryListBlock.h
+    TEntryListFromFile.h
+    TEntryList.h
+    TEventList.h
+    TFriendElement.h
+    TIndArray.h
+    TLeafB.h
+    TLeafC.h
+    TLeafD.h
+    TLeafElement.h
+    TLeafF.h
+    TLeaf.h
+    TLeafI.h
+    TLeafL.h
+    TLeafObject.h
+    TLeafO.h
+    TLeafS.h
+    TNtupleD.h
+    TNtuple.h
+    TQueryResult.h
+    TreeUtils.h
+    TSelector.h
+    TSelectorList.h
+    TSelectorScalar.h
+    TTreeCache.h
+    TTreeCacheUnzip.h
+    TTreeCloner.h
+    TTree.h
+    TTreeResult.h
+    TTreeRow.h
+    TTreeSQL.h
+    TVirtualIndex.h
+    TVirtualTreePlayer.h
+    ROOT/TIOFeatures.hxx
+  SOURCES
+    src/TBasket.cxx
+    src/TBasketSQL.cxx
+    src/TBranchBrowsable.cxx
+    src/TBranchClones.cxx
+    src/TBranch.cxx
+    src/TBranchElement.cxx
+    src/TBranchIMTHelper.h
+    src/TBranchObject.cxx
+    src/TBranchRef.cxx
+    src/TBranchSTL.cxx
+    src/TBufferSQL.cxx
+    src/TChain.cxx
+    src/TChainElement.cxx
+    src/TCut.cxx
+    src/TEntryListArray.cxx
+    src/TEntryListBlock.cxx
+    src/TEntryList.cxx
+    src/TEntryListFromFile.cxx
+    src/TEventList.cxx
+    src/TFriendElement.cxx
+    src/TIOFeatures.cxx
+    src/TLeafB.cxx
+    src/TLeafC.cxx
+    src/TLeaf.cxx
+    src/TLeafD.cxx
+    src/TLeafElement.cxx
+    src/TLeafF.cxx
+    src/TLeafI.cxx
+    src/TLeafL.cxx
+    src/TLeafObject.cxx
+    src/TLeafO.cxx
+    src/TLeafS.cxx
+    src/TNtuple.cxx
+    src/TNtupleD.cxx
+    src/TQueryResult.cxx
+    src/TreeUtils.cxx
+    src/TSelector.cxx
+    src/TSelectorList.cxx
+    src/TSelectorScalar.cxx
+    src/TTreeCache.cxx
+    src/TTreeCacheUnzip.cxx
+    src/TTreeCloner.cxx
+    src/TTree.cxx
+    src/TTreeResult.cxx
+    src/TTreeRow.cxx
+    src/TTreeSQL.cxx
+    src/TVirtualIndex.cxx
+    src/TVirtualTreePlayer.cxx
+  DICTIONARY_OPTIONS
+    -writeEmptyRootPCM
+  DEPENDENCIES
+    Imt
+    Net
+    RIO
+)
 
-ROOT_GENERATE_DICTIONARY(G__${libname} *.h MODULE ${libname} LINKDEF LinkDef.h OPTIONS "-writeEmptyRootPCM")
-#ROOT_GENERATE_DICTIONARY(ManualTree TTree.h  LINKDEF LinkDef2.h)
-
-
-
-ROOT_LINKER_LIBRARY(${libname} *.cxx G__${libname}.cxx DEPENDENCIES Net RIO Thread)
-ROOT_INSTALL_HEADERS()
-
+ROOT_ADD_TEST_SUBDIRECTORY(test)

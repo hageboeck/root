@@ -8,24 +8,33 @@
  * For the list of contributors see $ROOTSYS/README/CREDITS.             *
  *************************************************************************/
 
-#include "TGeoGlobalMagField.h"
 #include "TVirtualMagField.h"
 
-//______________________________________________________________________________
-// TVirtualMagField - ABC for magnetic field. Derived classes are encouraged to
-// use the TVirtualMagField named constructor and must implement the method:
-//    Field(const Double_t *x, Double_t *B)
-//
-// A field object can be made global via:
-//    TGlobalMagField::Instance()->SetField(field)         [1]
-// A field which is made global is owned by the field manager. The used is not
-// allowed to delete it directly anymore (otherwise a Fatal() is issued). Global
-// field can be deleted by calling [1] with a different argument (which can be
-// NULL). Otherwise the global field is deleted together with the field manager.
-//
-//______________________________________________________________________________
+#include "TGeoGlobalMagField.h"
+#include "Rtypes.h"
 
-ClassImp(TVirtualMagField)
+/** \class TVirtualMagField
+\ingroup Geometry_classes
+Abstract class for magnetic field. Derived classes are encouraged to
+use the TVirtualMagField named constructor and must implement the method:
+
+~~~ {.cpp}
+   Field(const Double_t *x, Double_t *B)
+~~~
+
+A field object can be made global via:
+
+~~~ {.cpp}
+   TGlobalMagField::Instance()->SetField(field)         [1]
+~~~
+
+A field which is made global is owned by the field manager. The used is not
+allowed to delete it directly anymore (otherwise a Fatal() is issued). Global
+field can be deleted by calling [1] with a different argument (which can be
+NULL). Otherwise the global field is deleted together with the field manager.
+*/
+
+ClassImp(TVirtualMagField);
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Destructor. Unregisters the field.
@@ -40,11 +49,13 @@ TVirtualMagField::~TVirtualMagField()
    }
 }
 
-//______________________________________________________________________________
-// TGeoUniformMagField - Implementation for uniform magnetic field.
-//______________________________________________________________________________
+/** \class TGeoUniformMagField
+\ingroup Geometry_classes
 
-ClassImp(TGeoUniformMagField)
+Implementation for uniform magnetic field.
+*/
+
+ClassImp(TGeoUniformMagField);
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Default constructor;

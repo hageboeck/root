@@ -1,35 +1,18 @@
+#include "TCanvas.h"
+#include "TFile.h"
+#include "TH2F.h"
+#include "TIterator.h"
+#include "TKey.h"
+#include "TLegend.h"
+#include "TList.h"
 #include "TMVA/probas.h"
+#include "TMVA/tmvaglob.h"
+#include "TString.h"
+
 #include <iostream>
-#include <iomanip>
+
 using std::cout;
 using std::endl;
-
-
-
-#include "RQ_OBJECT.h"
-
-#include "TH1.h"
-#include "TROOT.h"
-#include "TList.h"
-#include "TIterator.h"
-#include "TStyle.h"
-#include "TPad.h"
-#include "TCanvas.h"
-#include "TLatex.h"
-#include "TLegend.h"
-#include "TLine.h"
-#include "TH2.h"
-#include "TFormula.h"
-#include "TFile.h"
-#include "TApplication.h"
-#include "TKey.h"
-#include "TClass.h"
-#include "TGaxis.h"
-
-#include "TGWindow.h"
-#include "TGButton.h"
-#include "TGLabel.h"
-#include "TGNumberEntry.h"
 
 // this macro plots the MVA probability distributions (Signal and
 // Background overlayed) of different MVA methods run in TMVA
@@ -37,7 +20,7 @@ using std::endl;
 
 // input: - Input file (result from TMVA)
 //        - use of TMVA plotting TStyle
-void TMVA::probas( TString fin , Bool_t useTMVAStyle  )
+void TMVA::probas(TString dataset, TString fin , Bool_t useTMVAStyle  )
 {
    // set style and remove existing canvas'
    TMVAGlob::Initialize( useTMVAStyle );
@@ -47,8 +30,7 @@ void TMVA::probas( TString fin , Bool_t useTMVAStyle  )
    const Bool_t Save_Images     = kTRUE;
 
    // checks if file with name "fin" is already open, and if not opens one
-   //TFile* file =
-   TMVAGlob::OpenFile( fin );  
+   TFile* file = TMVAGlob::OpenFile( fin );  
 
    const Int_t width = 600;   // size of canvas
 
@@ -65,7 +47,7 @@ void TMVA::probas( TString fin , Bool_t useTMVAStyle  )
 
    // search for the right histograms in full list of keys
    TList methods;
-   UInt_t nmethods = TMVAGlob::GetListOfMethods( methods );
+   UInt_t nmethods = TMVAGlob::GetListOfMethods( methods,file->GetDirectory(dataset.Data()) );
    if (nmethods==0) {
       cout << "--- Probas.C: no methods found!" << endl;
       return;
@@ -125,7 +107,7 @@ void TMVA::probas( TString fin , Bool_t useTMVAStyle  )
                for (int i=0; i<= 5; i++) {
                   TString hspline = hnameS + Form("_smoothed_hist_from_spline%i",i);
                   sigF = (TH1*)instDir->Get( hspline );
-  	    
+            
                   if (sigF) {
                      bkgF = (TH1*)instDir->Get( hspline.ReplaceAll("_tr_S","_tr_B") );
                      break;
@@ -145,7 +127,7 @@ void TMVA::probas( TString fin , Bool_t useTMVAStyle  )
                   return;
                }
                else  {
-                    // remove the signal suffix
+                  // remove the signal suffix
 
                   // check that exist
                   if (NULL != sigF && NULL != bkgF && NULL!=sig && NULL!=bgd) {
@@ -192,12 +174,12 @@ void TMVA::probas( TString fin , Bool_t useTMVAStyle  )
                      if (Draw_CFANN_Logy && methodName == "CFANN") c->SetLogy();
             
                      // overlay signal and background histograms
-                     sig->SetMarkerColor( TMVAGlob::c_SignalLine );
+                     sig->SetMarkerColor( TMVAGlob::getSignalLine() );
                      sig->SetMarkerSize( 0.7 );
                      sig->SetMarkerStyle( 20 );
                      sig->SetLineWidth(1);
 
-                     bgd->SetMarkerColor( TMVAGlob::c_BackgroundLine );
+                     bgd->SetMarkerColor( TMVAGlob::getBackgroundLine() );
                      bgd->SetMarkerSize( 0.7 );
                      bgd->SetMarkerStyle( 24 );
                      bgd->SetLineWidth(1);
@@ -227,7 +209,7 @@ void TMVA::probas( TString fin , Bool_t useTMVAStyle  )
                      // save canvas to file
                      c->Update();
                      TMVAGlob::plot_logo();
-                     sprintf( fname, "plots/mva_pdf_%s_c%i", methodTitle.Data(), countCanvas+1 );
+                     sprintf( fname, "%s/plots/mva_pdf_%s_c%i",dataset.Data(), methodTitle.Data(), countCanvas+1 );
                      if (Save_Images) TMVAGlob::imgconv( c, fname );
                      countCanvas++;
                   }

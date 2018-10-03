@@ -44,8 +44,16 @@
 
 #include "TGQt.h"
 
+//////////////////////////////////////////////////////////////////////////
+/// PluginManager creation function
+
+TGuiFactory* ROOT_Plugin_TQtRootGuiFactory() {
+   return new TQtRootGuiFactory();
+}
+
+
 TGClient *TQtRootGuiFactory::gfQtClient = 0;
-ClassImp(TQtRootGuiFactory)
+ClassImp(TQtRootGuiFactory);
 ////////////////////////////////////////////////////////////////////////////////
 /// TQtRootGuiFactory ctor.
 /// Restore the right TVirtualX pointer

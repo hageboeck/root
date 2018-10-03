@@ -13,7 +13,7 @@
 
 // input: - Input file (result from TMVA)
 //        - use of TMVA plotting TStyle
-void TMVA::mvasMulticlass( TString fin , HistType htype , Bool_t useTMVAStyle  )
+void TMVA::mvasMulticlass(TString dataset, TString fin , HistType htype , Bool_t useTMVAStyle  )
 {
    // set style and remove existing canvas'
    TMVAGlob::Initialize( useTMVAStyle );
@@ -22,9 +22,19 @@ void TMVA::mvasMulticlass( TString fin , HistType htype , Bool_t useTMVAStyle  )
    const Bool_t Save_Images = kTRUE;
 
    // checks if file with name "fin" is already open, and if not opens one
-   TFile* file = TMVAGlob::OpenFile( fin );  
+   TFile *file = TMVAGlob::OpenFile(fin);
 
-   TDirectory* tempdir = (TDirectory*)file->Get("InputVariables_Id" );
+   // find directory from input variable transformation and extract class names
+   TIter keys_dir = file->GetDirectory(dataset.Data())->GetListOfKeys();
+   TKey *key;
+   TDirectory *tempdir = 0;
+   while ((key = (TKey *)keys_dir())) {
+      TString name = key->GetName();
+      if (name.BeginsWith("InputVariables_")) {
+         tempdir = (TDirectory *)(file->GetDirectory(dataset.Data())->Get(name));
+         break;
+      }
+   }
    std::vector<TString> classnames(TMVAGlob::GetClassNames(tempdir));
 
    // define Canvas layout here!
@@ -40,8 +50,8 @@ void TMVA::mvasMulticlass( TString fin , HistType htype , Bool_t useTMVAStyle  )
    Int_t countCanvas = 0;
 
    // search for the right histograms in full list of keys
-   TIter next(file->GetListOfKeys());
-   TKey *key(0);   
+   TIter next(file->GetDirectory(dataset.Data())->GetListOfKeys());
+   key = 0;
    while ((key = (TKey*)next())) {
 
       if (!TString(key->GetName()).BeginsWith("Method_")) continue;
@@ -74,7 +84,7 @@ void TMVA::mvasMulticlass( TString fin , HistType htype , Bool_t useTMVAStyle  )
                TH1 *hist = (TH1*)titDir->Get(name);
                if (hist==0){
                   cout << ":\t mva distribution not available (this is normal for Cut classifier)" << endl;
-               continue;
+                  continue;
                }
                hists.Add(hist);
             }
@@ -248,8 +258,8 @@ void TMVA::mvasMulticlass( TString fin , HistType htype , Bool_t useTMVAStyle  )
             
             TMVAGlob::plot_logo(1.058);
             if (Save_Images) {
-               if      (htype == kMVAType)     TMVAGlob::imgconv( c, Form("plots/mva_%s_%s",classnames.at(icls).Data(), methodTitle.Data()) );
-               else if      (htype == kCompareType)     TMVAGlob::imgconv( c, Form("plots/overtrain_%s_%s",classnames.at(icls).Data(), methodTitle.Data()) );
+               if      (htype == kMVAType)     TMVAGlob::imgconv( c, Form("%s/plots/mva_%s_%s",dataset.Data(),classnames.at(icls).Data(), methodTitle.Data()) );
+               else if      (htype == kCompareType)     TMVAGlob::imgconv( c, Form("%s/plots/overtrain_%s_%s",dataset.Data(),classnames.at(icls).Data(), methodTitle.Data()) );
                
             }
             countCanvas++;

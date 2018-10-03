@@ -4,14 +4,24 @@
 ############################################################################
 
 include_directories(${XROOTD_INCLUDE_DIRS})
-add_definitions(${XROOTD_CFLAGS})
 
-ROOT_GENERATE_DICTIONARY(G__NetxNG *.h MODULE NetxNG LINKDEF LinkDef.h)
+ROOT_STANDARD_LIBRARY_PACKAGE(NetxNG
+  HEADERS
+    TNetXNGFile.h
+    TNetXNGFileStager.h
+    TNetXNGSystem.h
+  SOURCES
+    src/TNetXNGFile.cxx
+    src/TNetXNGFileStager.cxx
+    src/TNetXNGSystem.cxx
+  LIBRARIES
+    ${XROOTD_LIBRARIES}
+  DEPENDENCIES
+    Net
+    RIO
+    Thread
+  BUILTINS
+    XROOTD
+)
 
-ROOT_LINKER_LIBRARY(NetxNG *.cxx G__NetxNG.cxx LIBRARIES ${XROOTD_LIBRARIES} DEPENDENCIES Net RIO Thread)
-
-ROOT_INSTALL_HEADERS()
-
-if(builtin_xrootd)
-  add_dependencies(NetxNG XROOTD)
-endif()
+target_compile_options(NetxNG PRIVATE -Wno-shadow)

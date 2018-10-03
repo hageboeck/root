@@ -2,36 +2,86 @@
 # CMakeLists.txt file for building ROOT core/thread package
 ############################################################################
 
-set(headers TCondition.h TConditionImp.h TMutex.h TMutexImp.h
-            TRWLock.h TSemaphore.h TThread.h TThreadFactory.h
-            TThreadImp.h TAtomicCount.h TThreadPool.h ThreadLocalStorage.h)
-if(NOT WIN32)
-  set(headers ${headers} TPosixCondition.h TPosixMutex.h
-                         TPosixThread.h TPosixThreadFactory.h PosixThreadInc.h)
-  set(installoptions OPTIONS REGEX "Win32" EXCLUDE)
+if(WIN32)
+  set(PLATFORM_FILTER FILTER "Posix")
+  set(PLATFORM_HEADERS
+    TWin32Condition.h
+    TWin32Mutex.h
+    TWin32Thread.h
+    TWin32ThreadFactory.h
+  )
 else()
-  set(headers ${headers} TWin32Condition.h TWin32Mutex.h
-                         TWin32Thread.h TWin32ThreadFactory.h)
-  set(installoptions OPTIONS REGEX "Posix" EXCLUDE)
+  set(PLATFORM_FILTER FILTER "Win32")
+  set(PLATFORM_HEADERS
+    TPosixCondition.h
+    TPosixMutex.h
+    TPosixThread.h
+    TPosixThreadFactory.h
+    PosixThreadInc.h
+  )
 endif()
 
-set(sources TCondition.cxx TConditionImp.cxx TMutex.cxx TMutexImp.cxx
-            TRWLock.cxx TSemaphore.cxx TThread.cxx TThreadFactory.cxx
-            TThreadImp.cxx)
-if(NOT WIN32)
-  set(sources ${sources} TPosixCondition.cxx TPosixMutex.cxx
-                         TPosixThread.cxx TPosixThreadFactory.cxx)
+ROOT_STANDARD_LIBRARY_PACKAGE(Thread
+  HEADERS
+    ${PLATFORM_HEADERS}
+    TAtomicCount.h
+    TCondition.h
+    TConditionImp.h
+    ThreadLocalStorage.h
+    TMutex.h
+    TMutexImp.h
+    TRWLock.h
+    TSemaphore.h
+    TThreadFactory.h
+    TThread.h
+    TThreadImp.h
+    TThreadPool.h
+    ROOT/RConcurrentHashColl.hxx
+    ROOT/TReentrantRWLock.hxx
+    ROOT/TRWSpinLock.hxx
+    ROOT/TSpinMutex.hxx
+    ROOT/TThreadedObject.hxx
+  SOURCES
+    src/RConcurrentHashColl.cxx
+    src/TCondition.cxx
+    src/TConditionImp.cxx
+    src/TMutex.cxx
+    src/TMutexImp.cxx
+    src/TReentrantRWLock.cxx
+    src/TRWLock.cxx
+    src/TRWMutexImp.cxx
+    src/TRWSpinLock.cxx
+    src/TSemaphore.cxx
+    src/TThread.cxx
+    src/TThreadFactory.cxx
+    src/TThreadImp.cxx
+  OBJECT_LIBRARY
+  STAGE1
+  DEPENDENCIES
+    Core
+  INSTALL_OPTIONS ${installoptions}
+)
+
+target_link_libraries(Thread PUBLIC ${CMAKE_THREAD_LIBS_INIT})
+
+# keep include directory for ROOT/RSha256.hxx private
+set_source_files_properties(src/RConcurrentHashColl.cxx
+  PROPERTIES COMPILE_FLAGS -I${CMAKE_CURRENT_SOURCE_DIR}/../foundation/res)
+
+if(WIN32)
+  target_sources(Thread PRIVATE
+    src/TWin32Condition.cxx
+    src/TWin32Mutex.cxx
+    src/TWin32Thread.cxx
+    src/TWin32ThreadFactory.cxx
+  )
 else()
-  set(sources ${sources} TWin32Condition.cxx TWin32Mutex.cxx
-                         TWin32Thread.cxx TWin32ThreadFactory.cxx)
+  target_sources(Thread PRIVATE
+    src/TPosixCondition.cxx
+    src/TPosixMutex.cxx
+    src/TPosixThread.cxx
+    src/TPosixThreadFactory.cxx
+  )
 endif()
 
-if (mt)
-  set(sources_imt TImplicitMT.cxx)
-endif()
-
-ROOT_GENERATE_DICTIONARY(G__Thread ${headers} STAGE1 MODULE Thread LINKDEF LinkDef.h)
-
-ROOT_OBJECT_LIBRARY(ThreadObjs ${sources} G__Thread.cxx)
-ROOT_LINKER_LIBRARY(Thread $<TARGET_OBJECTS:ThreadObjs> ${sources_imt} LIBRARIES ${CMAKE_THREAD_LIBS_INIT} ${TBB_LIBRARIES} DEPENDENCIES Core)
-ROOT_INSTALL_HEADERS(${installoptions})
+ROOT_ADD_TEST_SUBDIRECTORY(test)

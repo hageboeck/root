@@ -22,7 +22,7 @@
 
 #include "NdbMTDir.h"
 
-//ClassImp(XSReactionDlg)
+//ClassImp(XSReactionDlg);
 
 // Options for filling containers
 enum   DirOptions {
@@ -497,7 +497,7 @@ XSReactionDlg::~XSReactionDlg()
 void
 XSReactionDlg::InitColorCombo(TGComboBox *cb)
 {
-   // Normaly this should be filled with color entries!!!
+   // Normally this should be filled with color entries!!!
 
    cb->AddEntry("Black",0);
    cb->AddEntry("Red",1);

@@ -12,17 +12,17 @@
 /**
  \class TFileCacheRead
  \ingroup IO
-    
+
  A cache when reading files over the network.
 
- A caching system to speed up network I/O, i.e. when there is     
- no operating system caching support (like the buffer cache for   
+ A caching system to speed up network I/O, i.e. when there is
+ no operating system caching support (like the buffer cache for
  local disk I/O). The cache makes sure that every I/O is done with
- a (large) fixed length buffer thereby avoiding many small I/O's. 
- Currently the read cache system is used by the classes TNetFile, 
- TXNetFile and TWebFile (via TFile::ReadBuffers()).                                                                       
+ a (large) fixed length buffer thereby avoiding many small I/O's.
+ Currently the read cache system is used by the classes TNetFile,
+ TXNetFile and TWebFile (via TFile::ReadBuffers()).
  When processing TTree, TChain, a specialized class TTreeCache that
- derives from this class is automatically created.                
+ derives from this class is automatically created.
 */
 
 #include "TEnv.h"
@@ -30,9 +30,9 @@
 #include "TFileCacheRead.h"
 #include "TFileCacheWrite.h"
 #include "TFilePrefetch.h"
-#include "TMath.h"
+#include "TMathBase.h"
 
-ClassImp(TFileCacheRead)
+ClassImp(TFileCacheRead);
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Default Constructor.
@@ -311,7 +311,7 @@ void TFileCacheRead::SecondPrefetch(Long64_t pos, Int_t len){
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Print cache statistics.
-/// 
+///
 /// The format is:
 ///     ******TreeCache statistics for file: cms2.root ******
 ///     Reading............................: 72761843 bytes in 7 transactions
@@ -329,7 +329,10 @@ void TFileCacheRead::Print(Option_t *option) const
    printf("Cached Reading.....................: %lld bytes in %d transactions\n",this->GetBytesRead(), this->GetReadCalls());
    printf("Reading............................: %lld bytes in %d uncached transactions\n",this->GetNoCacheBytesRead(), this->GetNoCacheReadCalls());
    printf("Readahead..........................: %d bytes with overhead = %lld bytes\n",TFile::GetReadaheadSize(),this->GetBytesReadExtra());
-   printf("Average transaction................: %f Kbytes\n",0.001*Double_t(this->GetBytesRead())/Double_t(this->GetReadCalls()));
+   if (this->GetReadCalls() > 0)
+      printf("Average transaction................: %f Kbytes\n",0.001*Double_t(this->GetBytesRead())/Double_t(this->GetReadCalls()));
+   else
+      printf("Average transaction................: No read calls yet\n");
    printf("Number of blocks in current cache..: %d, total size: %d\n",fNseek,fNtot);
    if (fPrefetch){
      printf("Prefetching .......................: %lli blocks\n", fPrefetchedBlocks);
@@ -442,7 +445,7 @@ Int_t TFileCacheRead::ReadBufferExtPrefetch(char *buf, Long64_t pos, Int_t len, 
 
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Base function for ReadBuffer. 
+/// Base function for ReadBuffer.
 ///
 /// Also gives out the position of the block in the internal buffer.
 /// This helps TTreeCacheUnzip to avoid doing twice the binary search.
@@ -557,7 +560,7 @@ void TFileCacheRead::SetFile(TFile *file, TFile::ECacheAction action)
    if (fPrefetch) {
       if (action == TFile::kDisconnect)
          SecondPrefetch(0, 0);
-      fPrefetch->SetFile(file);
+      fPrefetch->SetFile(file, action);
    }
 }
 

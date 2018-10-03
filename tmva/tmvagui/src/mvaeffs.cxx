@@ -1,37 +1,34 @@
+#include "TApplication.h"
+#include "TCanvas.h"
+#include "TClass.h"
+#include "TFile.h"
+#include "TFormula.h"
+#include "TGButton.h"
+#include "TGLabel.h"
+#include "TGNumberEntry.h"
+#include "TGWindow.h"
+#include "TGaxis.h"
+#include "TH1.h"
+#include "TH2.h"
+#include "TIterator.h"
+#include "TKey.h"
+#include "TLatex.h"
+#include "TLegend.h"
+#include "TLine.h"
+#include "TList.h"
 #include "TMVA/mvaeffs.h"
-#include <iostream>
+#include "TMVA/tmvaglob.h"
+#include "TPad.h"
+#include "TROOT.h"
+#include "TStyle.h"
+
 #include <iomanip>
+#include <iostream>
+
 using std::cout;
 using std::endl;
 using std::setfill;
 using std::setw;
-
-
-
-#include "RQ_OBJECT.h"
-
-#include "TH1.h"
-#include "TROOT.h"
-#include "TList.h"
-#include "TIterator.h"
-#include "TStyle.h"
-#include "TPad.h"
-#include "TCanvas.h"
-#include "TLatex.h"
-#include "TLegend.h"
-#include "TLine.h"
-#include "TH2.h"
-#include "TFormula.h"
-#include "TFile.h"
-#include "TApplication.h"
-#include "TKey.h"
-#include "TClass.h"
-#include "TGaxis.h"
-
-#include "TGWindow.h"
-#include "TGButton.h"
-#include "TGLabel.h"
-#include "TGNumberEntry.h"
 
 // this macro plots the signal and background efficiencies
 // as a function of the MVA cut.
@@ -148,10 +145,11 @@ TMVA::StatDialogMVAEffs::~StatDialogMVAEffs()
    fMain = 0;
 }
 
-TMVA::StatDialogMVAEffs::StatDialogMVAEffs(const TGWindow* p, Float_t ns, Float_t nb) :
+TMVA::StatDialogMVAEffs::StatDialogMVAEffs(TString ds,const TGWindow* p, Float_t ns, Float_t nb) :
    fNSignal(ns),
    fNBackground(nb),
    fFormula(""),
+   dataset(ds),
    fInfoList(0),
    fSigInput(0),
    fBkgInput(0),
@@ -201,8 +199,8 @@ TMVA::StatDialogMVAEffs::StatDialogMVAEffs(const TGWindow* p, Float_t ns, Float_
    fSigInput->Connect("ValueSet(Long_t)","TMVA::StatDialogMVAEffs",this, "SetNSignal()");
    fBkgInput->Connect("ValueSet(Long_t)","TMVA::StatDialogMVAEffs",this, "SetNBackground()");
 
-   fDrawButton->Connect("Clicked()","TGNumberEntry",fSigInput, "ValueSet(Long_t)");
-   fDrawButton->Connect("Clicked()","TGNumberEntry",fBkgInput, "ValueSet(Long_t)");
+//   fDrawButton->Connect("Clicked()","TGNumberEntry",fSigInput, "ValueSet(Long_t)");
+//   fDrawButton->Connect("Clicked()","TGNumberEntry",fBkgInput, "ValueSet(Long_t)");
    fDrawButton->Connect("Clicked()", "TMVA::StatDialogMVAEffs", this, "Redraw()");   
 
    fCloseButton->Connect("Clicked()", "TMVA::StatDialogMVAEffs", this, "Close()");
@@ -283,7 +281,7 @@ void TMVA::StatDialogMVAEffs::ReadHistograms(TFile* file)
    fInfoList = new TList;
 
    // search for the right histograms in full list of keys
-   TIter next(file->GetListOfKeys());
+   TIter next(file->GetDirectory(dataset.Data())->GetListOfKeys());
    TKey *key(0);   
    while( (key = (TKey*)next()) ) {
 
@@ -452,7 +450,7 @@ void TMVA::StatDialogMVAEffs::DrawHistograms()
       const Bool_t Save_Images = kTRUE;
 
       if (Save_Images) {
-         TMVAGlob::imgconv( c, Form("plots/mvaeffs_%s", info->methodTitle.Data()) ); 
+         TMVAGlob::imgconv( c, Form("%s/plots/mvaeffs_%s",dataset.Data(), info->methodTitle.Data()) ); 
       }
       countCanvas++;
    }
@@ -509,12 +507,21 @@ void TMVA::StatDialogMVAEffs::PrintResults( const MethodInfo* info )
    }
 }
 
-void TMVA::mvaeffs( TString fin , 
-              Bool_t useTMVAStyle, TString formula )
+void TMVA::mvaeffs(TString dataset, TString fin , 
+                   Bool_t useTMVAStyle, TString formula )
 {
    TMVAGlob::Initialize( useTMVAStyle );
 
-   StatDialogMVAEffs* gGui = new StatDialogMVAEffs(gClient->GetRoot(), 1000, 1000);
+   TGClient * graphicsClient = TGClient::Instance();
+   if (graphicsClient == nullptr) {
+      // When including mvaeffs in a stand-alone macro, the graphics subsystem
+      // is not initialised and `TGClient::Instance` is a nullptr.
+      graphicsClient = new TGClient();
+   }
+
+   StatDialogMVAEffs* gGui = new StatDialogMVAEffs(dataset, 
+      graphicsClient->GetRoot(), 1000, 1000);
+
 
    TFile* file = TMVAGlob::OpenFile( fin );
    gGui->ReadHistograms(file);

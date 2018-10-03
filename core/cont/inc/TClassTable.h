@@ -22,12 +22,8 @@
 //                                                                      //
 //////////////////////////////////////////////////////////////////////////
 
-#ifndef ROOT_TObject
 #include "TObject.h"
-#endif
-#ifndef ROOT_TString
 #include "TString.h"
-#endif
 
 class TProtoClass;
 
@@ -60,6 +56,8 @@ private:
    static ROOT::TClassRec   *FindElement(const char *cname, Bool_t insert=kFALSE);
    static void         SortTable();
 
+   static Bool_t CheckClassTableInit();
+
 public:
    // bits that can be set in pragmabits
    enum {
@@ -70,7 +68,7 @@ public:
    ~TClassTable();
 
    static void          Add(const char *cname, Version_t id,
-                            const type_info &info, DictFuncPtr_t dict,
+                            const std::type_info &info, DictFuncPtr_t dict,
                             Int_t pragmabits);
    static void          Add(TProtoClass *protoClass);
    static void          AddAlternate(const char *normname, const char *alternate);
@@ -80,7 +78,7 @@ public:
    static Version_t     GetID(const char *cname);
    static Int_t         GetPragmaBits(const char *name);
    static DictFuncPtr_t GetDict(const char *cname);
-   static DictFuncPtr_t GetDict(const type_info& info);
+   static DictFuncPtr_t GetDict(const std::type_info& info);
    static DictFuncPtr_t GetDictNorm(const char *cname);
    static TProtoClass  *GetProto(const char *cname);
    static TProtoClass  *GetProtoNorm(const char *cname);

@@ -9,26 +9,43 @@
  * For the list of contributors see $ROOTSYS/README/CREDITS.             *
  *************************************************************************/
 
-////////////////////////////////////////////////////////////////////////////////
-//
-// TGeoElement      - base class for chemical elements
-// TGeoElementRN    - class representing a radionuclide
-// TGeoElemIter     - iterator for decay branches
-// TGeoDecayChannel - a decay channel for a radionuclide
-// TGeoElementTable - table of elements
-//
-////////////////////////////////////////////////////////////////////////////////
+/** \class TGeoElement
+\ingroup Geometry_classes
+Base class for chemical elements
+*/
+
+/** \class TGeoElementRN
+\ingroup Geometry_classes
+Class representing a radionuclide
+*/
+
+/** \class TGeoElemIter
+\ingroup Geometry_classes
+Iterator for decay branches
+*/
+
+/** \class TGeoDecayChannel
+\ingroup Geometry_classes
+A decay channel for a radionuclide
+*/
+
+/** \class TGeoElementTable
+\ingroup Geometry_classes
+Table of elements
+*/
 
 #include "RConfigure.h"
 
 #include "Riostream.h"
 
 #include "TSystem.h"
+#include "TROOT.h"
 #include "TObjArray.h"
 #include "TVirtualGeoPainter.h"
 #include "TGeoManager.h"
 #include "TGeoElement.h"
 #include "TMath.h"
+#include "TGeoPhysicalConstants.h"
 
 // statics and globals
 static const Int_t gMaxElem  = 110;
@@ -63,7 +80,7 @@ static const Int_t gDecayDeltaZ[gMaxDecay] = {
              -2,           0,          -4,         -6,       -6 };
 static const char gLevName[gMaxLevel]=" mnpqrs";
 
-ClassImp(TGeoElement)
+ClassImp(TGeoElement);
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Default constructor
@@ -94,6 +111,7 @@ TGeoElement::TGeoElement(const char *name, const char *title, Int_t z, Double_t 
    fA = a;
    fIsotopes = NULL;
    fAbundances = NULL;
+   ComputeDerivedQuantities();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -126,8 +144,50 @@ TGeoElement::TGeoElement(const char *name, const char *title, Int_t z, Int_t n, 
    fA = a;
    fIsotopes = NULL;
    fAbundances = NULL;
+   ComputeDerivedQuantities();
 }
+////////////////////////////////////////////////////////////////////////////////
+/// Calculate properties for an atomic number
 
+void TGeoElement::ComputeDerivedQuantities()
+{
+   // Radiation Length
+   ComputeCoulombFactor();
+   ComputeLradTsaiFactor();
+}
+////////////////////////////////////////////////////////////////////////////////
+/// Compute Coulomb correction factor (Phys Rev. D50 3-1 (1994) page 1254)
+
+void TGeoElement::ComputeCoulombFactor()
+{
+   static const Double_t k1 = 0.0083 , k2 = 0.20206 ,k3 = 0.0020 , k4 = 0.0369 ;
+
+   Double_t az2 = (TGeoUnit::fine_structure_const*fZ)*(TGeoUnit::fine_structure_const*fZ);
+   Double_t az4 = az2 * az2;
+
+   fCoulomb = (k1*az4 + k2 + 1./(1.+az2))*az2 - (k3*az4 + k4)*az4;
+}
+////////////////////////////////////////////////////////////////////////////////
+/// Compute Tsai's Expression for the Radiation Length (Phys Rev. D50 3-1 (1994) page 1254)
+
+void TGeoElement::ComputeLradTsaiFactor()
+{
+   static const Double_t Lrad_light[]  = {5.31  , 4.79  , 4.74 ,  4.71} ;
+   static const Double_t Lprad_light[] = {6.144 , 5.621 , 5.805 , 5.924} ;
+
+   fRadTsai = 0.0;
+   if (fZ == 0) return;
+   const Double_t logZ3 = TMath::Log(fZ)/3.;
+
+   Double_t Lrad, Lprad;
+   Int_t iz = static_cast<Int_t>(fZ+0.5) - 1 ; // The static cast comes from G4lrint
+   static const Double_t log184 = TMath::Log(184.15);
+   static const Double_t log1194 = TMath::Log(1194.);
+   if (iz <= 3) { Lrad = Lrad_light[iz] ;  Lprad = Lprad_light[iz] ; }
+   else { Lrad = log184 - logZ3 ; Lprad = log1194 - 2*logZ3;}
+
+   fRadTsai = 4*TGeoUnit::alpha_rcl2*fZ*(fZ*(Lrad-fCoulomb) + Lprad);
+}
 ////////////////////////////////////////////////////////////////////////////////
 /// Print this isotope
 
@@ -197,6 +257,7 @@ void TGeoElement::AddIsotope(TGeoIsotope *isotope, Double_t relativeAbundance)
       fN = (Int_t)neff;
       fA = aeff;
    }
+   ComputeDerivedQuantities();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -237,7 +298,7 @@ Double_t TGeoElement::GetRelativeAbundance(Int_t i) const
    return 0.0;
 }
 
-ClassImp(TGeoIsotope)
+ClassImp(TGeoIsotope);
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Dummy I/O constructor
@@ -282,7 +343,7 @@ void TGeoIsotope::Print(Option_t *) const
    printf("Isotope: %s     Z=%d   N=%d   A=%f [g/mole]\n", GetName(), fZ,fN,fA);
 }
 
-ClassImp(TGeoElementRN)
+ClassImp(TGeoElementRN);
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Default constructor
@@ -374,7 +435,7 @@ void TGeoElementRN::AddDecay(TGeoDecayChannel *dc)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Get number of decay chanels of this element.
+/// Get number of decay channels of this element.
 
 Int_t TGeoElementRN::GetNdecays() const
 {
@@ -588,7 +649,7 @@ void TGeoElementRN::ResetRatio()
    }
 }
 
-ClassImp(TGeoDecayChannel)
+ClassImp(TGeoDecayChannel);
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Assignment.
@@ -708,7 +769,7 @@ void TGeoDecayChannel::DecayShift(Int_t &dA, Int_t &dZ, Int_t &dI) const
    }
 }
 
-ClassImp(TGeoElemIter)
+ClassImp(TGeoElemIter);
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Default constructor.
@@ -844,7 +905,7 @@ void TGeoElemIter::Print(Option_t * /*option*/) const
    }
 }
 
-ClassImp(TGeoElementTable)
+ClassImp(TGeoElementTable);
 
 ////////////////////////////////////////////////////////////////////////////////
 /// default constructor
@@ -953,9 +1014,9 @@ void TGeoElementTable::AddElement(TGeoElement *elem)
       Error("AddElement", "Found element with same name: %s (%s). Cannot add to table.",
              orig->GetName(), orig->GetTitle());
       return;
-   }          
+   }
    fList->AddAtAndExpand(elem, fNelements++);
-}   
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Add a radionuclide to the table and map it.
@@ -1113,12 +1174,8 @@ void TGeoElementTable::ImportElementsRN()
 {
    if (HasRNElements()) return;
    TGeoElementRN *elem;
-   TString rnf;
-#ifdef ROOTETCDIR
-   rnf.Form("%s/RadioNuclides.txt", ROOTETCDIR);
-#else
-   rnf.Form("%s/etc/RadioNuclides.txt", gSystem->Getenv("ROOTSYS"));
-#endif
+   TString rnf = "RadioNuclides.txt";
+   gSystem->PrependPathName(TROOT::GetEtcDir(), rnf);
    FILE *fp = fopen(rnf, "r");
    if (!fp) {
       Error("ImportElementsRN","File RadioNuclides.txt not found");
@@ -1220,7 +1277,7 @@ TGeoIsotope *TGeoElementTable::FindIsotope(const char *name) const
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Retreive a radionuclide by ENDF code.
+/// Retrieve a radionuclide by ENDF code.
 
 TGeoElementRN *TGeoElementTable::GetElementRN(Int_t ENDFcode) const
 {
@@ -1235,7 +1292,7 @@ TGeoElementRN *TGeoElementTable::GetElementRN(Int_t ENDFcode) const
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Retreive a radionuclide by a, z, and isomeric state.
+/// Retrieve a radionuclide by a, z, and isomeric state.
 
 TGeoElementRN *TGeoElementTable::GetElementRN(Int_t a, Int_t z, Int_t iso) const
 {
@@ -1278,10 +1335,10 @@ void TGeoElementTable::Print(Option_t *option) const
    if (opt=="" || opt=="U") {
       if (fNelements>induser) printf("================\nUser elements\n================\n");
       for (Int_t iel=induser; iel<fNelements; ++iel) fList->At(iel)->Print();
-   }      
+   }
 }
 
-ClassImp(TGeoBatemanSol)
+ClassImp(TGeoBatemanSol);
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Default ctor.

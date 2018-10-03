@@ -11,8 +11,8 @@
 
 //static TControlBar* CorrGui_Global__cbar = 0;
 
-void TMVA::CorrGui(  TString fin, TString dirName , TString title ,
-               Bool_t isRegression  )
+void TMVA::CorrGui(TString dataset,  TString fin, TString dirName , TString title ,
+                   Bool_t isRegression  )
 {
    // Use this script in order to run the various individual macros
    // that plot the output of TMVA (e.g. running TMVAnalysis.C),
@@ -30,19 +30,16 @@ void TMVA::CorrGui(  TString fin, TString dirName , TString title ,
 
    // create the control bar
    TControlBar* cbar = new TControlBar( "vertical", title, 50, 50 );
-//   CorrGui_Global__cbar = cbar;
+   //   CorrGui_Global__cbar = cbar;
 
    const char* buttonType = "button";
 
    // configure buttons      
    // checks if file with name "fin" is already open, and if not opens one
-   TFile *file = (TFile*)gROOT->GetListOfFiles()->FindObject(fin);
-   if (!file || !file->IsOpen()) {
-         file = new TFile(fin);
-   }
-   
+   TFile* file = TMVAGlob::OpenFile( fin );   
+
    gDirectory->pwd();
-   TDirectory* dir = (TDirectory*)gDirectory->Get( dirName );
+   TDirectory* dir = (TDirectory*)file->GetDirectory(dataset)->Get(dirName );
    if (!dir) {
       cout << "Could not locate directory '" << dirName << "' in file: " << fin << endl;
       cout << " Try again .. " <<endl;
@@ -78,7 +75,7 @@ void TMVA::CorrGui(  TString fin, TString dirName , TString title ,
             hname.ReplaceAll("__Signal","");
             hname.ReplaceAll("__Regression","");
             Var[it] = hname;
-            ++it;	
+            ++it;
          }
       }
    }
@@ -88,8 +85,7 @@ void TMVA::CorrGui(  TString fin, TString dirName , TString title ,
       cbar->AddButton( (Var[ic].Contains("_target") ? 
                         Form( "      Target: %s      ", Var[ic].ReplaceAll("_target","").Data()) : 
                         Form( "      Variable: %s      ", Var[ic].Data())),
-                       Form( "TMVA::correlationscatters(\"%s\",\"%s\",\"%s\",\"%s\",%i)", 
-                             fin.Data(), Var[ic].Data(), dirName.Data(), title.Data(), (Int_t)isRegression ),
+                       Form( "TMVA::correlationscatters(\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",%i)",dataset.Data(),fin.Data(), Var[ic].Data(), dirName.Data(), title.Data(), (Int_t)isRegression ),
                        buttonType );
    }
       

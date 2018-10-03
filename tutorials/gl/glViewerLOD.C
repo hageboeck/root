@@ -1,5 +1,10 @@
-//To set the Level Of Details when rendering geometry shapes
-//Author: Richard Maunder
+/// \file
+/// \ingroup tutorial_gl
+/// To set the Level Of Details when rendering geometry shapes.
+///
+/// \macro_code
+///
+/// \author Richard Maunder
 
 void glViewerLOD(Int_t reqNodes = 1000, Bool_t randomDist = kTRUE,
                  Bool_t reqSpheres = kTRUE, Bool_t reqTubes = kTRUE)
@@ -31,10 +36,10 @@ void glViewerLOD(Int_t reqNodes = 1000, Bool_t randomDist = kTRUE,
    UInt_t volumeCount = gRandom->Integer(reqNodes/4)+1;
    TGeoVolume ** volumes = new TGeoVolume *[volumeCount];
    TGeoVolume * volume;
-
+   UInt_t i;
    Double_t dummy;
 
-   for (UInt_t i = 0; i < volumeCount; i++) {
+   for (i = 0; i < volumeCount; i++) {
       char name[128];
       sprintf(name, "Volume_%d", i);
 

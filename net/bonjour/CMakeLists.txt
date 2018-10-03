@@ -3,12 +3,20 @@
 # @author Pere Mato, CERN
 ############################################################################
 
-include_directories(${BONJOUR_INCLUDE_DIR})
+ROOT_STANDARD_LIBRARY_PACKAGE(Bonjour
+  HEADERS
+    TBonjourBrowser.h
+    TBonjourRecord.h
+    TBonjourRegistrar.h
+    TBonjourResolver.h
+  SOURCES
+    TBonjourBrowser.cxx
+    TBonjourRecord.cxx
+    TBonjourRegistrar.cxx
+    TBonjourResolver.cxx
+  DEPENDENCIES
+    Core
+)
 
-ROOT_GENERATE_DICTIONARY(G__BONJ *.h MODULE Bonjour LINKDEF LinkDef.h)
-
-ROOT_LINKER_LIBRARY(Bonjour *.cxx G__BONJ.cxx LIBRARIES ${BONJOUR_LIBRARIES} DEPENDENCIES Core)
-
-ROOT_INSTALL_HEADERS()
-
-
+target_link_libraries(Bonjour PUBLIC ${BONJOUR_LIBRARIES})
+target_include_directories(Bonjour PUBLIC ${BONJOUR_INCLUDE_DIRS})

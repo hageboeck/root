@@ -13,8 +13,8 @@
 // input: - Input file (result from TMVA),
 //        - use of colors or grey scale
 //        - use of TMVA plotting TStyle
-void TMVA::correlations( TString fin , Bool_t isRegression , 
-                         Bool_t /* greyScale */ , Bool_t useTMVAStyle  )
+void TMVA::correlations(TString dataset, TString fin , Bool_t isRegression , 
+                        Bool_t /* greyScale */ , Bool_t useTMVAStyle  )
 {
 
    // set style and remove existing canvas'
@@ -30,7 +30,7 @@ void TMVA::correlations( TString fin , Bool_t isRegression ,
    const Int_t width = 600;
    for (Int_t ic=0; ic<ncls; ic++) {
 
-      TH2* h2 = dynamic_cast<TH2*> (file->Get( hName[ic] ));
+      TH2* h2 = dynamic_cast<TH2*> (file->GetDirectory(dataset.Data())->Get( hName[ic] ));
       if(!h2) {
          cout << "Did not find histogram " << hName[ic] << " in " << fin << endl;
          continue;
@@ -82,7 +82,7 @@ void TMVA::correlations( TString fin , Bool_t isRegression ,
       // TMVAGlob::plot_logo( );
       c->Update();
 
-      TString fname = "plots/";
+      TString fname = dataset+"/plots/";
       fname += hName[ic];
       TMVAGlob::imgconv( c, fname );
    }

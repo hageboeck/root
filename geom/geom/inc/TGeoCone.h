@@ -12,21 +12,7 @@
 #ifndef ROOT_TGeoCone
 #define ROOT_TGeoCone
 
-#ifndef ROOT_TGeoBBox
 #include "TGeoBBox.h"
-#endif
-
-
-
-////////////////////////////////////////////////////////////////////////////
-//                                                                        //
-// TGeoCone - conical tube  class. It has 5 parameters :                  //
-//            dz - half length in z                                       //
-//            Rmin1, Rmax1 - inside and outside radii at -dz              //
-//            Rmin2, Rmax2 - inside and outside radii at +dz              //
-//                                                                        //
-////////////////////////////////////////////////////////////////////////////
-
 
 class TGeoCone : public TGeoBBox
 {
@@ -109,15 +95,6 @@ public:
 
 };
 
-////////////////////////////////////////////////////////////////////////////
-//                                                                        //
-// TGeoConeSeg - a phi segment of a conical tube. Has 7 parameters :      //
-//            - the same 5 as a cone;                                     //
-//            - first phi limit (in degrees)                              //
-//            - second phi limit                                          //
-//                                                                        //
-////////////////////////////////////////////////////////////////////////////
-
 class TGeoConeSeg : public TGeoCone
 {
 protected:
@@ -125,13 +102,13 @@ protected:
    Double_t              fPhi1;  // first phi limit
    Double_t              fPhi2;  // second phi limit
    // Transient trigonometric data
-   Double_t              fS1;    //!sin(phi1)
-   Double_t              fC1;    //!cos(phi1)
-   Double_t              fS2;    //!sin(phi2)
-   Double_t              fC2;    //!cos(phi2)
-   Double_t              fSm;    //!sin(0.5*(phi1+phi2))
-   Double_t              fCm;    //!cos(0.5*(phi1+phi2))
-   Double_t              fCdfi;  //!cos(0.5*(phi1-phi2))
+   Double_t              fS1;    // sin(phi1)
+   Double_t              fC1;    // cos(phi1)
+   Double_t              fS2;    // sin(phi2)
+   Double_t              fC2;    // cos(phi2)
+   Double_t              fSm;    // sin(0.5*(phi1+phi2))
+   Double_t              fCm;    // cos(0.5*(phi1+phi2))
+   Double_t              fCdfi;  // cos(0.5*(phi1-phi2))
 
    void                  InitTrigonometry();
 
@@ -197,7 +174,7 @@ public:
    virtual void          SetSegsAndPols(TBuffer3D &buffer) const;
    virtual void          Sizeof3D() const;
 
-   ClassDef(TGeoConeSeg, 1)         // conical tube segment class
+   ClassDef(TGeoConeSeg, 2)         // conical tube segment class
 };
 
 #endif

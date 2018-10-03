@@ -30,12 +30,8 @@
 //////////////////////////////////////////////////////////////////////////////
 
 // ROOT
-#ifndef ROOT_DllImport
 #include "DllImport.h"
-#endif
-#ifndef ROOT_Rtypes
 #include "Rtypes.h"
-#endif
 
 // Standard
 #include <exception>
@@ -43,19 +39,16 @@
 
 namespace PyROOT {
 
-R__EXTERN void* TPyExceptionMagic;
-R__EXTERN void* TPyCPPExceptionMagic;
-
 class TPyException : public std::exception {
 public:
 // default constructor
    TPyException();
 
 // destructor
-   virtual ~TPyException() throw();
+   virtual ~TPyException() noexcept;
 
 // give reason for raised exception
-   virtual const char* what() const throw();
+   virtual const char* what() const noexcept;
 
    ClassDef(TPyException,0)   //C++ exception for throwing python exceptions
 };

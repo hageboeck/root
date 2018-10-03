@@ -43,7 +43,18 @@ namespace cling {
           m_HandledDecls.insert(m_FoundDRE->getDecl());
         }
       }
-      CS->setStmts(m_Sema->getASTContext(), Stmts.data(), Stmts.size());
+      CS->setStmts(m_Sema->getASTContext(), Stmts);
+    }
+
+    void Fix(CXXTryStmt* TS) {
+      Fix(TS->getTryBlock());
+      for(unsigned int h = 0; h < TS->getNumHandlers(); ++h) {
+        Stmt *s = TS->getHandler(h)->getHandlerBlock();
+        if (CompoundStmt* CS = dyn_cast_or_null<CompoundStmt>(s))
+          Fix(CS);
+        else if (CXXTryStmt *HandlerTS = dyn_cast_or_null<CXXTryStmt>(s))
+          Fix(HandlerTS);
+      }
     }
 
     bool VisitDeclRefExpr(DeclRefExpr* DRE) {
@@ -78,8 +89,11 @@ namespace cling {
       // getBody() might return nullptr even though hasBody() is true for
       // late template parsed functions. We simply don't do auto auto on
       // those.
-      if (CompoundStmt* CS = cast_or_null<CompoundStmt>(FD->getBody()))
+      Stmt *Body = FD->getBody();
+      if (CompoundStmt* CS = dyn_cast_or_null<CompoundStmt>(Body))
         m_AutoFixer->Fix(CS);
+      else if (CXXTryStmt *TS = dyn_cast_or_null<CXXTryStmt>(Body))
+        m_AutoFixer->Fix(TS);
     }
     return Result(D, true);
   }

@@ -41,16 +41,12 @@
 //                                                                      //
 //////////////////////////////////////////////////////////////////////////
 
-#ifndef ROOT_TNamed
 #include "TNamed.h"
-#endif
 
-#ifndef ROOT_ESTLType
 #include "ESTLType.h"
-#endif
 
 // The following are opaque type and are never really declared
-// The specific implemenation of TInterpreter will cast the
+// The specific implementation of TInterpreter will cast the
 // value of pointer to this types to the correct type (possibly
 // distinct from these)
 class CallFunc_t;
@@ -186,7 +182,7 @@ public:
    }
    virtual Long_t      Property() const = 0;
    static TDictionary* GetDictionary(const char* name);
-   static TDictionary* GetDictionary(const type_info &typeinfo);
+   static TDictionary* GetDictionary(const std::type_info &typeinfo);
 
    // Type of STL container (returned by IsSTLContainer).
    enum ESTLType {

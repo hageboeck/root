@@ -10,38 +10,41 @@
  * For the list of contributors see $ROOTSYS/README/CREDITS.             *
  *************************************************************************/
 
-//_____________________________________________________________________________
-// TGeoPcon - a polycone. It has at least 9 parameters :
-//            - the lower phi limit;
-//            - the range in phi;
-//            - the number of z planes (at least two) where the inner/outer
-//              radii are changing;
-//            - z coordinate, inner and outer radius for each z plane
-//
-//_____________________________________________________________________________
-//Begin_Html
-/*
-<img src="gif/t_pcon.gif">
-*/
-//End_Html
+/** \class TGeoPcon
+\ingroup Geometry_classes
+A polycone.
 
-//Begin_Html
-/*
-<img src="gif/t_pcondivPHI.gif">
-*/
-//End_Html
+It has at least 9 parameters:
+           - the lower phi limit;
+           - the range in phi;
+           - the number of z planes (at least two) where the inner/outer
+             radii are changing;
+           - z coordinate, inner and outer radius for each z plane
 
-//Begin_Html
-/*
-<img src="gif/t_pcondivstepPHI.gif">
+Begin_Macro(source)
+{
+   TCanvas *c = new TCanvas("c", "c",0,0,600,600);
+   new TGeoManager("pcon", "poza10");
+   TGeoMaterial *mat = new TGeoMaterial("Al", 26.98,13,2.7);
+   TGeoMedium *med = new TGeoMedium("MED",1,mat);
+   TGeoVolume *top = gGeoManager->MakeBox("TOP",med,100,100,100);
+   gGeoManager->SetTopVolume(top);
+   TGeoVolume *vol = gGeoManager->MakePcon("PCON",med, -30.0,300,4);
+   TGeoPcon *pcon = (TGeoPcon*)(vol->GetShape());
+   pcon->DefineSection(0,0,15,20);
+   pcon->DefineSection(1,20,15,20);
+   pcon->DefineSection(2,20,15,25);
+   pcon->DefineSection(3,50,15,20);
+   vol->SetLineWidth(2);
+   top->AddNode(vol,1);
+   gGeoManager->CloseGeometry();
+   gGeoManager->SetNsegments(30);
+   top->Draw();
+   TView *view = gPad->GetView();
+   view->ShowAxis();
+}
+End_Macro
 */
-//End_Html
-
-//Begin_Html
-/*
-<img src="gif/t_pcondivstepZ.gif">
-*/
-//End_Html
 
 #include "TGeoPcon.h"
 
@@ -57,13 +60,13 @@
 #include "TBuffer3DTypes.h"
 #include "TMath.h"
 
-ClassImp(TGeoPcon)
+ClassImp(TGeoPcon);
 
 ////////////////////////////////////////////////////////////////////////////////
 /// dummy ctor
 
 TGeoPcon::TGeoPcon()
-         :TGeoBBox(0, 0, 0),
+         :TGeoBBox(),
           fNz(0),
           fPhi1(0.),
           fDphi(0.),
@@ -166,13 +169,12 @@ TGeoPcon::TGeoPcon(const char *name, Double_t phi, Double_t dphi, Int_t nz)
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Default constructor in GEANT3 style
-/// param[0] = phi1
-/// param[1] = dphi
-/// param[2] = nz
-///
-/// param[3] = z1
-/// param[4] = Rmin1
-/// param[5] = Rmax1
+///  - param[0] = phi1
+///  - param[1] = dphi
+///  - param[2] = nz
+///  - param[3] = z1
+///  - param[4] = Rmin1
+///  - param[5] = Rmax1
 /// ...
 
 TGeoPcon::TGeoPcon(Double_t *param)
@@ -285,7 +287,7 @@ void TGeoPcon::ComputeBBox()
    for (Int_t isec=0; isec<fNz-1; isec++) {
       if (TMath::Abs(fZ[isec]-fZ[isec+1]) < TGeoShape::Tolerance()) {
          fZ[isec+1]=fZ[isec];
-         if (IsSameWithinTolerance(fRmin[isec], fRmin[isec+1]) && 
+         if (IsSameWithinTolerance(fRmin[isec], fRmin[isec+1]) &&
              IsSameWithinTolerance(fRmax[isec], fRmax[isec+1])) {
             InspectShape();
             Error("ComputeBBox", "Duplicated section %d/%d for shape %s", isec, isec+1, GetName());
@@ -654,11 +656,11 @@ Int_t TGeoPcon::GetNsegments() const
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-///--- Divide this polycone shape belonging to volume "voldiv" into ndiv volumes
+/// Divide this polycone shape belonging to volume "voldiv" into ndiv volumes
 /// called divname, from start position with the given step. Returns pointer
 /// to created division cell volume in case of Z divisions. Z divisions can be
 /// performed if the divided range is in between two consecutive Z planes.
-///  In case a wrong division axis is supplied, returns pointer to
+/// In case a wrong division axis is supplied, returns pointer to
 /// volume that was divided.
 
 TGeoVolume *TGeoPcon::Divide(TGeoVolume *voldiv, const char *divname, Int_t iaxis, Int_t ndiv,
@@ -685,14 +687,14 @@ TGeoVolume *TGeoPcon::Divide(TGeoVolume *voldiv, const char *divname, Int_t iaxi
          shape = new TGeoPcon(-step/2, step, fNz);
          for (is=0; is<fNz; is++)
             ((TGeoPcon*)shape)->DefineSection(is, fZ[is], fRmin[is], fRmax[is]);
-            vol = new TGeoVolume(divname, shape, voldiv->GetMedium());
-            vmulti->AddVolume(vol);
-            opt = "Phi";
-            for (id=0; id<ndiv; id++) {
-               voldiv->AddNodeOffset(vol, id, start+id*step+step/2, opt.Data());
-               ((TGeoNodeOffset*)voldiv->GetNodes()->At(voldiv->GetNdaughters()-1))->SetFinder(finder);
-            }
-            return vmulti;
+         vol = new TGeoVolume(divname, shape, voldiv->GetMedium());
+         vmulti->AddVolume(vol);
+         opt = "Phi";
+         for (id=0; id<ndiv; id++) {
+            voldiv->AddNodeOffset(vol, id, start+id*step+step/2, opt.Data());
+            ((TGeoNodeOffset*)voldiv->GetNodes()->At(voldiv->GetNdaughters()-1))->SetFinder(finder);
+         }
+         return vmulti;
       case 3: //---                Z division
          // find start plane
          for (ipl=0; ipl<fNz-1; ipl++) {
@@ -783,7 +785,7 @@ Double_t TGeoPcon::GetAxisRange(Int_t iaxis, Double_t &xlo, Double_t &xhi) const
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-///--- Fill vector param[4] with the bounding cylinder parameters. The order
+/// Fill vector param[4] with the bounding cylinder parameters. The order
 /// is the following : Rmin, Rmax, Phi1, Phi2
 
 void TGeoPcon::GetBoundingCylinder(Double_t *param) const
@@ -1091,7 +1093,7 @@ Double_t TGeoPcon::SafetyToSegment(const Double_t *point, Int_t ipl, Bool_t in, 
 ////////////////////////////////////////////////////////////////////////////////
 /// computes the closest distance from given point to this shape, according
 /// to option. The matching point on the shape is stored in spoint.
-///---> localize the Z segment
+/// localize the Z segment
 
 Double_t TGeoPcon::Safety(const Double_t *point, Bool_t in) const
 {
@@ -1130,6 +1132,7 @@ Double_t TGeoPcon::Safety(const Double_t *point, Bool_t in) const
       // check increasing iplanes
       iplane = ipl+1;
       saftmp = 0.;
+/*
       while ((iplane<fNz-1) && saftmp<1E10) {
          saftmp = TMath::Abs(SafetyToSegment(point,iplane,kFALSE,safmin));
          if (saftmp<safmin) safmin=saftmp;
@@ -1143,6 +1146,7 @@ Double_t TGeoPcon::Safety(const Double_t *point, Bool_t in) const
          if (saftmp<safmin) safmin=saftmp;
          iplane--;
       }
+*/
       return safmin;
    }
    //---> point is outside pcon
@@ -1304,17 +1308,7 @@ Int_t TGeoPcon::GetNmeshVertices() const
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-////// fill size of this 3-D object
-////   TVirtualGeoPainter *painter = gGeoManager->GetGeomer();
-////   if (!painter) return;
-////    Int_t n;
-////
-////    n = gGeoManager->GetNsegments()+1;
-////
-////    Int_t numPoints = fNz*2*n;
-////    Int_t numSegs   = 4*(fNz*n-1+(fDphi == 360));
-////    Int_t numPolys  = 2*(fNz*n-1+(fDphi == 360));
-////    painter->AddSize3D(numPoints, numSegs, numPolys);
+/// fill size of this 3-D object
 
 void TGeoPcon::Sizeof3D() const
 {
@@ -1355,8 +1349,8 @@ const TBuffer3D & TGeoPcon::GetBuffer3D(Int_t reqSections, Bool_t localFrame) co
          }
       }
    }
-   // TODO: Push down to TGeoShape?? Wuld have to do raw sizes set first..
-   // can rest of TGeoShape be defered until after this?
+   // TODO: Push down to TGeoShape?? Would have to do raw sizes set first..
+   // can rest of TGeoShape be deferred until after this?
    if ((reqSections & TBuffer3D::kRaw) && buffer.SectionsValid(TBuffer3D::kRawSizes)) {
       SetPoints(buffer.fPnts);
       if (!buffer.fLocalFrame) {
@@ -1414,7 +1408,7 @@ void TGeoPcon::ComputeNormal_v(const Double_t *points, const Double_t *dirs, Dou
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Compute distance from array of input points having directions specisied by dirs. Store output in dists
+/// Compute distance from array of input points having directions specified by dirs. Store output in dists
 
 void TGeoPcon::DistFromInside_v(const Double_t *points, const Double_t *dirs, Double_t *dists, Int_t vecsize, Double_t* step) const
 {
@@ -1422,7 +1416,7 @@ void TGeoPcon::DistFromInside_v(const Double_t *points, const Double_t *dirs, Do
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Compute distance from array of input points having directions specisied by dirs. Store output in dists
+/// Compute distance from array of input points having directions specified by dirs. Store output in dists
 
 void TGeoPcon::DistFromOutside_v(const Double_t *points, const Double_t *dirs, Double_t *dists, Int_t vecsize, Double_t* step) const
 {

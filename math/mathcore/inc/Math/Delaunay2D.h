@@ -21,9 +21,7 @@
 //#define THREAD_SAFE
 
 
-#ifndef ROOT_TNamed
 #include "TNamed.h"
-#endif
 
 #include <map>
 #include <vector>
@@ -273,7 +271,7 @@ protected:
    double fYCellStep; //! inverse denominator to calculate X cell = fNCells / (fYNmax - fYNmin)
    std::set<UInt_t> fCells[(fNCells+1)*(fNCells+1)]; //! grid cells with containing triangles
 
-   inline unsigned int Cell(uint x, uint y) const {
+   inline unsigned int Cell(UInt_t x, UInt_t y) const {
 	   return x*(fNCells+1) + y;
    }
 

@@ -159,10 +159,16 @@ namespace cling {
       ///\param[in] placement - where to copy
       ///\param[in] size - size of the array.
       ///
-      template <typename T>
-      void copyArray(T* src, void* placement, int size) {
-        for (int i = 0; i < size; ++i)
+      template <class T, class = T (*)() /*disable for arrays*/>
+      void copyArray(T* src, void* placement, std::size_t size) {
+        for (std::size_t i = 0; i < size; ++i)
           new ((void*)(((T*)placement) + i)) T(src[i]);
+      }
+
+      // "size" is the number of elements even for subarrays; flatten the type:
+      template <class T, std::size_t N>
+      void copyArray(const T (*src)[N], void* placement, std::size_t size) {
+        copyArray(src[0], placement, size);
       }
     } // end namespace internal
   } // end namespace runtime
@@ -171,12 +177,12 @@ namespace cling {
 using namespace cling::runtime;
 
 extern "C" {
-  ///\brief a function that throws NullDerefException. This allows to 'hide' the
-  /// definition of the exceptions from the RuntimeUniverse and allows us to
+  ///\brief a function that throws InvalidDerefException. This allows to 'hide'
+  /// the definition of the exceptions from the RuntimeUniverse and allows us to
   /// run cling in -no-rtti mode.
   ///
 
-  void cling_runtime_internal_throwIfInvalidPointer(void* Sema,
+  void* cling_runtime_internal_throwIfInvalidPointer(void* Sema,
                                                     void* Expr,
                                                     const void* Arg);
 }

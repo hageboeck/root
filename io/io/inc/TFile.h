@@ -22,15 +22,17 @@
 //////////////////////////////////////////////////////////////////////////
 
 #include <atomic>
-#ifndef ROOT_TDirectoryFile
+
 #include "TDirectoryFile.h"
-#endif
-#ifndef ROOT_TMap
 #include "TMap.h"
-#endif
-#ifndef ROOT_TUrl
 #include "TUrl.h"
+#include "ROOT/RConcurrentHashColl.hxx"
+
+#ifdef R__USE_IMT
+#include "ROOT/TRWSpinLock.hxx"
+#include <mutex>
 #endif
+
 
 class TFree;
 class TArrayC;
@@ -45,6 +47,11 @@ class TFilePrefetch;
 class TFile : public TDirectoryFile {
   friend class TDirectoryFile;
   friend class TFilePrefetch;
+// TODO: We need to make sure only one TBasket is being written at a time
+// if we are writing multiple baskets in parallel.
+#ifdef R__USE_IMT
+  friend class TBasket;
+#endif
 
 public:
    /// Asynchronous open request status
@@ -99,6 +106,12 @@ protected:
    TList           *fInfoCache;      ///<!Cached list of the streamer infos in this file
    TList           *fOpenPhases;     ///<!Time info about open phases
 
+#ifdef R__USE_IMT
+   static ROOT::TRWSpinLock                   fgRwLock;     ///<!Read-write lock to protect global PID list
+   std::mutex                                 fWriteMutex;  ///<!Lock for writing baskets / keys into the file.
+   static ROOT::Internal::RConcurrentHashColl fgTsSIHashes; ///<!TS Set of hashes built from read streamer infos
+#endif
+
    static TList    *fgAsyncOpenRequests; //List of handles for pending open requests
 
    static TString   fgCacheFileDir;          ///<Directory where to locally stage files
@@ -115,9 +128,19 @@ protected:
    static Bool_t    fgReadInfo;              ///<if true (default) ReadStreamerInfo is called when opening a file
    virtual EAsyncOpenStatus GetAsyncOpenStatus() { return fAsyncOpenStatus; }
    virtual void  Init(Bool_t create);
-   Bool_t        FlushWriteCache();
-   Int_t         ReadBufferViaCache(char *buf, Int_t len);
-   Int_t         WriteBufferViaCache(const char *buf, Int_t len);
+   Bool_t                    FlushWriteCache();
+   Int_t                     ReadBufferViaCache(char *buf, Int_t len);
+   Int_t                     WriteBufferViaCache(const char *buf, Int_t len);
+
+   ////////////////////////////////////////////////////////////////////////////////
+   /// \brief Simple struct of the return value of GetStreamerInfoListImpl
+   struct InfoListRet {
+      TList *fList;
+      Int_t  fReturnCode;
+      ROOT::Internal::RConcurrentHashColl::HashValue fHash;
+   };
+
+   virtual InfoListRet GetStreamerInfoListImpl(bool lookupSICache);
 
    // Creating projects
    Int_t         MakeProjectParMake(const char *packname, const char *filename);
@@ -163,7 +186,7 @@ public:
    enum EFileType { kDefault = 0, kLocal = 1, kNet = 2, kWeb = 3, kFile = 4, kMerge = 5};
 
    TFile();
-   TFile(const char *fname, Option_t *option="", const char *ftitle="", Int_t compress=1);
+   TFile(const char *fname, Option_t *option="", const char *ftitle="", Int_t compress=4);
    virtual ~TFile();
    virtual void        Close(Option_t *option=""); // *MENU*
    virtual void        Copy(TObject &) const { MayNotUse("Copy(TObject &)"); }
@@ -212,7 +235,7 @@ public:
    virtual Long64_t    GetSeekFree() const {return fSeekFree;}
    virtual Long64_t    GetSeekInfo() const {return fSeekInfo;}
    virtual Long64_t    GetSize() const;
-   virtual TList      *GetStreamerInfoList();
+   virtual TList      *GetStreamerInfoList() final; // Note: to override behavior, please override GetStreamerInfoListImpl
    const   TList      *GetStreamerInfoCache();
    virtual void        IncrementProcessIDs() { fNProcessIDs++; }
    virtual Bool_t      IsArchive() const { return fIsArchive; }
@@ -223,7 +246,8 @@ public:
    virtual void        MakeFree(Long64_t first, Long64_t last);
    virtual void        MakeProject(const char *dirname, const char *classes="*",
                                    Option_t *option="new"); // *MENU*
-   virtual void        Map(); // *MENU*
+   virtual void        Map(Option_t *opt); // *MENU*
+   virtual void        Map() { Map(""); }; // *MENU*
    virtual Bool_t      Matches(const char *name);
    virtual Bool_t      MustFlush() const {return fMustFlush;}
    virtual void        Paint(Option_t *option="");
@@ -241,8 +265,8 @@ public:
    virtual void        SetCacheRead(TFileCacheRead *cache, TObject* tree = 0, ECacheAction action = kDisconnect);
    virtual void        SetCacheWrite(TFileCacheWrite *cache);
    virtual void        SetCompressionAlgorithm(Int_t algorithm=0);
-   virtual void        SetCompressionLevel(Int_t level=1);
-   virtual void        SetCompressionSettings(Int_t settings=1);
+   virtual void        SetCompressionLevel(Int_t level=4);
+   virtual void        SetCompressionSettings(Int_t settings=4);
    virtual void        SetEND(Long64_t last) { fEND = last; }
    virtual void        SetOffset(Long64_t offset, ERelativeTo pos = kBeg);
    virtual void        SetOption(Option_t *option=">") { fOption = option; }
@@ -288,7 +312,10 @@ public:
    static Long64_t     GetFileCounter();
    static void         IncrementFileCounter();
 
-   static Bool_t       SetCacheFileDir(const char *cacheDir, Bool_t operateDisconnected = kTRUE,
+   static Bool_t       SetCacheFileDir(ROOT::Internal::TStringView cacheDir, Bool_t operateDisconnected = kTRUE,
+                                       Bool_t forceCacheread = kFALSE)
+     { return SetCacheFileDir(std::string_view(cacheDir), operateDisconnected, forceCacheread); }
+   static Bool_t       SetCacheFileDir(std::string_view cacheDir, Bool_t operateDisconnected = kTRUE,
                                        Bool_t forceCacheread = kFALSE);
    static const char  *GetCacheFileDir();
    static Bool_t       ShrinkCacheFileDir(Long64_t shrinkSize, Long_t cleanupInteval = 0);
@@ -311,7 +338,7 @@ public:
 R__EXTERN TFile   *gFile;
 #endif
 
-/** 
+/**
 \class TFileOpenHandle
 \ingroup IO
 Class holding info about the file being opened

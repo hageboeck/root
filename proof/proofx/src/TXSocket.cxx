@@ -913,6 +913,45 @@ void TXSocket::PostSemAll()
    return;
 }
 
+////////////////////////////////////////////////////////////////////////////////
+/// Getter for logical connection ID
+
+Int_t TXSocket::GetLogConnID() const
+{
+   return (fConn ? fConn->GetLogConnID() : -1);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+/// Getter for last error
+
+Int_t TXSocket::GetOpenError() const
+{
+   return (fConn ? fConn->GetOpenError() : -1);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+/// Getter for server type
+
+Int_t TXSocket::GetServType() const
+{
+   return (fConn ? fConn->GetServType() : -1);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+/// Getter for session ID
+
+Int_t TXSocket::GetSessionID() const
+{
+   return (fConn ? fConn->GetSessionID() : -1);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+/// Getter for validity status
+
+Bool_t TXSocket::IsValid() const
+{
+   return (fConn ? (fConn->IsValid()) : kFALSE);
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Return kTRUE if the remote server is a 'proofd'
@@ -1480,7 +1519,7 @@ TXSockBuf *TXSocket::PopUpSpare(Int_t size)
    Int_t maxsz = 0;
    if (fgSQue.size() > 0) {
       list<TXSockBuf *>::iterator i;
-      for (i = fgSQue.begin(); i != fgSQue.end(); i++) {
+      for (i = fgSQue.begin(); i != fgSQue.end(); ++i) {
          maxsz = ((*i)->fSiz > maxsz) ? (*i)->fSiz : maxsz;
          if ((*i) && (*i)->fSiz >= size) {
             buf = *i;
@@ -1631,6 +1670,16 @@ Int_t TXSocket::SendInterrupt(Int_t type)
    // Failure notification (avoid using the handler: we may be exiting)
    Error("SendInterrupt", "problems sending interrupt to server");
    return -1;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+void TXSocket::SetInterrupt(Bool_t i)
+{
+   std::lock_guard<std::recursive_mutex> lock(fAMtx);
+   fRDInterrupt = i;
+   if (i && fConn) fConn->SetInterrupt();
+   if (i && fAWait) fASem.Post();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1924,6 +1973,12 @@ void TXSocket::SendUrgent(Int_t type, Int_t int1, Int_t int2)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+
+Int_t TXSocket::GetLowSocket() const {
+   return (fConn ? fConn->GetLowSocket() : -1);
+}
+
+////////////////////////////////////////////////////////////////////////////////
 /// Init environment variables for XrdClient
 
 void TXSocket::InitEnvs()
@@ -2080,7 +2135,7 @@ Int_t TXSocket::Reconnect()
    if (gDebug > 0) {
       Info("Reconnect", "%p (c:%p, v:%d): trying to reconnect to %s (logid: %d)",
                         this, fConn, (fConn ? fConn->IsValid() : 0),
-                        fUrl.Data(), fConn->GetLogConnID());
+                        fUrl.Data(), (fConn ? fConn->GetLogConnID() : -1));
    }
 
    Int_t tryreconnect = gEnv->GetValue("TXSocket.Reconnect", 0);

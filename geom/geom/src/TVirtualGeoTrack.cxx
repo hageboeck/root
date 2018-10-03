@@ -9,24 +9,26 @@
  * For the list of contributors see $ROOTSYS/README/CREDITS.             *
  *************************************************************************/
 
-#include "TGeoManager.h"
-
 #include "TVirtualGeoTrack.h"
 
-//______________________________________________________________________________
-// TVirtualGeoTrack - Base class for user-defined tracks attached to a geometry.
-//             Tracks are 3D objects made of points and they store a
-//             pointer to a TParticle. The geometry manager holds a list
-//             of all tracks that will be deleted on destruction of
-//             gGeoManager.
-//
-//______________________________________________________________________________
+#include "Rtypes.h"
+#include "TGeoManager.h"
+#include "TObject.h"
 
-ClassImp(TVirtualGeoTrack)
+/** \class TVirtualGeoTrack
+\ingroup Geometry_classes
+
+Base class for user-defined tracks attached to a geometry.
+Tracks are 3D objects made of points and they store a
+pointer to a TParticle. The geometry manager holds a list
+of all tracks that will be deleted on destruction of
+gGeoManager.
+*/
+
+ClassImp(TVirtualGeoTrack);
 
 ////////////////////////////////////////////////////////////////////////////////
-///*-*-*-*-*-*-*-*-*-*-*Virtual tracks default constructor*-*-*-*-*-*-*-*-*
-///*-*                  ==================================
+/// Virtual tracks default constructor
 
 TVirtualGeoTrack::TVirtualGeoTrack()
 {

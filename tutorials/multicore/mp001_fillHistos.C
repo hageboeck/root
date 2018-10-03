@@ -1,21 +1,26 @@
 /// \file
 /// \ingroup tutorial_multicore
+/// \notebook -nodraw
 /// Fill histograms in parallel and write them on file.
 /// This example expresses the parallelism of the mt001_fillHistos.C tutorial
 /// with multiprocessing techniques.
 ///
 /// \macro_code
 ///
+/// \date January 2016
 /// \author Danilo Piparo
 
-Int_t mp001_fillHistos(UInt_t nWorkers = 4)
+// Total amount of numbers
+const UInt_t nNumbers = 20000000U;
+
+// The number of workers
+const UInt_t nWorkers = 4U;
+
+Int_t mp001_fillHistos()
 {
 
-   // Total amount of numbers
-   const UInt_t nNumbers = 20000000U;
-
    // We define our work item
-   auto workItem = [nNumbers](UInt_t workerID) {
+   auto workItem = [](UInt_t workerID) {
       // One generator, file and ntuple per worker
       TRandom3 workerRndm(workerID); // Change the seed
       TFile f(Form("myFile_%u.root", workerID), "RECREATE");
@@ -28,13 +33,10 @@ Int_t mp001_fillHistos(UInt_t nWorkers = 4)
    };
 
    // Create the pool of workers
-   TProcPool workers(nWorkers);
+   ROOT::TProcessExecutor workers(nWorkers);
 
    // Fill the pool with work
-   std::forward_list<UInt_t> workerIDs(nWorkers);
-   std::iota(std::begin(workerIDs), std::end(workerIDs), 0);
-   workers.Map(workItem, workerIDs);
+   workers.Map(workItem, ROOT::TSeqI(nWorkers));
 
    return 0;
-
 }

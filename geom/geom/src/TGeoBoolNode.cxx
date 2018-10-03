@@ -14,7 +14,6 @@
 
 #include "Riostream.h"
 
-#include "TThread.h"
 #include "TVirtualPad.h"
 #include "TVirtualViewer3D.h"
 #include "TBuffer3D.h"
@@ -24,30 +23,28 @@
 #include "TGeoMatrix.h"
 #include "TGeoManager.h"
 
-//_____________________________________________________________________________
-//  TGeoBoolNode - base class for Boolean operations between two shapes.
-//===============
-// A Boolean node describes a Boolean operation between 'left' and 'right'
-// shapes positioned with respect to an ARBITRARY reference frame. The boolean
-// node is referenced by a mother composite shape and its shape components may
-// be primitive but also composite shapes. The later situation leads to a binary
-// tree hierarchy. When the parent composite shape is used to create a volume,
-// the reference frame of the volume is chosen to match the frame in which
-// node shape components were defined.
-//
-// The positioned shape components may or may not be disjoint. The specific
-// implementations for Boolean nodes are:
-//
-//    TGeoUnion - representing the Boolean  union of two positioned shapes
-//
-//    TGeoSubtraction - representing the Boolean subtraction of two positioned
-//                shapes
-//
-//    TGeoIntersection - representing the Boolean intersection of two positioned
-//                shapes
-//_____________________________________________________________________________
+/** \class TGeoBoolNode
+\ingroup Geometry_classes
 
-ClassImp(TGeoBoolNode)
+Base class for Boolean operations between two shapes.
+
+A Boolean node describes a Boolean operation between 'left' and 'right'
+shapes positioned with respect to an ARBITRARY reference frame. The boolean
+node is referenced by a mother composite shape and its shape components may
+be primitive but also composite shapes. The later situation leads to a binary
+tree hierarchy. When the parent composite shape is used to create a volume,
+the reference frame of the volume is chosen to match the frame in which
+node shape components were defined.
+
+The positioned shape components may or may not be disjoint. The specific
+implementations for Boolean nodes are:
+
+  - TGeoUnion - representing the Boolean  union of two positioned shapes
+  - TGeoSubtraction - representing the Boolean subtraction of two positioned shapes
+  - TGeoIntersection - representing the Boolean intersection of two positioned shapes
+*/
+
+ClassImp(TGeoBoolNode);
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Constructor.
@@ -70,7 +67,7 @@ TGeoBoolNode::ThreadData_t& TGeoBoolNode::GetThreadData() const
 {
    Int_t tid = TGeoManager::ThreadId();
 /*
-   TThread::Lock();
+   std::lock_guard<std::mutex> guard(fMutex);
    if (tid >= fThreadSize) {
       Error("GetThreadData", "Thread id=%d bigger than maximum declared thread number %d. \nUse TGeoManager::SetMaxThreads properly !!!",
              tid, fThreadSize);
@@ -85,7 +82,6 @@ TGeoBoolNode::ThreadData_t& TGeoBoolNode::GetThreadData() const
    if (fThreadData[tid] == 0)
       fThreadData[tid] = new ThreadData_t;
    }
-   TThread::UnLock();
 */
    return *fThreadData[tid];
 }
@@ -94,7 +90,7 @@ TGeoBoolNode::ThreadData_t& TGeoBoolNode::GetThreadData() const
 
 void TGeoBoolNode::ClearThreadData() const
 {
-   TThread::Lock();
+   std::lock_guard<std::mutex> guard(fMutex);
    std::vector<ThreadData_t*>::iterator i = fThreadData.begin();
    while (i != fThreadData.end())
    {
@@ -103,7 +99,6 @@ void TGeoBoolNode::ClearThreadData() const
    }
    fThreadData.clear();
    fThreadSize = 0;
-   TThread::UnLock();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -111,7 +106,7 @@ void TGeoBoolNode::ClearThreadData() const
 
 void TGeoBoolNode::CreateThreadData(Int_t nthreads)
 {
-   TThread::Lock();
+   std::lock_guard<std::mutex> guard(fMutex);
    fThreadData.resize(nthreads);
    fThreadSize = nthreads;
    for (Int_t tid=0; tid<nthreads; tid++) {
@@ -122,7 +117,6 @@ void TGeoBoolNode::CreateThreadData(Int_t nthreads)
    // Propagate to components
    if (fLeft)  fLeft->CreateThreadData(nthreads);
    if (fRight) fRight->CreateThreadData(nthreads);
-   TThread::UnLock();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -338,7 +332,7 @@ void TGeoBoolNode::RegisterMatrices()
 Bool_t TGeoBoolNode::ReplaceMatrix(TGeoMatrix *mat, TGeoMatrix *newmat)
 {
    if (mat==gGeoIdentity || newmat==gGeoIdentity) {
-      Error("ReplaceMatrix", "Matrices should not be gGeoIdentity. Use default matrix constructor to repersent identities.");
+      Error("ReplaceMatrix", "Matrices should not be gGeoIdentity. Use default matrix constructor to represent identities.");
       return kFALSE;
    }
    if (!mat || !newmat) {
@@ -403,7 +397,7 @@ void TGeoBoolNode::Sizeof3D() const
    fRight->Sizeof3D();
 }
 
-ClassImp(TGeoUnion)
+ClassImp(TGeoUnion);
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Make a clone of this. Pointers are preserved.
@@ -806,7 +800,7 @@ void TGeoUnion::Sizeof3D() const
 }
 
 
-ClassImp(TGeoSubtraction)
+ClassImp(TGeoSubtraction);
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Make a clone of this. Pointers are preserved.
@@ -855,7 +849,7 @@ TGeoSubtraction::TGeoSubtraction(TGeoShape *left, TGeoShape *right, TGeoMatrix *
                 :TGeoBoolNode(left,right,lmat,rmat)
 {
    if (left->TestShapeBit(TGeoShape::kGeoHalfSpace)) {
-      Fatal("TGeoSubstraction", "Substractions from a half-space (%s) not allowed", left->GetName());
+      Fatal("TGeoSubstraction", "Subtractions from a half-space (%s) not allowed", left->GetName());
    }
 }
 
@@ -1138,7 +1132,7 @@ void TGeoSubtraction::Sizeof3D() const
    TGeoBoolNode::Sizeof3D();
 }
 
-ClassImp(TGeoIntersection)
+ClassImp(TGeoIntersection);
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Make a clone of this. Pointers are preserved.

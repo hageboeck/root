@@ -20,6 +20,7 @@
 
 #include "TROOT.h"
 #include "TClass.h"
+#include "TClassEdit.h"
 #include "TVirtualX.h"
 #include "TStyle.h"
 #include "TObjectTable.h"
@@ -36,6 +37,7 @@
 #include "TInterpreter.h"
 #include "TObjArray.h"
 #include "TObjString.h"
+#include "TStorage.h" // ROOT::Internal::gMmallocDesc
 #include "TTabCom.h"
 #include "TError.h"
 #include <stdlib.h>
@@ -46,8 +48,6 @@
 #ifdef R__UNIX
 #include <signal.h>
 #endif
-
-R__EXTERN void *gMmallocDesc; //is used and set in TMapFile and TClass
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -95,16 +95,19 @@ Bool_t TInterruptHandler::Notify()
    }
 
    // make sure we use the sbrk heap (in case of mapped files)
-   gMmallocDesc = 0;
+   ROOT::Internal::gMmallocDesc = 0;
 
-   Break("TInterruptHandler::Notify", "keyboard interrupt");
-   if (TROOT::Initialized()) {
+   if (TROOT::Initialized() && gROOT->IsLineProcessing()) {
+      Break("TInterruptHandler::Notify", "keyboard interrupt");
       Getlinem(kInit, "Root > ");
       gCling->Reset();
 #ifndef WIN32
    if (gException)
       Throw(GetSignal());
 #endif
+   } else {
+      // Reset input.
+      Getlinem(kClear, ((TRint*)gApplication)->GetPrompt());
    }
 
    return kTRUE;
@@ -129,7 +132,7 @@ Bool_t TTermInputHandler::Notify()
 }
 
 
-ClassImp(TRint)
+ClassImp(TRint);
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Create an application environment. The TRint environment provides an
@@ -140,7 +143,7 @@ ClassImp(TRint)
 TRint::TRint(const char *appClassName, Int_t *argc, char **argv, void *options,
              Int_t numOptions, Bool_t noLogo):
    TApplication(appClassName, argc, argv, options, numOptions),
-   fCaughtException(kFALSE)
+   fCaughtSignal(0)
 {
    fNcmd          = 0;
    fDefaultPrompt = "root [%d] ";
@@ -153,9 +156,9 @@ TRint::TRint(const char *appClassName, Int_t *argc, char **argv, void *options,
       PrintLogo(lite);
    }
 
-   // Explicitly load libMathCore as CINT will not auto load it when using one
-   // of its globals. Once moved to Cling, which should work correctly, we
-   // can remove this statement.
+   // Explicitly load libMathCore it cannot be auto-loaded it when using one
+   // of its freestanding functions. Once functions can trigger autoloading we
+   // can get rid of this.
    if (!gClassTable->GetDict("TRandom"))
       gSystem->Load("libMathCore");
 
@@ -301,17 +304,7 @@ void TRint::ExecLogon()
    TString name = ".rootlogon.C";
    TString sname = "system";
    sname += name;
-#ifdef ROOTETCDIR
-   char *s = gSystem->ConcatFileName(ROOTETCDIR, sname);
-#else
-   TString etc = gRootDir;
-#ifdef WIN32
-   etc += "\\etc";
-#else
-   etc += "/etc";
-#endif
-   char *s = gSystem->ConcatFileName(etc, sname);
-#endif
+   char *s = gSystem->ConcatFileName(TROOT::GetEtcDir(), sname);
    if (!gSystem->AccessPathName(s, kReadPermission)) {
       ProcessFile(s);
    }
@@ -349,7 +342,10 @@ void TRint::ExecLogon()
 
 void TRint::Run(Bool_t retrn)
 {
-   Getlinem(kInit, GetPrompt());
+   if (!QuitOpt()) {
+      // Promt prompt only if we are expecting / allowing input.
+      Getlinem(kInit, GetPrompt());
+   }
 
    Long_t retval = 0;
    Int_t  error = 0;
@@ -381,8 +377,13 @@ void TRint::Run(Bool_t retrn)
       RETRY {
          retval = 0; error = 0;
          Int_t nfile = 0;
-         TObjString *file;
-         while ((file = (TObjString *)next())) {
+         while (TObject *fileObj = next()) {
+            if (dynamic_cast<TNamed*>(fileObj)) {
+               // A file that TApplication did not find. Note the error.
+               retval = 1;
+               continue;
+            }
+            TObjString *file = (TObjString *)fileObj;
             char cmd[kMAXPATHLEN+50];
             if (!fNcmd)
                printf("\n");
@@ -424,7 +425,7 @@ void TRint::Run(Bool_t retrn)
             // to call Getlinem(kInit, GetPrompt());
             needGetlinemInit = kTRUE;
 
-            if (error != 0 || fCaughtException) break;
+            if (error != 0 || fCaughtSignal) break;
          }
       } ENDTRY;
 
@@ -432,12 +433,12 @@ void TRint::Run(Bool_t retrn)
          if (retrn) return;
          if (error) {
             retval = error;
-         } else if (fCaughtException) {
-            retval = 1;
+         } else if (fCaughtSignal) {
+            retval = fCaughtSignal + 128;
          }
-         // Bring retval into sensible range, 0..125.
-         if (retval < 0) retval = 1;
-         else if (retval > 125) retval = 1;
+         // Bring retval into sensible range, 0..255.
+         if (retval < 0 || retval > 255)
+            retval = 255;
          Terminate(retval);
       }
 
@@ -453,10 +454,13 @@ void TRint::Run(Bool_t retrn)
    if (QuitOpt()) {
       printf("\n");
       if (retrn) return;
-      Terminate(fCaughtException ? 1 : 0);
+      Terminate(fCaughtSignal ? fCaughtSignal + 128 : 0);
    }
 
    TApplication::Run(retrn);
+
+   // Reset to happiness.
+   fCaughtSignal = 0;
 
    Getlinem(kCleanUp, 0);
 }
@@ -471,10 +475,10 @@ void TRint::PrintLogo(Bool_t lite)
       // replaced by spaces needed to make all lines as long as the longest line.
       std::vector<TString> lines;
       // Here, %%s results in %s after TString::Format():
-      lines.emplace_back(TString::Format("Welcome to ROOT %s%%shttp://root.cern.ch",
+      lines.emplace_back(TString::Format("Welcome to ROOT %s%%shttps://root.cern",
                                          gROOT->GetVersion()));
-      lines.emplace_back(TString::Format("%%s(c) 1995-2014, The ROOT Team"));
-      lines.emplace_back(TString::Format("Built for %s%%s", gSystem->GetBuildArch()));
+      lines.emplace_back(TString::Format("%%s(c) 1995-2018, The ROOT Team"));
+      lines.emplace_back(TString::Format("Built for %s on %s%%s", gSystem->GetBuildArch(), gROOT->GetGitDate()));
       if (!strcmp(gROOT->GetGitBranch(), gROOT->GetGitCommit())) {
          static const char *months[] = {"January","February","March","April","May",
                                         "June","July","August","September","October",
@@ -490,9 +494,9 @@ void TRint::PrintLogo(Bool_t lite)
       } else {
          // If branch and commit are identical - e.g. "v5-34-18" - then we have
          // a release build. Else specify the git hash this build was made from.
-         lines.emplace_back(TString::Format("From %s@%s, %s%%s",
+         lines.emplace_back(TString::Format("From %s@%s %%s",
                                             gROOT->GetGitBranch(),
-                                            gROOT->GetGitCommit(), gROOT->GetGitDate()));
+                                            gROOT->GetGitCommit()));
       }
       lines.emplace_back(TString("Try '.help', '.demo', '.license', '.credits', '.quit'/'.q'%s"));
 
@@ -547,7 +551,8 @@ char *TRint::GetPrompt()
 
 const char *TRint::SetPrompt(const char *newPrompt)
 {
-   static TString op = fDefaultPrompt;
+   static TString op;
+   op = fDefaultPrompt;
 
    if (newPrompt && strlen(newPrompt) <= 55)
       fDefaultPrompt = newPrompt;
@@ -608,10 +613,24 @@ Bool_t TRint::HandleTermInput()
          } ENDTRY;
       }
       // handle every exception
+      catch (std::exception& e) {
+         // enable again intput handler
+         if (!added) fInputHandler->Activate();
+
+         int err;
+         char *demangledType_c = TClassEdit::DemangleTypeIdName(typeid(e), err);
+         const char* demangledType = demangledType_c;
+         if (err) {
+            demangledType_c = nullptr;
+            demangledType = "<UNKNOWN>";
+         }
+         Error("HandleTermInput()", "%s caught: %s", demangledType, e.what());
+         free(demangledType_c);
+      }
       catch (...) {
          // enable again intput handler
          if (!added) fInputHandler->Activate();
-         throw;
+         Error("HandleTermInput()", "Exception caught!");
       }
 
       if (gROOT->Timer()) timer.Print("u");
@@ -629,13 +648,13 @@ Bool_t TRint::HandleTermInput()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Handle exceptions (kSigBus, kSigSegmentationViolation,
+/// Handle signals (kSigBus, kSigSegmentationViolation,
 /// kSigIllegalInstruction and kSigFloatingException) trapped in TSystem.
 /// Specific TApplication implementations may want something different here.
 
 void TRint::HandleException(Int_t sig)
 {
-   fCaughtException = kTRUE;
+   fCaughtSignal = sig;
    if (TROOT::Initialized()) {
       if (gException) {
          Getlinem(kCleanUp, 0);
@@ -725,10 +744,14 @@ Long_t  TRint::ProcessLineNr(const char* filestem, const char *line, Int_t *erro
    if (line && line[0] != '.') {
       TString lineWithNr = TString::Format("#line 1 \"%s%d\"\n", filestem, fNcmd - 1);
       int res = ProcessLine(lineWithNr + line, kFALSE, error);
-      if (*error == TInterpreter::kProcessing)
+      if (*error == TInterpreter::kProcessing) {
+         if (!fNonContinuePrompt.Length())
+            fNonContinuePrompt = fDefaultPrompt;
          SetPrompt("root (cont'ed, cancel with .@) [%d]");
-      else
-         SetPrompt("root [%d] ");
+      } else if (fNonContinuePrompt.Length()) {
+         SetPrompt(fNonContinuePrompt);
+         fNonContinuePrompt.Clear();
+      }
       return res;
    }
    if (line && line[0] == '.' && line[1] == '@') {

@@ -1,5 +1,5 @@
 // @(#)root/tmva $Id$
-// Author: Matt Jachowski 
+// Author: Matt Jachowski
 
 /**********************************************************************************
  * Project: TMVA - a Root-integrated toolkit for multivariate data analysis       *
@@ -20,27 +20,25 @@
  * modification, are permitted according to the terms listed in LICENSE           *
  * (http://tmva.sourceforge.net/LICENSE)                                          *
  **********************************************************************************/
-  
-//_______________________________________________________________________
-//                                                                      
-//  Tanh activation function for ANN. This really simple implementation
-//  uses TFormulas and should probably be replaced with something more
-//  efficient later.
-//                                                                      
-//_______________________________________________________________________
+
+/*! \class TMVA::TActivationTanh
+\ingroup TMVA
+Tanh activation function for ANN. This really simple implementation
+uses TFormula and should probably be replaced with something more
+efficient later.
+*/
+
+#include "TMVA/TActivationTanh.h"
+
+#include "TMVA/TActivation.h"
+
+#include "TFormula.h"
+#include "TMath.h"
+#include "TString.h"
 
 #include <iostream>
 
-#include "TFormula.h"
-#include "TString.h"
-#include "TMath.h"
-
-#ifndef ROOT_TMVA_TActivationTanh
-#include "TMVA/TActivationTanh.h"
-#endif
-
-
-ClassImp(TMVA::TActivationTanh)
+ClassImp(TMVA::TActivationTanh);
 
 ////////////////////////////////////////////////////////////////////////////////
 /// constructor for tanh sigmoid (normalized in [-1,1])
@@ -61,10 +59,12 @@ TMVA::TActivationTanh::~TActivationTanh()
 /// a fast tanh approximation
 
 Double_t TMVA::TActivationTanh::fast_tanh(Double_t arg){
+   if (arg > 4.97) return 1;
+   if (arg < -4.97) return -1;
    float arg2 = arg * arg;
    float a = arg * (135135.0f + arg2 * (17325.0f + arg2 * (378.0f + arg2)));
    float b = 135135.0f + arg2 * (62370.0f + arg2 * (3150.0f + arg2 * 28.0f));
-   return a / b;
+   return a/b;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -86,7 +86,7 @@ Double_t TMVA::TActivationTanh::EvalDerivative(Double_t arg)
 
 ////////////////////////////////////////////////////////////////////////////////
 /// get expressions for the tanh and its derivative
-/// whatever that may be good for ... 
+/// whatever that may be good for ...
 
 TString TMVA::TActivationTanh::GetExpression()
 {
@@ -97,10 +97,22 @@ TString TMVA::TActivationTanh::GetExpression()
 ////////////////////////////////////////////////////////////////////////////////
 /// writes the sigmoid activation function source code
 
-void TMVA::TActivationTanh::MakeFunction( std::ostream& fout, const TString& fncName ) 
+void TMVA::TActivationTanh::MakeFunction( std::ostream& fout, const TString& fncName )
 {
-   fout << "double " << fncName << "(double x) const {" << std::endl;
-   fout << "   // hyperbolic tan" << std::endl;
-   fout << "   return tanh(x);" << std::endl;
-   fout << "}" << std::endl;
+   if (fFAST) {
+      fout << "double " << fncName << "(double x) const {" << std::endl;
+      fout << "   // fast hyperbolic tan approximation" << std::endl;
+      fout << "   if (x > 4.97) return 1;" << std::endl;
+      fout << "   if (x < -4.97) return -1;" << std::endl;
+      fout << "   float x2 = x * x;" << std::endl;
+      fout << "   float a = x * (135135.0f + x2 * (17325.0f + x2 * (378.0f + x2)));" << std::endl;
+      fout << "   float b = 135135.0f + x2 * (62370.0f + x2 * (3150.0f + x2 * 28.0f));" << std::endl;
+      fout << "   return a / b;" << std::endl;
+      fout << "}" << std::endl;
+   } else {
+      fout << "double " << fncName << "(double x) const {" << std::endl;
+      fout << "   // hyperbolic tan" << std::endl;
+      fout << "   return tanh(x);" << std::endl;
+      fout << "}" << std::endl;
+   }
 }

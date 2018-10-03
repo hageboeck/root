@@ -3,22 +3,50 @@
 # @author Pere Mato, CERN
 ############################################################################
 
-include(${QT_USE_FILE})
-add_definitions(-DQT3_SUPPORT= -DQT3_SUPPORT_CONSTRUCTOR= -DQT_DLL -DQT_THREAD_SUPPORT)
-include_directories(${QT_QT3SUPPORT_INCLUDE_DIR})
-
-if(CMAKE_COMPILER_IS_GNUCXX)
-  add_definitions(-Wno-deprecated-register -Wno-uninitialized)
-elseif(CMAKE_CXX_COMPILER_ID STREQUAL Clang)
-  add_definitions(-Wno-deprecated -Wno-uninitialized)
+if(fail-on-missing)
+  set(QT_REQUIRED REQUIRED)
 endif()
 
-QT4_WRAP_CPP(mocfiles inc/TQCanvasMenu.h inc/TQRootApplication.h
-                      inc/TQRootCanvas.h inc/TQRootDialog.h)
+find_package(Qt4 4.8 COMPONENTS QtCore QtGui ${QT_REQUIRED})
 
-ROOT_GENERATE_DICTIONARY(G__QtGSI *.h MODULE QtGSI LINKDEF LinkDef.h OPTIONS -DQTVERS=0x${QT_VERSION_NUM} -Wno-deprecated)
+if(NOT QT4_FOUND)
+  message(STATUS "Qt4 not found. Switching off qtgsi option")
+  set(qtgsi OFF CACHE BOOL "" FORCE)
+  return()
+endif()
 
-ROOT_LINKER_LIBRARY(QtGSI *.cxx ${mocfiles} G__QtGSI.cxx LIBRARIES ${QT_LIBRARIES} ${QT_QT3SUPPORT_LIBRARY} DEPENDENCIES Gui Gpad)
+include(${QT_USE_FILE})
 
-ROOT_INSTALL_HEADERS()
+set(headers
+  inc/TQApplication.h
+  inc/TQCanvasImp.h
+  inc/TQCanvasMenu.h
+  inc/TQRootApplication.h
+  inc/TQRootCanvas.h
+  inc/TQRootDialog.h
+  inc/TQRootGuiFactory.h
+  inc/TQtGSIIncludes.h
+)
 
+set(sources
+  src/TQApplication.cxx
+  src/TQCanvasImp.cxx
+  src/TQCanvasMenu.cxx
+  src/TQRootApplication.cxx
+  src/TQRootCanvas.cxx
+  src/TQRootDialog.cxx
+  src/TQRootGuiFactory.cxx
+)
+
+QT4_WRAP_CPP(moc_sources
+  inc/TQCanvasMenu.h
+  inc/TQRootApplication.h
+  inc/TQRootCanvas.h
+  inc/TQRootDialog.h
+)
+
+ROOT_STANDARD_LIBRARY_PACKAGE(QtGSI
+                              HEADERS ${headers}
+                              SOURCES ${sources} ${moc_sources}
+                              LIBRARIES Qt4::QtCore Qt4::QtGui
+                              DEPENDENCIES Gui Gpad)

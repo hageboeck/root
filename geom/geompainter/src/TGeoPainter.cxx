@@ -8,11 +8,14 @@
  * For the list of contributors see $ROOTSYS/README/CREDITS.             *
  *************************************************************************/
 
-//______________________________________________________________________________
-// TGeoPainter - class implementing all draw interfaces for a generic 3D viewer
-// using TBuffer3D mechanism.
-//______________________________________________________________________________
+/** \class TGeoPainter
+\ingroup Geometry_classes
 
+Class implementing all draw interfaces for a generic 3D viewer
+using TBuffer3D mechanism.
+*/
+
+#include <map>
 #include "TROOT.h"
 #include "TClass.h"
 #include "TColor.h"
@@ -52,11 +55,10 @@
 #include "TBuffer3DTypes.h"
 #include "TVirtualViewer3D.h"
 
-ClassImp(TGeoPainter)
+ClassImp(TGeoPainter);
 
 ////////////////////////////////////////////////////////////////////////////////
-///*-*-*-*-*-*-*-*-*-*-*Geometry painter default constructor*-*-*-*-*-*-*-*-*
-///*-*                  ====================================
+/// Default constructor.
 
 TGeoPainter::TGeoPainter(TGeoManager *manager) : TVirtualGeoPainter(manager)
 {
@@ -98,8 +100,7 @@ TGeoPainter::TGeoPainter(TGeoManager *manager) : TVirtualGeoPainter(manager)
    DefineColors();
 }
 ////////////////////////////////////////////////////////////////////////////////
-///*-*-*-*-*-*-*-*-*-*-*Geometry painter default destructor*-*-*-*-*-*-*-*-*
-///*-*                  ===================================
+/// Default destructor.
 
 TGeoPainter::~TGeoPainter()
 {
@@ -110,7 +111,7 @@ TGeoPainter::~TGeoPainter()
    if (fPlugin) delete fPlugin;
 }
 ////////////////////////////////////////////////////////////////////////////////
-///--- Add numpoints, numsegs, numpolys to the global 3D size.
+/// Add numpoints, numsegs, numpolys to the global 3D size.
 
 void TGeoPainter::AddSize3D(Int_t numpoints, Int_t numsegs, Int_t numpolys)
 {
@@ -157,7 +158,7 @@ void TGeoPainter::AddTrackPoint(Double_t *point, Double_t *box, Bool_t reset)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-/// get the new 'bombed' translation vector according current exploded view mode
+/// Get the new 'bombed' translation vector according current exploded view mode.
 
 void TGeoPainter::BombTranslation(const Double_t *tr, Double_t *bombtr)
 {
@@ -230,7 +231,7 @@ void TGeoPainter::CheckOverlaps(const TGeoVolume *vol, Double_t ovlp, Option_t *
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-/// check current point in the geometry
+/// Check current point in the geometry.
 
 void TGeoPainter::CheckPoint(Double_t x, Double_t y, Double_t z, Option_t *option)
 {
@@ -239,11 +240,10 @@ void TGeoPainter::CheckPoint(Double_t x, Double_t y, Double_t z, Option_t *optio
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Test for shape navigation methods. Summary for test numbers:
-///  1: DistFromInside/Outside. Sample points inside the shape. Generate
+///  - 1: DistFromInside/Outside. Sample points inside the shape. Generate
 ///    directions randomly in cos(theta). Compute DistFromInside and move the
 ///    point with bigger distance. Compute DistFromOutside back from new point.
 ///    Plot d-(d1+d2)
-///
 
 void TGeoPainter::CheckShape(TGeoShape *shape, Int_t testNo, Int_t nsamples, Option_t *option)
 {
@@ -272,24 +272,11 @@ void TGeoPainter::ClearVisibleVolumes()
 
 void TGeoPainter::DefineColors() const
 {
-   TColor::InitializeColors();
-   TColor *color = gROOT->GetColor(1000);
-   if (color) return;
-   Int_t i,j;
-   Float_t r,g,b,h,l,s;
-
-   for (i=1; i<8; i++) {
-      color = (TColor*)gROOT->GetListOfColors()->At(i);
-      if (!color) {
-         Warning("DefineColors", "No colors defined");
-         return;
-      }
-      color->GetHLS(h,l,s);
-      for (j=0; j<100; j++) {
-         l = 0.25+0.5*j/99.;
-         TColor::HLS2RGB(h,l,s,r,g,b);
-         new TColor(1000+(i-1)*100+j, r,g,b);
-      }
+   static Int_t color = 0;
+   if (!color) {
+      TColor::InitializeColors();
+      for (auto icol=1; icol<10; ++icol)
+         color = GetColor(icol, 0.5);
    }
 }
 
@@ -298,25 +285,42 @@ void TGeoPainter::DefineColors() const
 
 Int_t TGeoPainter::GetColor(Int_t base, Float_t light) const
 {
-   const Int_t kBCols[8] = {1,2,3,5,4,6,7,1};
-   TColor *tcolor = gROOT->GetColor(base);
-   if (!tcolor) tcolor = new TColor(base, 0.5,0.5,0.5);
-   Float_t r,g,b;
-   tcolor->GetRGB(r,g,b);
-   Int_t code = 0;
-   if (r>0.5) code += 1;
-   if (g>0.5) code += 2;
-   if (b>0.5) code += 4;
-   Int_t color, j;
-
-   if (light<0.25) {
-      j=0;
-   } else {
-      if (light>0.8) j=99;
-      else j = Int_t(99*(light-0.25)/0.5);
+   using IntMap_t = std::map<Int_t, Int_t>;
+   constexpr Int_t ncolors = 100;
+   constexpr Float_t lmin = 0.25;
+   constexpr Float_t lmax = 0.75;
+   static IntMap_t colmap;
+   Int_t color = base;
+   // Search color in the map
+   auto it = colmap.find(base);
+   if (it != colmap.end()) return (it->second + light*(ncolors-1));
+   // Get color pointer if stored
+   TColor* col_base = gROOT->GetColor(base);
+   if (!col_base) {
+      // If color not defined, use gray palette
+      it = colmap.find(kBlack);
+      if (it != colmap.end()) return (it->second + light*(ncolors-1));
+      col_base = gROOT->GetColor(kBlack);
+      color = 1;
    }
-   color = 1000 + (kBCols[code]-1)*100+j;
-   return color;
+   // Create a color palette for col_base
+   Float_t r=0., g=0., b=0., h=0., l=0., s=0.;
+   Double_t red[2], green[2], blue[2];
+   Double_t stop[] = {0., 1.0};
+
+   if (col_base) col_base->GetRGB(r,g,b);
+   TColor::RGB2HLS(r,g,b,h,l,s);
+   TColor::HLS2RGB(h,lmin,s,r,g,b);
+   red[0] = r;
+   green[0] = g;
+   blue[0] = b;
+   TColor::HLS2RGB(h,lmax,s,r,g,b);
+   red[1] = r;
+   green[1] = g;
+   blue[1] = b;
+   Int_t color_map_idx = TColor::CreateGradientColorTable(2, stop, red, green, blue, ncolors);
+   colmap[color] = color_map_idx;
+   return (color_map_idx + light*(ncolors-1));
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -329,7 +333,7 @@ TGeoVolume *TGeoPainter::GetDrawnVolume() const
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-/// compute the closest distance of approach from point px,py to a volume
+/// Compute the closest distance of approach from point px,py to a volume.
 
 Int_t TGeoPainter::DistanceToPrimitiveVol(TGeoVolume *volume, Int_t px, Int_t py)
 {
@@ -1276,7 +1280,7 @@ void TGeoPainter::PaintOverlap(void *ovlp, Option_t *option)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Paint recursively a node and its content accordind to visualization options.
+/// Paint recursively a node and its content according to visualization options.
 
 void TGeoPainter::PaintNode(TGeoNode *node, Option_t *option, TGeoMatrix* global)
 {
@@ -1284,7 +1288,7 @@ void TGeoPainter::PaintNode(TGeoNode *node, Option_t *option, TGeoMatrix* global
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Paint recursively a node and its content accordind to visualization options.
+/// Paint recursively a node and its content according to visualization options.
 
 void TGeoPainter::PaintVolume(TGeoVolume *top, Option_t *option, TGeoMatrix* global)
 {
@@ -1342,7 +1346,7 @@ void TGeoPainter::PaintVolume(TGeoVolume *top, Option_t *option, TGeoMatrix* glo
    if ((fTopVisible && vis) || !top->GetNdaughters() || !top->IsVisDaughters() || top->IsVisOnly()) {
       fGeoManager->SetPaintVolume(vol);
       fGeoManager->SetMatrixReflection(fGlobal->IsReflection());
-      drawDaughters = PaintShape(*(vol->GetShape()),option);
+      PaintShape(*(vol->GetShape()),option);
       if (!fVisLock && !vol->TestAttBit(TGeoAtt::kVisOnScreen)) {
          fVisVolumes->Add(vol);
          vol->SetAttBit(TGeoAtt::kVisOnScreen);
@@ -1454,7 +1458,7 @@ Bool_t TGeoPainter::PaintShape(const TGeoShape & shape, Option_t *  option ) con
       return addDaughters;
    }
 
-   // For non-composite shapes we are the main paint method & perform the negotation
+   // For non-composite shapes we are the main paint method & perform the negotiation
    // with the viewer here
    if (!shape.IsComposite()) {
       // Does viewer prefer local frame positions?
@@ -1599,17 +1603,17 @@ void TGeoPainter::RandomRays(Int_t nrays, Double_t startx, Double_t starty, Doub
 ////////////////////////////////////////////////////////////////////////////////
 /// Raytrace current drawn geometry
 
-void TGeoPainter::Raytrace(Option_t * /*option*/)
+void TGeoPainter::Raytrace(Option_t *)
 {
    if (!gPad || gPad->IsBatch()) return;
    TView *view = gPad->GetView();
    if (!view) return;
+   Int_t rtMode = fGeoManager->GetRTmode();
    TGeoVolume *top = fGeoManager->GetTopVolume();
    if (top != fTopVolume) fGeoManager->SetTopVolume(fTopVolume);
    if (!view->IsPerspective()) view->SetPerspective();
    gVirtualX->SetMarkerSize(1);
    gVirtualX->SetMarkerStyle(1);
-   Int_t i;
    Bool_t inclipst=kFALSE, inclip=kFALSE;
    Double_t krad = TMath::DegToRad();
    Double_t lat = view->GetLatitude();
@@ -1642,9 +1646,9 @@ void TGeoPainter::Raytrace(Option_t * /*option*/)
    Double_t min[3], max[3];
    view->GetRange(min, max);
    Double_t cov[3];
-   for (i=0; i<3; i++) cov[i] = 0.5*(min[i]+max[i]);
+   for (Int_t i=0; i<3; i++) cov[i] = 0.5*(min[i]+max[i]);
    Double_t cop[3];
-   for (i=0; i<3; i++) cop[i] = cov[i] - dir[i]*dview;
+   for (Int_t i=0; i<3; i++) cop[i] = cov[i] - dir[i]*dview;
    fGeoManager->InitTrack(cop, dir);
    Bool_t outside = fGeoManager->IsOutside();
    fGeoManager->DoBackupState();
@@ -1656,14 +1660,15 @@ void TGeoPainter::Raytrace(Option_t * /*option*/)
    pxmax = gPad->UtoAbsPixel(1);
    pymin = gPad->VtoAbsPixel(1);
    pymax = gPad->VtoAbsPixel(0);
-   TGeoNode *next, *nextnode;
+   TGeoNode *next = nullptr;
+   TGeoNode *nextnode = nullptr;
    Double_t step,steptot;
    Double_t *norm;
    const Double_t *point = fGeoManager->GetCurrentPoint();
    Double_t *ppoint = (Double_t*)point;
    Double_t tosource[3];
    Double_t calf;
-   Double_t phi = 0*krad;
+   Double_t phi = 45.*krad;
    tosource[0] = -dir[0]*TMath::Cos(phi)+dir[1]*TMath::Sin(phi);
    tosource[1] = -dir[0]*TMath::Sin(phi)-dir[1]*TMath::Cos(phi);
    tosource[2] = -dir[2];
@@ -1780,11 +1785,20 @@ void TGeoPainter::Raytrace(Option_t * /*option*/)
          }
          if (!done) continue;
          // current ray intersect a visible volume having color=base_color
-//         if (!norm) norm = fGeoManager->FindNormal(kFALSE);
-         if (!norm) norm = fGeoManager->FindNormalFast();
-         if (!norm) continue;
+         if (rtMode > 0) {
+            fGeoManager->MasterToLocal(gGeoManager->GetCurrentPoint(), local);
+            fGeoManager->MasterToLocalVect(gGeoManager->GetCurrentDirection(), dir);
+            for (Int_t i=0; i<3; ++i) local[i] += 1.E-8*dir[i];
+            step = next->GetVolume()->GetShape()->DistFromInside(local,dir,3);
+            for (Int_t i=0; i<3; ++i) local[i] += step*dir[i];
+            next->GetVolume()->GetShape()->ComputeNormal(local, dir, normal);
+            norm = normal;
+         } else {
+            if (!norm) norm = fGeoManager->FindNormalFast();
+            if (!norm) continue;
+         }
          calf = norm[0]*tosource[0]+norm[1]*tosource[1]+norm[2]*tosource[2];
-         light = 0.25+0.5*TMath::Abs(calf);
+         light = TMath::Abs(calf);
          color = GetColor(base_color, light);
          // Now we know the color of the pixel, just draw it
          gVirtualX->SetMarkerColor(color);
@@ -1800,8 +1814,8 @@ void TGeoPainter::Raytrace(Option_t * /*option*/)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-/// shoot npoints randomly in a box of 1E-5 arround current point.
-/// return minimum distance to points outside
+/// Shoot npoints randomly in a box of 1E-5 around current point.
+/// Return minimum distance to points outside.
 
 TGeoNode *TGeoPainter::SamplePoints(Int_t npoints, Double_t &dist, Double_t epsil,
                                     const char* g3path)
@@ -1810,7 +1824,7 @@ TGeoNode *TGeoPainter::SamplePoints(Int_t npoints, Double_t &dist, Double_t epsi
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-///--- Set cartesian and radial bomb factors for translations
+/// Set cartesian and radial bomb factors for translations.
 
 void TGeoPainter::SetBombFactors(Double_t bombx, Double_t bomby, Double_t bombz, Double_t bombr)
 {
@@ -1822,7 +1836,7 @@ void TGeoPainter::SetBombFactors(Double_t bombx, Double_t bomby, Double_t bombz,
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-/// set type of exploding view
+/// Set type of exploding view.
 
 void TGeoPainter::SetExplodedView(Int_t ibomb)
 {
@@ -1850,7 +1864,7 @@ void TGeoPainter::SetExplodedView(Int_t ibomb)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Set number of segments to approximate circles
+/// Set number of segments to approximate circles.
 
 void TGeoPainter::SetNsegments(Int_t nseg)
 {
@@ -1911,10 +1925,10 @@ void TGeoPainter::SetTopVisible(Bool_t vis)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-/// set drawing mode :
-/// option=0 (default) all nodes drawn down to vislevel
-/// option=1           leaves and nodes at vislevel drawn
-/// option=2           path is drawn
+/// Set drawing mode :
+///  - option=0 (default) all nodes drawn down to vislevel
+///  - option=1           leaves and nodes at vislevel drawn
+///  - option=2           path is drawn
 
 void TGeoPainter::SetVisOption(Int_t option) {
    if ((fVisOption<0) || (fVisOption>4)) {
@@ -2019,7 +2033,7 @@ void TGeoPainter::Test(Int_t npoints, Option_t *option)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-///--- Geometry overlap checker based on sampling.
+/// Geometry overlap checker based on sampling.
 
 void TGeoPainter::TestOverlaps(const char* path)
 {
@@ -2035,7 +2049,7 @@ Bool_t TGeoPainter::TestVoxels(TGeoVolume *vol)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-/// get the new 'unbombed' translation vector according current exploded view mode
+/// Get the new 'unbombed' translation vector according current exploded view mode.
 
 void TGeoPainter::UnbombTranslation(const Double_t *tr, Double_t *bombtr)
 {

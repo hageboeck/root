@@ -11,6 +11,7 @@
 
 /** \class TAttImage
 \ingroup BasicGraphics
+\ingroup GraphicsAtt
 
 TImage attributes.
 
@@ -31,7 +32,6 @@ This class is used (in general by secondary inheritance)
 by some other classes (image display).
 */
 
-////////////////////////////////////////////////////////////////////////////////
 /** \class TImagePalette
 \ingroup BasicGraphics
 
@@ -76,7 +76,6 @@ The default palette defines:
 - index 40->49 : basic colors
 */
 
-////////////////////////////////////////////////////////////////////////////////
 /** \class TPaletteEditor
 \ingroup BasicGraphics
 
@@ -92,11 +91,12 @@ This class provides a way to edit the palette via a GUI.
 #include "Riostream.h"
 #include "TColor.h"
 #include "TMath.h"
+#include "TStyle.h"
 
 
-ClassImp(TPaletteEditor)
-ClassImp(TAttImage)
-ClassImp(TImagePalette)
+ClassImp(TPaletteEditor);
+ClassImp(TAttImage);
+ClassImp(TImagePalette);
 
 
 // definition of a default palette
@@ -122,7 +122,7 @@ static UShort_t gBlueDefault[kNUM_DEFAULT_COLORS] = {
 };
 
 
-//////////////////////////// Web Palette ////////////////////////////////////
+//////////////////////////// Web Palette ///////////////////////////////////////
 static UShort_t gWebBase[6] = { 0, 51, 102, 153, 204, 255 };
 
 class TWebPalette : public TImagePalette {
@@ -248,7 +248,7 @@ public:
 TImagePalette *gHistImagePalette = new TDefHistImagePalette();
 
 
-///////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 /// Constructor.
 
 TPaletteEditor::TPaletteEditor(TAttImage *attImage, UInt_t, UInt_t)
@@ -678,6 +678,100 @@ void TAttImage::SetPalette(const TImagePalette *palette)
       fPalette.fPoints[0] = 0;
       fPalette.fPoints[kNUM_DEFAULT_COLORS - 1] = 1;
    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+/// Factory method to creates an image palette of a specific typ
+///
+/// Create a new palette
+///
+///  This creates a new TImagePalette based on the
+///  option specified in the parameter. The supported options are:
+///
+///  - "col"   - color palette similar in TStyle (i.e. use for "col" option)
+///  - "web"   - color palette similar to gWebImagePalette
+///  - "hist"  - color palette similar to gHistImagePalette
+///
+///  \param opts   the type of palette to create
+///
+///  Ownership of the returned object transfers to the caller.
+///
+///  \retval new palette
+///  \retval nullptr - option does not exist
+
+TImagePalette* TImagePalette::Create(Option_t* opts)
+{
+   TImagePalette* pPalette = nullptr;
+
+   TString option(opts);
+   if (option.Contains("col", TString::kIgnoreCase)) {
+      // Define the new palette using the current palette in TStyle
+      pPalette = new TImagePalette(gStyle->GetNumberOfColors());
+      Double_t step = 1./(pPalette->fNumPoints-1);
+
+      for (UInt_t i=0; i<pPalette->fNumPoints; ++i) {
+         TColor* pColor = gROOT->GetColor(gStyle->GetColorPalette(i));
+         pPalette->fPoints[i] = i*step;
+         if (pColor) {
+            pPalette->fColorRed[i] = UShort_t(pColor->GetRed()*255) << 8;
+            pPalette->fColorGreen[i] = UShort_t(pColor->GetGreen()*255) << 8;
+            pPalette->fColorBlue[i] = UShort_t(pColor->GetBlue()*255) << 8;
+         }
+         pPalette->fColorAlpha[i] = 0xff00;
+      }
+   } else if (option.Contains("web", TString::kIgnoreCase)) {
+      pPalette = new TDefHistImagePalette();
+   } else if (option.Contains("hist", TString::kIgnoreCase)) {
+      pPalette = new TWebPalette();
+   }
+
+   return pPalette;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+/// Factory method to creates an image palette for histogram plotting.
+///
+/// Creates a "col" palette with correct number of contours
+///
+/// The behavior is similar to the TImagePalette::Create() method with
+/// the "col" option. The difference here is that the palette will only
+/// contain a specific number of colors. This method is used to create
+/// the palette used in the "col2" and "colz2" options. It handles the
+/// color selection for contours.
+///
+/// \param ncontours   number of contours
+///
+/// Ownership of the returned object transfers to the caller.
+///
+/// \return new palette
+
+TImagePalette* TImagePalette::CreateCOLPalette(Int_t ncontours)
+{
+   Int_t ncolors  = gStyle->GetNumberOfColors();
+   Int_t minColor = 0;
+   Double_t scale = 1;
+   if (ncontours != 0 ) {
+      minColor = (0.99*ncolors)/ncontours;
+      scale = static_cast<Double_t>(ncolors)/ncontours;
+      ncolors  = ncontours;
+   }
+
+   // Define the new palette using the current palette in TStyle
+   auto pPalette = new TImagePalette(ncolors);
+   Double_t step = 1./(pPalette->fNumPoints-1);
+
+   for (UInt_t i=0; i<pPalette->fNumPoints; ++i) {
+      TColor* pColor = gROOT->GetColor(gStyle->GetColorPalette(minColor + i*scale));
+      pPalette->fPoints[i] = i*step;
+      if (pColor) {
+         pPalette->fColorRed[i] = UShort_t(pColor->GetRed()*255) << 8;
+         pPalette->fColorGreen[i] = UShort_t(pColor->GetGreen()*255) << 8;
+         pPalette->fColorBlue[i] = UShort_t(pColor->GetBlue()*255) << 8;
+         pPalette->fColorAlpha[i] = UShort_t(pColor->GetAlpha()*255) << 8;
+      }
+   }
+
+   return pPalette;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

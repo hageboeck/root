@@ -24,7 +24,7 @@
 
 #include <stdlib.h>
 
-ClassImp(TPgSQLStatement)
+ClassImp(TPgSQLStatement);
 
 #ifdef PG_VERSION_NUM
 
@@ -568,7 +568,7 @@ Bool_t TPgSQLStatement::GetTime(Int_t npar, Int_t& hour, Int_t& min, Int_t& sec)
    Int_t year = d.GetYear();
    Int_t month = d.GetMonth();
    Int_t day = d.GetDay();
-   ConvertTimeToUTC(val, day, month, year, hour, min, sec);
+   ConvertTimeToUTC(val, year, month, day, hour, min, sec);
    return kTRUE;
 }
 
@@ -594,7 +594,7 @@ Bool_t TPgSQLStatement::GetDatime(Int_t npar, Int_t& year, Int_t& month, Int_t& 
 
 void TPgSQLStatement::ConvertTimeToUTC(const TString &PQvalue, Int_t& year, Int_t& month, Int_t& day, Int_t& hour, Int_t& min, Int_t& sec)
 {
-   Ssiz_t p = PQvalue.Last('.');
+   Ssiz_t p = PQvalue.Last(':');
    // Check if timestamp has timezone
    TSubString *s_zone = nullptr;
    Bool_t hasZone = kFALSE;
@@ -759,15 +759,19 @@ Bool_t TPgSQLStatement::SetString(Int_t npar, const char* value, Int_t maxsize)
 
 Bool_t TPgSQLStatement::SetBinary(Int_t npar, void* mem, Long_t size, Long_t maxsize)
 {
-   size_t sz=size;
-   size_t mxsz=maxsize;
-   char* mptr = (char*)malloc(2*sz+1);
-   mxsz=PQescapeString (mptr,(char*)mem,sz);
+   // Set parameter value as binary data.
+
+   size_t sz = size, mxsz = maxsize;
+   unsigned char* escape_ptr = PQescapeBytea((const unsigned char*)mem, sz, &mxsz);
+   unsigned char* binary_ptr = PQunescapeBytea((const unsigned char*)escape_ptr, &mxsz);
+   PQfreemem(escape_ptr);
 
    delete [] fBind[npar];
-   fBind[npar]= new char[mxsz+1];
-   memcpy(fBind[npar],mptr,mxsz);
-   free(mptr);
+   fBind[npar] = new char[mxsz+1];
+   fBind[npar][mxsz] = '\0';
+   memcpy(fBind[npar], binary_ptr, mxsz);
+
+   PQfreemem(binary_ptr);
    return kTRUE;
 }
 
@@ -1121,8 +1125,10 @@ Bool_t TPgSQLStatement::SetSQLParamType(Int_t, int, bool, int)
 ///    stmt->SetDouble(2, 0.);
 ///    stmt->SetNull(2);
 
-Bool_t TPgSQLStatement::SetNull(Int_t)
+Bool_t TPgSQLStatement::SetNull(Int_t npar)
 {
+   if ((npar >= 0) && (npar < fNumBuffers))
+      fBind[npar] = 0;
    return kFALSE;
 }
 

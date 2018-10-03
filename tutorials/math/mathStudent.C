@@ -1,11 +1,12 @@
 /// \file
 /// \ingroup tutorial_math
+/// \notebook
 /// Tutorial illustrating the use of the Student and F distributions
 ///
 /// \macro_image
 /// \macro_code
 ///
-/// \author anna Kreshuk
+/// \author Anna Kreshuk
 
 #include "TMath.h"
 #include "TF1.h"

@@ -1,34 +1,35 @@
 // @(#)root/geom:$Id$
 // Author: Andrei Gheata   30/10/01
 
-//_____________________________________________________________________________
-// TGeoPatternFinder - base finder class for patterns.
-//==================
-//   A pattern is specifying a division type which applies only to a given
-// shape type. The implemented patterns are for the moment equidistant slices
-// on different axis. Implemented patterns are:
-//
-// TGeoPatternX - a X axis divison pattern
-// TGeoPatternY - a Y axis divison pattern
-// TGeoPatternZ - a Z axis divison pattern
-// TGeoPatternParaX - a X axis divison pattern for PARA shape
-// TGeoPatternParaY - a Y axis divison pattern for PARA shape
-// TGeoPatternParaZ - a Z axis divison pattern for PARA shape
-// TGeoPatternTrapZ - a Z axis divison pattern for TRAP or GTRA shapes
-// TGeoPatternCylR - a cylindrical R divison pattern
-// TGeoPatternCylPhi - a cylindrical phi divison pattern
-// TGeoPatternSphR - a spherical R divison pattern
-// TGeoPatternSphTheta - a spherical theta divison pattern
-// TGeoPatternSphPhi - a spherical phi divison pattern
-// TGeoPatternHoneycomb - a divison pattern specialized for honeycombs
-//_____________________________________________________________________________
+/** \class TGeoPatternFinder
+\ingroup Geometry_classes
+
+Base finder class for patterns.
+
+  A pattern is specifying a division type which applies only to a given
+shape type. The implemented patterns are for the moment equidistant slices
+on different axis. Implemented patterns are:
+
+  - TGeoPatternX - a X axis divison pattern
+  - TGeoPatternY - a Y axis divison pattern
+  - TGeoPatternZ - a Z axis divison pattern
+  - TGeoPatternParaX - a X axis divison pattern for PARA shape
+  - TGeoPatternParaY - a Y axis divison pattern for PARA shape
+  - TGeoPatternParaZ - a Z axis divison pattern for PARA shape
+  - TGeoPatternTrapZ - a Z axis divison pattern for TRAP or GTRA shapes
+  - TGeoPatternCylR - a cylindrical R divison pattern
+  - TGeoPatternCylPhi - a cylindrical phi divison pattern
+  - TGeoPatternSphR - a spherical R divison pattern
+  - TGeoPatternSphTheta - a spherical theta divison pattern
+  - TGeoPatternSphPhi - a spherical phi divison pattern
+  - TGeoPatternHoneycomb - a divison pattern specialized for honeycombs
+*/
 
 #include "TGeoPatternFinder.h"
 
 #include "Riostream.h"
 #include "TBuffer.h"
 #include "TObject.h"
-#include "TThread.h"
 #include "TGeoMatrix.h"
 #include "TGeoPara.h"
 #include "TGeoArb8.h"
@@ -36,20 +37,20 @@
 #include "TGeoManager.h"
 #include "TMath.h"
 
-ClassImp(TGeoPatternFinder)
-ClassImp(TGeoPatternX)
-ClassImp(TGeoPatternY)
-ClassImp(TGeoPatternZ)
-ClassImp(TGeoPatternParaX)
-ClassImp(TGeoPatternParaY)
-ClassImp(TGeoPatternParaZ)
-ClassImp(TGeoPatternTrapZ)
-ClassImp(TGeoPatternCylR)
-ClassImp(TGeoPatternCylPhi)
-ClassImp(TGeoPatternSphR)
-ClassImp(TGeoPatternSphTheta)
-ClassImp(TGeoPatternSphPhi)
-ClassImp(TGeoPatternHoneycomb)
+ClassImp(TGeoPatternFinder);
+ClassImp(TGeoPatternX);
+ClassImp(TGeoPatternY);
+ClassImp(TGeoPatternZ);
+ClassImp(TGeoPatternParaX);
+ClassImp(TGeoPatternParaY);
+ClassImp(TGeoPatternParaZ);
+ClassImp(TGeoPatternTrapZ);
+ClassImp(TGeoPatternCylR);
+ClassImp(TGeoPatternCylPhi);
+ClassImp(TGeoPatternSphR);
+ClassImp(TGeoPatternSphTheta);
+ClassImp(TGeoPatternSphPhi);
+ClassImp(TGeoPatternHoneycomb);
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -73,25 +74,6 @@ TGeoPatternFinder::ThreadData_t::~ThreadData_t()
 TGeoPatternFinder::ThreadData_t& TGeoPatternFinder::GetThreadData() const
 {
    Int_t tid = TGeoManager::ThreadId();
-/*
-   if (tid >= fThreadSize) {
-      Error("GetThreadData", "Thread id=%d bigger than maximum declared thread number %d. \nUse TGeoManager::SetMaxThreads properly !!!",
-             tid, fThreadSize);
-   }
-
-   TThread::Lock();
-   if (tid >= fThreadSize)
-   {
-      fThreadData.resize(tid + 1);
-      fThreadSize = tid + 1;
-   }
-   if (fThreadData[tid] == 0)
-   {
-      fThreadData[tid] = new ThreadData_t;
-      fThreadData[tid]->fMatrix = CreateMatrix();
-   }
-   TThread::UnLock();
-*/
    return *fThreadData[tid];
 }
 
@@ -99,7 +81,7 @@ TGeoPatternFinder::ThreadData_t& TGeoPatternFinder::GetThreadData() const
 
 void TGeoPatternFinder::ClearThreadData() const
 {
-   TThread::Lock();
+   std::lock_guard<std::mutex> guard(fMutex);
    std::vector<ThreadData_t*>::iterator i = fThreadData.begin();
    while (i != fThreadData.end())
    {
@@ -108,7 +90,6 @@ void TGeoPatternFinder::ClearThreadData() const
    }
    fThreadData.clear();
    fThreadSize = 0;
-   TThread::UnLock();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -116,7 +97,7 @@ void TGeoPatternFinder::ClearThreadData() const
 
 void TGeoPatternFinder::CreateThreadData(Int_t nthreads)
 {
-   TThread::Lock();
+   std::lock_guard<std::mutex> guard(fMutex);
    fThreadData.resize(nthreads);
    fThreadSize = nthreads;
    for (Int_t tid=0; tid<nthreads; tid++) {
@@ -125,7 +106,6 @@ void TGeoPatternFinder::CreateThreadData(Int_t nthreads)
          fThreadData[tid]->fMatrix = CreateMatrix();
       }
    }
-   TThread::UnLock();
 }
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -9,22 +9,14 @@
 #
 #  The full license is in the file COPYING.rst, distributed with this software.
 #-----------------------------------------------------------------------------
-import sys
 import os
 from glob import glob
-from tempfile import NamedTemporaryFile
 
-from JupyROOT.kernel.handler import LoadHandlers
+import importlib
 
-try:
-    from JupyROOT.utils import invokeAclic
-    from JupyROOT.utils import isPlatformApple
-except ImportError:
-    raise Exception("Error: JupyROOT not found")
+from JupyROOT.handlers import IOHandler, JupyROOTDeclarer, JupyROOTExecutor
 
 import ROOT
-
-import __builtin__
 
 _ioHandler = None
 _Executor  = None
@@ -33,38 +25,20 @@ _Declarer  = None
 def GetIOHandler():
     global _ioHandler
     if not _ioHandler:
-        LoadHandlers()
-        from ROOT import JupyROOTExecutorHandler
-        _ioHandler = JupyROOTExecutorHandler()
+        _ioHandler = IOHandler()
     return _ioHandler
 
 def GetExecutor():
     global _Executor
     if not _Executor:
-        from ROOT import JupyROOTExecutor
-        _Executor = JupyROOTExecutor
+        _Executor = JupyROOTExecutor()
     return _Executor
 
 def GetDeclarer():
     global _Declarer
     if not _Declarer:
-        from ROOT import JupyROOTDeclarer
-        _Declarer = JupyROOTDeclarer
+        _Declarer = JupyROOTDeclarer()
     return _Declarer
-
-
-def ACLiC(code):
-     status = 0
-     if isPlatformApple():
-         invokeAclic(code)
-     else:
-         tmpfile = NamedTemporaryFile(delete=False,suffix='.C',dir=os.getcwd())#will be removed when library is created
-         tmpfile.write(code)
-         tmpfilename = tmpfile.name
-         tmpfile.close()
-         Executor = GetExecutor()
-         status = Executor('.L %s+'%tmpfilename)
-     return status
 
 class MagicLoader(object):
     '''Class to load JupyROOT Magics'''
@@ -74,7 +48,7 @@ class MagicLoader(object):
               if file != magics_path.replace("*.py","__init__.py"):
                   module_path="JupyROOT.kernel.magics."+file.split("/")[-1].replace(".py","")
                   try:
-                      module= __builtin__.__import__(module_path, globals(), locals(), ['register_magics'], -1)
+                      module = importlib.import_module(module_path)
                       module.register_magics(kernel)
                   except ImportError:
                       raise Exception("Error importing Magic: %s"%module_path)

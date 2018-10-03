@@ -28,13 +28,13 @@
 #include "TSystem.h"
 #include <string>
 
-ClassImp(TGraphErrors)
+ClassImp(TGraphErrors);
 
 
 ////////////////////////////////////////////////////////////////////////////////
 
 /** \class TGraphErrors
-    \ingroup Hist 
+    \ingroup Hist
 A TGraphErrors is a TGraph with error bars.
 
 The TGraphErrors painting is performed thanks to the TGraphPainter
@@ -61,7 +61,7 @@ Begin_Macro(source)
    gr->Draw("ALP");
    return c1;
 }
-End_Macro 
+End_Macro
 */
 
 
@@ -215,17 +215,18 @@ TGraphErrors::TGraphErrors(const TH1 *h)
 
 ////////////////////////////////////////////////////////////////////////////////
 /// GraphErrors constructor reading input from filename
-/// filename is assumed to contain at least 3 columns of numbers
-/// convention for format (default="%lg %lg %lg %lg)
-///  format = "%lg %lg"         read only 2 first columns into X,Y
-///  format = "%lg %lg %lg"     read only 3 first columns into X,Y and EY
-///  format = "%lg %lg %lg %lg" read only 4 first columns into X,Y,EX,EY.
+/// filename is assumed to contain at least 2 columns of numbers
+///
+/// Convention for format (default="%lg %lg %lg %lg)
+///   - format = "%lg %lg"         read only 2 first columns into X,Y
+///   - format = "%lg %lg %lg"     read only 3 first columns into X,Y and EY
+///   - format = "%lg %lg %lg %lg" read only 4 first columns into X,Y,EX,EY.
 ///
 /// For files separated by a specific delimiter different from ' ' and '\t' (e.g. ';' in csv files)
 /// you can avoid using %*s to bypass this delimiter by explicitly specify the "option" argument,
 /// e.g. option=" \t,;" for columns of figures separated by any of these characters (' ', '\t', ',', ';')
 /// used once (e.g. "1;1") or in a combined way (" 1;,;;  1").
-/// Note in that case, the instanciation is about 2 times slower.
+/// Note in that case, the instantiation is about 2 times slower.
 /// In case a delimiter is specified, the format "%lg %lg %lg" will read X,Y,EX.
 
 TGraphErrors::TGraphErrors(const char *filename, const char *format, Option_t *option)
@@ -704,7 +705,7 @@ void TGraphErrors::SavePrimitive(std::ostream &out, Option_t *option /*= ""*/)
    for (i = 0; i < fNpoints-1; i++) out << "   " << fEY[i] << "," << std::endl;
    out << "   " << fEY[fNpoints-1] << "};" << std::endl;
 
-   if (gROOT->ClassSaved(TGraph::Class())) out << "   ";
+   if (gROOT->ClassSaved(TGraphErrors::Class())) out << "   ";
    else out << "   TGraphErrors *";
    out << "gre = new TGraphErrors(" << fNpoints << ","
                                     << fXName   << ","  << fYName  << ","
@@ -736,8 +737,13 @@ void TGraphErrors::SavePrimitive(std::ostream &out, Option_t *option /*= ""*/)
          out << "   gre->GetListOfFunctions()->Add(ptstats);" << std::endl;
          out << "   ptstats->SetParent(gre->GetListOfFunctions());" << std::endl;
       } else {
+         TString objname;
+         objname.Form("%s%d",obj->GetName(),frameNumber);
+         if (obj->InheritsFrom("TF1")) {
+            out << "   " << objname << "->SetParent(gre);\n";
+         }
          out << "   gre->GetListOfFunctions()->Add("
-             << Form("%s%d",obj->GetName(),frameNumber) << ");" << std::endl;
+             << objname << ");" << std::endl;
       }
    }
 

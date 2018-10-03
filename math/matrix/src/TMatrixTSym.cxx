@@ -9,17 +9,18 @@
  * For the list of contributors see $ROOTSYS/README/CREDITS.             *
  *************************************************************************/
 
-//////////////////////////////////////////////////////////////////////////
-//                                                                      //
-// TMatrixTSym                                                          //
-//                                                                      //
-// Template class of a symmetric matrix in the linear algebra package   //
-//                                                                      //
-// Note that in this implementation both matrix element m[i][j] and     //
-// m[j][i] are updated and stored in memory . However, when making the  //
-// object persistent only the upper right triangle is stored .          //
-//                                                                      //
-//////////////////////////////////////////////////////////////////////////
+/** \class TMatrixTSym
+    \ingroup Matrix
+
+ TMatrixTSym
+
+ Template class of a symmetric matrix in the linear algebra package
+
+ Note that in this implementation both matrix element m[i][j] and
+ m[j][i] are updated and stored in memory . However, when making the
+ object persistent only the upper right triangle is stored .
+
+*/
 
 #include "TMatrixTSym.h"
 #include "TBuffer.h"
@@ -30,7 +31,7 @@
 #include "TClass.h"
 #include "TMath.h"
 
-templateClassImp(TMatrixTSym)
+templateClassImp(TMatrixTSym);
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -51,10 +52,11 @@ TMatrixTSym<Element>::TMatrixTSym(Int_t row_lwb,Int_t row_upb)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-/// option="F": array elements contains the matrix stored column-wise
-///             like in Fortran, so a[i,j] = elements[i+no_rows*j],
-/// else        it is supposed that array elements are stored row-wise
-///             a[i,j] = elements[i*no_cols+j]
+/// option=
+///  - "F": array elements contains the matrix stored column-wise
+///         like in Fortran, so a[i,j] = elements[i+no_rows*j],
+///  - else it is supposed that array elements are stored row-wise
+///         a[i,j] = elements[i*no_cols+j]
 ///
 /// array elements are copied
 
@@ -831,7 +833,7 @@ TMatrixTBase<Element> &TMatrixTSym<Element>::ResizeTo(Int_t nrows,Int_t ncols,In
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Set size of the matrix to [row_lwb:row_upb] x [col_lwb:col_upb]
-/// New dynamic elemenst are created, the overlapping part of the old ones are
+/// New dynamic elements are created, the overlapping part of the old ones are
 /// copied to the new structures, then the old elements are deleted.
 
 template<class Element>
@@ -2063,9 +2065,7 @@ void TMatrixTSym<Element>::Streamer(TBuffer &R__b)
    }
 }
 
-#ifndef ROOT_TMatrixFSymfwd
 #include "TMatrixFSymfwd.h"
-#endif
 
 template class TMatrixTSym<Float_t>;
 
@@ -2089,9 +2089,7 @@ template TMatrixFSym &Add        <Float_t>(TMatrixFSym &target,      Float_t    
 template TMatrixFSym &ElementMult<Float_t>(TMatrixFSym &target,const TMatrixFSym &source);
 template TMatrixFSym &ElementDiv <Float_t>(TMatrixFSym &target,const TMatrixFSym &source);
 
-#ifndef ROOT_TMatrixDSymfwd
 #include "TMatrixDSymfwd.h"
-#endif
 
 template class TMatrixTSym<Double_t>;
 

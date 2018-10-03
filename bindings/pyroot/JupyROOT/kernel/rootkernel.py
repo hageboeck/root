@@ -13,52 +13,35 @@
 
 from __future__ import print_function
 
-import sys, os, select, tempfile
-
-
-#trying to find ROOT lib path to PYTHONPATH
-#NOTE: required for JupyterHub
-try:
-    ROOT_PYTHON_PATH = os.popen("root-config --libdir")
-    os.environ['PYTHONPATH'] = os.environ['PYTHONPATH']+":"+ROOT_PYTHON_PATH.read()
-    ROOT_PYTHON_PATH.close()
-except Exception as e:
-    pass
-#setting up PYTHONPATH
-os.environ['PYTHONPATH'] = os.environ['PYTHONPATH']+":"+os.path.dirname(__file__)
+import sys
 
 try:
-    from metakernel import MetaKernel, Parser
+    from metakernel import MetaKernel
     from metakernel.display import HTML
 except ImportError:
     raise Exception("Error: package metakernel not found.(install it running 'pip install metakernel')")
 
-#ROOT related imports
-try:
-    import ROOT
-except ImportError:
-    raise Exception("Error: PyROOT not found")
+import ROOT
 
-try:
-    from JupyROOT.utils import setStyle
-    from JupyROOT.kernel.draw import LoadDrawer, CanvasDrawer
-    from JupyROOT.kernel.cppcompleter import CppCompleter
-    from JupyROOT.kernel.utils import GetIOHandler, GetExecutor, GetDeclarer, ACLiC, MagicLoader
-except ImportError:
-    raise Exception("Error: JupyROOT not found")
+from JupyROOT.utils import setStyle, invokeAclic, GetDrawers
+from JupyROOT.handlers import RunAsyncAndPrint
+from JupyROOT.cppcompleter import CppCompleter
+from JupyROOT.kernel.utils import GetIOHandler, GetExecutor, GetDeclarer, MagicLoader
 
 import IPython
 
 # We want iPython to take over the graphics
 ROOT.gROOT.SetBatch()
 
-_debug = True
-
 def Debug(msg):
-     print('out: %r' % msg, file=sys.__stderr__)
-
+     print('Kernel main: %r' % msg, file=sys.__stderr__)
 
 class ROOTKernel(MetaKernel):
+    # These two regexes are considered by the parser of the metakernel 
+    # there is no need to create one explicitly
+    identifier_regex = r'(?:\w(?:\w|\.|->|::|\d)*)'
+    func_call_regex = r'(?:\w(?:(?:\w|\.|->|::|\d))*)\([^\)\()]*\Z'
+
     implementation = 'ROOT'
     implementation_version = '1.0'
     language = 'c++'
@@ -67,27 +50,27 @@ class ROOTKernel(MetaKernel):
                      'codemirror_mode': 'text/x-c++src',
                      'mimetype': ' text/x-c++src',
                      'file_extension': '.C'}
-    banner = "CERN ROOT Kernel %s" % ROOT.gROOT.GetVersion()
+    banner = "ROOT Kernel"
 
     def __init__(self,**kwargs):
 
         MetaKernel.__init__(self,**kwargs)
-        LoadDrawer()
         setStyle()
         self.ioHandler = GetIOHandler()
         self.Executor  = GetExecutor()
         self.Declarer  = GetDeclarer()#required for %%cpp -d magic
-        self.ACLiC     = ACLiC
+        self.ACLiC     = invokeAclic
         self.magicloader = MagicLoader(self)
-        self.parser = Parser(self.identifier_regex, self.func_call_regex,
-                             self.magic_prefixes, self.help_suffix)
         self.completer = CppCompleter()
         self.completer.activate()
 
-
     def get_completions(self, info):
-        if _debug :Debug(info)
         return self.completer._completeImpl(info['code'])
+
+    def print_output(self, handler):
+        streamDicts = handler.GetStreamsDicts()
+        for streamDict in filter(lambda d: None != d, streamDicts):
+            self.send_response(self.iopub_socket, 'stream', streamDict)
 
     def do_execute_direct(self, code, silent=False):
 
@@ -95,44 +78,27 @@ class ROOTKernel(MetaKernel):
             return
 
         status = 'ok'
-        traceback = None
-        std_out=""
-        std_err=""
         try:
-            self.ioHandler.clear()
-            self.ioHandler.InitCapture()
-            root_status = self.Executor(str(code))
-            self.ioHandler.EndCapture()
+            RunAsyncAndPrint(self.Executor,
+                             code.encode('utf8'),
+                             self.ioHandler,
+                             self.print_output,
+                             silent,
+                             .1)
 
-            std_out = self.ioHandler.getStdout()
-            std_err = self.ioHandler.getStderr()
-
-            canvaslist = ROOT.gROOT.GetListOfCanvases()
-            if canvaslist:
-                for canvas in canvaslist:
-                    if canvas.IsDrawn():
-                        self.drawer = CanvasDrawer(canvas)
-                        if self.drawer._canJsDisplay():
-                            self.Display(HTML(self.drawer.getJsCode()))
-                        else:
-                            self.Display(self.drawer.getPngImage())
-                        canvas.ResetDrawn()
-
+            drawers = GetDrawers()
+            for drawer in drawers:
+                for dobj in drawer.GetDrawableObjects():
+                    self.Display(dobj)
 
         except KeyboardInterrupt:
-            self.interpreter.gROOT.SetInterrupt()
+            ROOT.gROOT.SetInterrupt()
             status = 'interrupted'
             self.ioHandler.EndCapture()
-            std_out = self.ioHandler.getStdout()
-            std_err = self.ioHandler.getStderr()
         if not silent:
-            ## Send output on stdout
-            stream_content_stdout = {'name': 'stdout', 'text': std_out}
-            self.send_response(self.iopub_socket, 'stream', stream_content_stdout)
-            if std_err != "":
-                stream_content_stderr = {'name': 'stderr', 'text': std_err}
-                self.send_response(self.iopub_socket, 'stream', stream_content_stderr)
+            self.print_output(self.ioHandler)
 
+        traceback = None
         reply = {'status': status,
                 'execution_count': self.execution_count,
                 'payload': [],
@@ -153,7 +119,7 @@ class ROOTKernel(MetaKernel):
             pass
         else:
             raise ValueError("Invalid status: %r" % status)
-        #return reply
+
 
 def main():
     """launch a root kernel"""

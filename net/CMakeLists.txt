@@ -1,6 +1,9 @@
-
 add_subdirectory(net)
-add_subdirectory(auth)  # special CMakeListst.txt
+add_subdirectory(auth)
+
+if(afs)
+  add_subdirectory(afs)
+endif()
 
 if(bonjour)
   add_subdirectory(bonjour)
@@ -12,13 +15,15 @@ endif()
 
 if(NOT WIN32 AND ssl)
   add_subdirectory(rpdutils)
+  add_subdirectory(rootd)
 endif()
 
 if(xrootd)
   add_subdirectory(netx)
-  if(alien)
-    add_subdirectory(alien)
-  endif()
+endif()
+
+if(alien)
+  add_subdirectory(alien)
 endif()
 
 if(monalisa)
@@ -43,5 +48,6 @@ endif()
 
 if(http)
    add_subdirectory(http)
+   add_subdirectory(httpsniff)
 endif()
 

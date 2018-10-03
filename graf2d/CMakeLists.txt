@@ -1,5 +1,6 @@
-if(builtin_freetype)
-  add_subdirectory(freetype)
+if(root7)
+  add_subdirectory(primitives)
+  add_subdirectory(gpadv7)
 endif()
 add_subdirectory(gpad)
 add_subdirectory(graf)
@@ -27,5 +28,3 @@ if(cocoa)
   add_subdirectory(quartz)
   add_subdirectory(cocoa)
 endif()
-
-

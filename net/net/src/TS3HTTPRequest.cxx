@@ -50,7 +50,7 @@
 #include <time.h>
 #include <string.h>
 
-ClassImp(TS3HTTPRequest)
+ClassImp(TS3HTTPRequest);
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -115,6 +115,12 @@ TString TS3HTTPRequest::ComputeSignature(TS3HTTPRequest::EHTTPVerb httpVerb) con
       // (see method MakeAuthHeader)
       // Ref: https://developers.google.com/storage/docs/reference/v1/apiversion1
       toSign += "x-goog-api-version:1\n"; // Lowercase, no spaces around ':'
+   }
+
+   if (fAuthType == kAmazon) {
+      if (!fSessionToken.IsNull()) {
+         toSign += "x-amz-security-token:" + fSessionToken + "\n";
+      }
    }
 
    toSign += "/" + fBucket + fObjectKey;
@@ -199,6 +205,21 @@ TString TS3HTTPRequest::MakeDateHeader() const
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+/// Returns the session security token header for this HTTP request
+
+TString TS3HTTPRequest::MakeTokenHeader() const
+{
+   if (fAuthType != kAmazon)
+      return "";
+
+   if (fSessionToken.IsNull())
+      return "";
+
+   return TString::Format("x-amz-security-token: %s",
+      (const char*) fSessionToken.Data());
+}
+
+////////////////////////////////////////////////////////////////////////////////
 /// Returns the authentication prefix
 
 TString TS3HTTPRequest::MakeAuthPrefix() const
@@ -238,6 +259,9 @@ TString TS3HTTPRequest::GetRequest(TS3HTTPRequest::EHTTPVerb httpVerb, Bool_t ap
       (const char*)MakeRequestLine(httpVerb),
       (const char*)MakeHostHeader(),
       (const char*)MakeDateHeader());
+   TString tokenHeader = MakeTokenHeader();
+   if (!tokenHeader.IsNull())
+      request += tokenHeader + "\r\n";
    TString authHeader = MakeAuthHeader(httpVerb);
    if (!authHeader.IsNull())
       request += authHeader + "\r\n";

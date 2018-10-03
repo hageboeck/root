@@ -10,16 +10,16 @@ void TMVA::TMVAGlob::SetSignalAndBackgroundStyle( TH1* sig, TH1* bkg, TH1* all )
    //signal
    // const Int_t FillColor__S = 38 + 150; // change of Color Scheme in ROOT-5.16.
    // convince yourself with gROOT->GetListOfColors()->Print()
-   Int_t FillColor__S = c_SignalFill;
+   Int_t FillColor__S = getSignalFill();
    Int_t FillStyle__S = 1001;
-   Int_t LineColor__S = c_SignalLine;
+   Int_t LineColor__S = getSignalLine();
    Int_t LineWidth__S = 2;
 
    // background
    //Int_t icolor = gConfig().fVariablePlotting.fUsePaperStyle ? 2 + 100 : 2;
-   Int_t FillColor__B = c_BackgroundFill;
+   Int_t FillColor__B = getBackgroundFill();
    Int_t FillStyle__B = 3554;
-   Int_t LineColor__B = c_BackgroundLine;
+   Int_t LineColor__B = getBackgroundLine();
    Int_t LineWidth__B = 2;
 
    if (sig != NULL) {
@@ -49,16 +49,16 @@ void TMVA::TMVAGlob::SetMultiClassStyle( TObjArray* hists )
    //signal
    // const Int_t FillColor__S = 38 + 150; // change of Color Scheme in ROOT-5.16.
    // convince yourself with gROOT->GetListOfColors()->Print()
-   //Int_t FillColor__S = c_SignalFill;
+   //Int_t FillColor__S = getSignalFill();
    //Int_t FillStyle__S = 1001;
-   //Int_t LineColor__S = c_SignalLine;
+   //Int_t LineColor__S = getSignalLine();
    //Int_t LineWidth__S = 2;
 
    // background
    //Int_t icolor = gConfig().fVariablePlotting.fUsePaperStyle ? 2 + 100 : 2;
-   //Int_t FillColor__B = c_BackgroundFill;
+   //Int_t FillColor__B = getBackgroundFill();
    //Int_t FillStyle__B = 3554;
-   //Int_t LineColor__B = c_BackgroundLine;
+   //Int_t LineColor__B = getBackgroundLine();
    //Int_t LineWidth__B = 2;
 
    Int_t FillColors[10] = {38,2,3,6,7,8,9,11};
@@ -128,13 +128,13 @@ void TMVA::TMVAGlob::SetTMVAStyle() {
    // TMVAStyle->SetTitleH(.10);
    // MVAStyle->SetTitleX(.5);
    // TMVAStyle->SetTitleY(.9);
-   TMVAStyle->SetTitleFillColor( c_TitleBox );
-   TMVAStyle->SetTitleTextColor( c_TitleText );
+   TMVAStyle->SetTitleFillColor( getTitleBox() );
+   TMVAStyle->SetTitleTextColor( getTitleText() );
    TMVAStyle->SetTitleBorderSize( 1 );
-   TMVAStyle->SetLineColor( c_TitleBorder );
+   TMVAStyle->SetLineColor( getTitleBorder() );
    if (!gConfig().fVariablePlotting.fUsePaperStyle) {
-      TMVAStyle->SetFrameFillColor( c_FrameFill );
-      TMVAStyle->SetCanvasColor( c_Canvas );
+      TMVAStyle->SetFrameFillColor( getFrameFill() );
+      TMVAStyle->SetCanvasColor( getCanvas() );
    }
 
    // set the paper & margin sizes
@@ -426,11 +426,10 @@ Int_t TMVA::TMVAGlob::GetNumberOfInputVariables( TDirectory *dir )
    return noVars;
 }
 
-std::vector<TString> TMVA::TMVAGlob::GetInputVariableNames(TDirectory *dir )
+std::vector<TString> TMVA::TMVAGlob::GetInputVariableNames(TDirectory *dir)
 {
    TIter next(dir->GetListOfKeys());
    TKey* key = 0;
-   //set<std::string> varnames;
    std::vector<TString> names;
       
    while ((key = (TKey*)next())) {
@@ -438,14 +437,16 @@ std::vector<TString> TMVA::TMVAGlob::GetInputVariableNames(TDirectory *dir )
       TClass *cl = gROOT->GetClass(key->GetClassName());
       if (!cl->InheritsFrom("TH1")) continue;
       TString name(key->GetName());
-      Int_t pos = name.First("__");
-      name.Remove(pos);
+      Int_t pos = name.Index("__");
+      if (pos != -1) {
+         name.Remove(pos);
+      }
       Bool_t hasname = false;
       std::vector<TString>::const_iterator iter = names.begin();
       while(iter != names.end()){
          if(name.CompareTo(*iter)==0)
             hasname=true;
-         iter++;
+         ++iter;
       }
       if(!hasname)
          names.push_back(name);
@@ -471,15 +472,16 @@ std::vector<TString> TMVA::TMVAGlob::GetClassNames(TDirectory *dir )
       TClass *cl = gROOT->GetClass(key->GetClassName());
       if (!cl->InheritsFrom("TH1")) continue;
       TString name(key->GetName());
+      Int_t pos = name.Index("__");
+      if (pos == -1)
+         continue;
       name.ReplaceAll("_Deco","");
       name.ReplaceAll("_Gauss","");
       name.ReplaceAll("_PCA","");
       name.ReplaceAll("_Id","");
       name.ReplaceAll("_vs_","");
-      char c = '_';
-      Int_t pos = name.Last(c);
-      name.Remove(0,pos+1);
-         
+      name.Remove(0, pos + 2);
+
       /*Int_t pos = name.First("__");
         name.Remove(0,pos+2);
         char c = '_';
@@ -498,7 +500,7 @@ std::vector<TString> TMVA::TMVAGlob::GetClassNames(TDirectory *dir )
       while(iter != names.end()){
          if(name.CompareTo(*iter)==0)
             hasname=true;
-         iter++;
+         ++iter;
       }
       if(!hasname)
          names.push_back(name);

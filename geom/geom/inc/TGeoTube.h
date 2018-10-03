@@ -12,18 +12,7 @@
 #ifndef ROOT_TGeoTube
 #define ROOT_TGeoTube
 
-#ifndef ROOT_TGeoBBox
 #include "TGeoBBox.h"
-#endif
-
-////////////////////////////////////////////////////////////////////////////
-//                                                                        //
-// TGeoTube - cylindrical tube  class. A tube has 3 parameters :          //
-//            Rmin - minimum radius                                       //
-//            Rmax - maximum radius                                       //
-//            dz - half length                                            //
-//                                                                        //
-////////////////////////////////////////////////////////////////////////////
 
 class TGeoTube : public TGeoBBox
 {
@@ -96,15 +85,6 @@ public:
 
 };
 
-////////////////////////////////////////////////////////////////////////////
-//                                                                        //
-// TGeoTubeSeg - a phi segment of a tube. Has 5 parameters :              //
-//            - the same 3 as a tube;                                     //
-//            - first phi limit (in degrees)                              //
-//            - second phi limit                                          //
-//                                                                        //
-////////////////////////////////////////////////////////////////////////////
-
 class TGeoTubeSeg : public TGeoTube
 {
 protected:
@@ -112,13 +92,13 @@ protected:
    Double_t              fPhi1;  // first phi limit
    Double_t              fPhi2;  // second phi limit
    // Transient trigonometric data
-   Double_t              fS1;    //!sin(phi1)
-   Double_t              fC1;    //!cos(phi1)
-   Double_t              fS2;    //!sin(phi2)
-   Double_t              fC2;    //!cos(phi2)
-   Double_t              fSm;    //!sin(0.5*(phi1+phi2))
-   Double_t              fCm;    //!cos(0.5*(phi1+phi2))
-   Double_t              fCdfi;  //!cos(0.5*(phi1-phi2))
+   Double_t              fS1;    // sin(phi1)
+   Double_t              fC1;    // cos(phi1)
+   Double_t              fS2;    // sin(phi2)
+   Double_t              fC2;    // cos(phi2)
+   Double_t              fSm;    // sin(0.5*(phi1+phi2))
+   Double_t              fCm;    // cos(0.5*(phi1+phi2))
+   Double_t              fCdfi;  // cos(0.5*(phi1-phi2))
 
    void                  InitTrigonometry();
 
@@ -182,26 +162,15 @@ public:
    virtual void          SetSegsAndPols(TBuffer3D &buff) const;
    virtual void          Sizeof3D() const;
 
-   ClassDef(TGeoTubeSeg, 1)         // cylindrical tube segment class
+   ClassDef(TGeoTubeSeg, 2)         // cylindrical tube segment class
 };
-
-////////////////////////////////////////////////////////////////////////////
-//                                                                        //
-// TGeoCtub - a tube segment cut with 2 planes. Has 11 parameters :       //
-//            - the same 5 as a tube segment;                             //
-//            - x,y,z components of the normal to the -dZ cut plane in    //
-//              point (0,0,-dZ)                                           //
-//            -  x,y,z components of the normal to the +dZ cut plane in   //
-//              point (0,0,dZ)                                            //
-//                                                                        //
-////////////////////////////////////////////////////////////////////////////
 
 class TGeoCtub : public TGeoTubeSeg
 {
 protected:
    // data members
    Double_t             fNlow[3];  // normal to lower cut plane
-   Double_t             fNhigh[3]; // normal to highet cut plane
+   Double_t             fNhigh[3]; // normal to higher cut plane
 
 public:
    // constructors

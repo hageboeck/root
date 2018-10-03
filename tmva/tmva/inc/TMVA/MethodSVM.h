@@ -41,18 +41,11 @@
 //                                                                      //
 //////////////////////////////////////////////////////////////////////////
 
-#ifndef ROOT_TMVA_MethodBase
 #include "TMVA/MethodBase.h"
-#endif
-#ifndef ROOT_TMVA_TMatrixD
-#ifndef ROOT_TMatrixDfwd
 #include "TMatrixDfwd.h"
-#endif
-#endif
 #ifndef ROOT_TMVA_TVectorD
-#ifndef ROOT_TVectorD
 #include "TVectorD.h"
-#endif
+#include "TMVA/SVKernelFunction.h"
 #endif
 
 namespace TMVA 
@@ -66,16 +59,25 @@ namespace TMVA
    public:
 
       MethodSVM( const TString& jobName, const TString& methodTitle, DataSetInfo& theData,
-                 const TString& theOption = "", TDirectory* theTargetDir = 0 );
+                 const TString& theOption = "" );
       
-      MethodSVM( DataSetInfo& theData, const TString& theWeightFile, TDirectory* theTargetDir = NULL );
+      MethodSVM( DataSetInfo& theData, const TString& theWeightFile);
 
       virtual ~MethodSVM( void );
     
       virtual Bool_t HasAnalysisType( Types::EAnalysisType type, UInt_t numberClasses, UInt_t numberTargets );
 
+      // optimise tuning parameters                                                   
+      virtual std::map<TString,Double_t> OptimizeTuningParameters(TString fomType="ROCIntegral", TString fitType="Minuit");
+      virtual void SetTuneParameters(std::map<TString,Double_t> tuneParameters);
+      std::vector<TMVA::SVKernelFunction::EKernelType> MakeKernelList(std::string multiKernels, TString kernel);
+      std::map< TString,std::vector<Double_t> > GetTuningOptions();
+
       // training method
       void Train( void );
+
+      // revoke training (required for optimise tuning parameters)                    
+      void Reset( void );
 
       using MethodBase::ReadWeightsFromStream;
 
@@ -97,6 +99,17 @@ namespace TMVA
       // ranking of input variables
       const Ranking* CreateRanking() { return 0; } 
 
+      // for SVM optimisation                                                         
+      void SetGamma(Double_t g){fGamma = g;}
+      void SetCost(Double_t c){fCost = c;}
+      void SetMGamma(std::string & mg);
+      void SetOrder(Double_t o){fOrder = o;}
+      void SetTheta(Double_t t){fTheta = t;}
+      void SetKappa(Double_t k){fKappa = k;}
+      void SetMult(Double_t m){fMult = m;}
+
+      void GetMGamma(const std::vector<float> & gammas);
+
    protected:
 
       // make ROOT-independent C++ class for classifier response (classifier-specific implementation)
@@ -111,6 +124,7 @@ namespace TMVA
       void DeclareOptions();
       void DeclareCompatibilityOptions();
       void ProcessOptions();
+      Double_t getLoss( TString lossFunction );
       
       Float_t                       fCost;                // cost value
       Float_t                       fTolerance;           // tolerance parameter
@@ -126,14 +140,25 @@ namespace TMVA
       TVectorD*                     fMinVars;             // for normalization //is it still needed?? 
       TVectorD*                     fMaxVars;             // for normalization //is it still needed?? 
 
-      // for backward compatibility
+      // for kernel functions
       TString                       fTheKernel;           // kernel name
       Float_t                       fDoubleSigmaSquared;  // for RBF Kernel
       Int_t                         fOrder;               // for Polynomial Kernel ( polynomial order )
       Float_t                       fTheta;               // for Sigmoidal Kernel
       Float_t                       fKappa;               // for Sigmoidal Kernel
+      Float_t                       fMult;
+      std::vector<Float_t>          fmGamma;              // vector of gammas for multi-gaussian kernel                                                                    
+      Float_t                       fNumVars;             // number of input variables for multi-gaussian                                                                  
+      std::vector<TString>          fVarNames;
+      std::string                   fGammas;
+      std::string                   fGammaList;
+      std::string                   fTune;                // Specify parameters to be tuned
+      std::string                   fMultiKernels;
+
+      Int_t                 fDataSize;
+      TString fLoss;
       
-      ClassDef(MethodSVM,0)  // Support Vector Machine
+      ClassDef(MethodSVM,0);  // Support Vector Machine
    };
 
 } // namespace TMVA

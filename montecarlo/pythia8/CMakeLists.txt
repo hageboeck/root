@@ -3,11 +3,29 @@
 # @author Pere Mato, CERN
 ############################################################################
 
-include_directories(${PYTHIA8_INCLUDE_DIR})
+ROOT_STANDARD_LIBRARY_PACKAGE(EGPythia8
+  HEADERS
+    TPythia8.h
+    TPythia8Decayer.h
+  SOURCES
+    TPythia8.cxx
+    TPythia8Decayer.cxx
+  DICTIONARY_OPTIONS
+    -I${PYTHIA8_INCLUDE_DIR}
+  DEPENDENCIES
+    Core
+    EG
+    Graf
+    Physics
+    VMC
+)
 
-ROOT_GENERATE_DICTIONARY(G__Pythia8 *.h MODULE EGPythia8 LINKDEF LinkDef.h)
+ROOT_ADD_CXX_FLAG(_EGPythia8_FLAGS -Wno-delete-non-virtual-dtor)
+ROOT_ADD_CXX_FLAG(_EGPythia8_FLAGS -Wno-misleading-indentation)
+ROOT_ADD_CXX_FLAG(_EGPythia8_FLAGS -Wno-overloaded-virtual)
 
-ROOT_ADD_CXX_FLAG(CMAKE_CXX_FLAGS -Wno-overloaded-virtual)
+separate_arguments(_EGPythia8_FLAGS)
 
-ROOT_LINKER_LIBRARY(EGPythia8 *.cxx G__Pythia8.cxx LIBRARIES Core ${PYTHIA8_LIBRARIES} DEPENDENCIES EG Graf VMC Physics)
-ROOT_INSTALL_HEADERS()
+target_compile_options(EGPythia8 PRIVATE ${_EGPythia8_FLAGS})
+target_include_directories(EGPythia8 PUBLIC ${PYTHIA8_INCLUDE_DIR})
+target_link_libraries(EGPythia8 PUBLIC ${PYTHIA8_LIBRARIES})

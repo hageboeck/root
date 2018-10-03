@@ -12,10 +12,10 @@ namespace TMVA{
 
    // utility function
    void RegGuiActionButton( TControlBar* cbar, 
-                      const TString& title, const TString& macro, const TString& comment, 
-                      const TString& buttonType, TString requiredKey = "" ); 
+                            const TString& title, const TString& macro, const TString& comment, 
+                            const TString& buttonType, TString requiredKey = "" ); 
 
    // main GUI
-   void TMVARegGui( const char* fName = "TMVAReg.root" ); 
+   void TMVARegGui( const char* fName = "TMVAReg.root", TString dataset=""); 
 }
 #endif

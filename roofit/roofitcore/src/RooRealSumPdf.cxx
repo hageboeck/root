@@ -15,22 +15,29 @@
  *****************************************************************************/
 
 //////////////////////////////////////////////////////////////////////////////
-//
-// Class RooRealSumPdf implements a PDF constructed from a sum of
-// functions:
-//
-//                 Sum(i=1,n-1) coef_i * func_i(x) + [ 1 - (Sum(i=1,n-1) coef_i ] * func_n(x)
-//   pdf(x) =    ------------------------------------------------------------------------------
-//             Sum(i=1,n-1) coef_i * Int(func_i)dx + [ 1 - (Sum(i=1,n-1) coef_i ] * Int(func_n)dx
-//
-//
-// where coef_i and func_i are RooAbsReal objects, and x is the collection of dependents. 
-// In the present version coef_i may not depend on x, but this limitation may be removed in the future
-//
+/** \class RooRealSumPdf
+    \ingroup Roofitcore
+
+
+Class RooRealSumPdf implements a PDF constructed from a sum of
+functions:
+
+\f[
+
+                
+  pdf(x) = \frac{ \sum_{i=1}^{n-1} coef_i * func_i(x) + [ 1 - \sum_{i=1}^{n-1} coef_i ] * func_n(x) } 
+            {\sum_{i=1}^{n-1} coef_i * \int func_i(x)dx  + [ 1 - \sum_{i=1}^{n-1} coef_i ] * \int func_n(x) dx }
+\f]
+
+where \f$coef_i\f$ and \f$func_i\f$ are RooAbsReal objects, and x is the collection of dependents. 
+In the present version \f$coef_i\f$ may not depend on x, but this limitation may be removed in the future
+
+*/
 
 #include "RooFit.h"
 #include "Riostream.h"
 
+#include "TError.h"
 #include "TIterator.h"
 #include "TList.h"
 #include "RooRealSumPdf.h"
@@ -42,14 +49,13 @@
 #include "RooRealIntegral.h"
 #include "RooMsgService.h"
 #include "RooNameReg.h"
-#include <memory>
-#include <algorithm>
 
-#include "TError.h"
+#include <algorithm>
+#include <memory>
 
 using namespace std;
 
-ClassImp(RooRealSumPdf)
+ClassImp(RooRealSumPdf);
 ;
 
 Bool_t RooRealSumPdf::_doFloorGlobal = kFALSE ; 
@@ -340,6 +346,7 @@ Int_t RooRealSumPdf::getAnalyticalIntegralWN(RooArgSet& allVars, RooArgSet& anal
   RooAbsReal *func ;
   while((func=(RooAbsReal*)_funcIter->Next())) {
     RooAbsReal* funcInt = func->createIntegral(analVars,rangeName) ;
+    if(funcInt->InheritsFrom(RooRealIntegral::Class())) ((RooRealIntegral*)funcInt)->setAllowComponentSelection(true);
     cache->_funcIntList.addOwned(*funcInt) ;
     if (normSet && normSet->getSize()>0) {
       RooAbsReal* funcNorm = func->createIntegral(*normSet) ;
@@ -376,9 +383,9 @@ Double_t RooRealSumPdf::analyticalIntegralWN(Int_t code, const RooArgSet* normSe
   CacheElem* cache = (CacheElem*) _normIntMgr.getObjByIndex(code-1) ;
   if (cache==0) { // revive the (sterilized) cache
      //cout << "RooRealSumPdf("<<this<<")::analyticalIntegralWN:"<<GetName()<<"("<<code<<","<<(normSet2?*normSet2:RooArgSet())<<","<<(rangeName?rangeName:"<none>") << ": reviving cache "<< endl;
-     std::auto_ptr<RooArgSet> vars( getParameters(RooArgSet()) );
-     std::auto_ptr<RooArgSet> iset(  _normIntMgr.nameSet2ByIndex(code-1)->select(*vars) );
-     std::auto_ptr<RooArgSet> nset(  _normIntMgr.nameSet1ByIndex(code-1)->select(*vars) );
+     std::unique_ptr<RooArgSet> vars( getParameters(RooArgSet()) );
+     std::unique_ptr<RooArgSet> iset(  _normIntMgr.nameSet2ByIndex(code-1)->select(*vars) );
+     std::unique_ptr<RooArgSet> nset(  _normIntMgr.nameSet1ByIndex(code-1)->select(*vars) );
      RooArgSet dummy;
      Int_t code2 = getAnalyticalIntegralWN(*iset,dummy,nset.get(),rangeName);
      R__ASSERT(code==code2); // must have revived the right (sterilized) slot...

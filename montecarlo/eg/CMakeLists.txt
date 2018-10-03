@@ -3,10 +3,30 @@
 # @author Pere Mato, CERN
 ############################################################################
 
-set(libname EG)
-
-ROOT_GENERATE_DICTIONARY(G__${libname} T*.h MODULE ${libname} LINKDEF LinkDef.h)
-
-
-ROOT_LINKER_LIBRARY(${libname} *.cxx G__${libname}.cxx DEPENDENCIES Graf3d Graf Gpad MathCore )
-ROOT_INSTALL_HEADERS()
+ROOT_STANDARD_LIBRARY_PACKAGE(EG
+  HEADERS
+    TAttParticle.h
+    TDatabasePDG.h
+    TDecayChannel.h
+    TGenerator.h
+    TParticleClassPDG.h
+    TParticle.h
+    TParticlePDG.h
+    TPrimary.h
+    TVirtualMCDecayer.h
+  SOURCES
+    TAttParticle.cxx
+    TDatabasePDG.cxx
+    TDecayChannel.cxx
+    TGenerator.cxx
+    TParticleClassPDG.cxx
+    TParticle.cxx
+    TParticlePDG.cxx
+    TPrimary.cxx
+    TVirtualMCDecayer.cxx
+  DEPENDENCIES
+    Gpad
+    Graf
+    Graf3d
+    MathCore
+)

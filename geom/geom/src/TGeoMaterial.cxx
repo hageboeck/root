@@ -9,13 +9,14 @@
  * For the list of contributors see $ROOTSYS/README/CREDITS.             *
  *************************************************************************/
 
-////////////////////////////////////////////////////////////////////////////////
-//
-//Begin_Html
-/*
-<img src="gif/t_material.jpg">
+/** \class TGeoMaterial
+\ingroup Geometry_classes
+
+Base class describing materials.
+
+\image html geom_material.jpg
 */
-//End_Html
+
 #include "Riostream.h"
 #include "TMath.h"
 #include "TObjArray.h"
@@ -24,10 +25,11 @@
 #include "TGeoManager.h"
 #include "TGeoExtension.h"
 #include "TGeoMaterial.h"
+#include "TGeoPhysicalConstants.h"
 
 // statics and globals
 
-ClassImp(TGeoMaterial)
+ClassImp(TGeoMaterial);
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Default constructor
@@ -264,10 +266,9 @@ TGeoMaterial::~TGeoMaterial()
 /// Connect user-defined extension to the material. The material "grabs" a copy, so
 /// the original object can be released by the producer. Release the previously
 /// connected extension if any.
-///==========================================================================
+///
 /// NOTE: This interface is intended for user extensions and is guaranteed not
 /// to be used by TGeo
-///==========================================================================
 
 void TGeoMaterial::SetUserExtension(TGeoExtension *ext)
 {
@@ -280,10 +281,9 @@ void TGeoMaterial::SetUserExtension(TGeoExtension *ext)
 /// Connect framework defined extension to the material. The material "grabs" a copy,
 /// so the original object can be released by the producer. Release the previously
 /// connected extension if any.
-///==========================================================================
+///
 /// NOTE: This interface is intended for the use by TGeo and the users should
 ///       NOT connect extensions using this method
-///==========================================================================
 
 void TGeoMaterial::SetFWExtension(TGeoExtension *ext)
 {
@@ -325,7 +325,7 @@ char *TGeoMaterial::GetPointerName() const
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Set radiation/absorbtion lengths. If the values are negative, their absolute value
+/// Set radiation/absorption lengths. If the values are negative, their absolute value
 /// is taken, otherwise radlen is recomputed using G3 formula.
 
 void TGeoMaterial::SetRadLen(Double_t radlen, Double_t intlen)
@@ -460,7 +460,7 @@ void TGeoMaterial::GetElementProp(Double_t &a, Double_t &z, Double_t &w, Int_t)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Retreive material index in the list of materials
+/// Retrieve material index in the list of materials
 
 Int_t TGeoMaterial::GetIndex()
 {
@@ -526,15 +526,21 @@ TGeoMaterial *TGeoMaterial::DecayMaterial(Double_t time, Double_t precision)
 /// The precision represent the minimum cumulative branching ratio for
 /// which decay products are still taken into account.
 /// To visualize the time evolution of each decay product one can use:
+/// ~~~ {.cpp}
 ///    TGeoElement *elem = population->At(index);
 ///    TGeoElementRN *elemrn = 0;
 ///    if (elem->IsRadioNuclide()) elemrn = (TGeoElementRN*)elem;
+/// ~~~
 /// One can get Ni/N1(t=0) at any moment of time. Ni is the number of atoms
 /// of one of the decay products, N1(0) is the number of atoms of the top
 /// element at t=0.
+/// ~~~ {.cpp}
 ///    Double_t fraction_weight = elemrn->Ratio()->Concentration(time);
-/// One can also display the time evolution of the fractional weigth:
+/// ~~~
+/// One can also display the time evolution of the fractional weight:
+/// ~~~ {.cpp}
 ///    elemrn->Ratio()->Draw(option);
+/// ~~~
 
 void TGeoMaterial::FillMaterialEvolution(TObjArray *population, Double_t precision)
 {
@@ -560,12 +566,14 @@ void TGeoMaterial::FillMaterialEvolution(TObjArray *population, Double_t precisi
    elemrn->FillPopulation(population, precision);
 }
 
+/** \class TGeoMixture
+\ingroup Geometry_classes
 
-/*************************************************************************
- * TGeoMixture - mixtures of elements
- *
- *************************************************************************/
-ClassImp(TGeoMixture)
+Mixtures of elements.
+
+*/
+
+ClassImp(TGeoMixture);
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Default constructor
@@ -577,6 +585,7 @@ TGeoMixture::TGeoMixture()
    fAmixture  = 0;
    fWeights   = 0;
    fNatoms    = 0;
+   fVecNbOfAtomsPerVolume = 0;
    fElements  = 0;
 }
 
@@ -591,6 +600,7 @@ TGeoMixture::TGeoMixture(const char *name, Int_t /*nel*/, Double_t rho)
    fWeights    = 0;
    fNelements  = 0;
    fNatoms     = 0;
+   fVecNbOfAtomsPerVolume = 0;
    fDensity = rho;
    fElements   = 0;
    if (fDensity < 0) fDensity = 0.001;
@@ -606,6 +616,7 @@ TGeoMixture::TGeoMixture(const TGeoMixture& gm) :
   fAmixture(gm.fAmixture),
   fWeights(gm.fWeights),
   fNatoms(gm.fNatoms),
+  fVecNbOfAtomsPerVolume(gm.fVecNbOfAtomsPerVolume),
   fElements(gm.fElements)
 {
 }
@@ -622,6 +633,7 @@ TGeoMixture& TGeoMixture::operator=(const TGeoMixture& gm)
       fAmixture=gm.fAmixture;
       fWeights=gm.fWeights;
       fNatoms = gm.fNatoms;
+      fVecNbOfAtomsPerVolume = gm.fVecNbOfAtomsPerVolume;
       fElements = gm.fElements;
    }
    return *this;
@@ -636,6 +648,7 @@ TGeoMixture::~TGeoMixture()
    if (fAmixture) delete[] fAmixture;
    if (fWeights)  delete[] fWeights;
    if (fNatoms)   delete[] fNatoms;
+   if (fVecNbOfAtomsPerVolume) delete[] fVecNbOfAtomsPerVolume;
    if (fElements) delete fElements;
 }
 
@@ -880,7 +893,7 @@ void TGeoMixture::DefineElement(Int_t /*iel*/, Int_t z, Int_t natoms)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Retreive the pointer to the element corresponding to component I.
+/// Retrieve the pointer to the element corresponding to component I.
 
 TGeoElement *TGeoMixture::GetElement(Int_t i) const
 {
@@ -1030,15 +1043,21 @@ TGeoMaterial *TGeoMixture::DecayMaterial(Double_t time, Double_t precision)
 /// The precision represent the minimum cumulative branching ratio for
 /// which decay products are still taken into account.
 /// To visualize the time evolution of each decay product one can use:
+/// ~~~ {.cpp}
 ///    TGeoElement *elem = population->At(index);
 ///    TGeoElementRN *elemrn = 0;
 ///    if (elem->IsRadioNuclide()) elemrn = (TGeoElementRN*)elem;
+/// ~~~
 /// One can get Ni/N1(t=0) at any moment of time. Ni is the number of atoms
 /// of one of the decay products, N1(0) is the number of atoms of the first top
 /// element at t=0.
+/// ~~~ {.cpp}
 ///    Double_t fraction_weight = elemrn->Ratio()->Concentration(time);
-/// One can also display the time evolution of the fractional weigth:
+/// ~~~
+/// One can also display the time evolution of the fractional weight:
+/// ~~~ {.cpp}
 ///    elemrn->Ratio()->Draw(option);
+/// ~~~
 
 void TGeoMixture::FillMaterialEvolution(TObjArray *population, Double_t precision)
 {
@@ -1066,7 +1085,7 @@ void TGeoMixture::FillMaterialEvolution(TObjArray *population, Double_t precisio
 
 ////////////////////////////////////////////////////////////////////////////////
 /// static function
-///  Compute screening factor for pair production and Bremstrahlung
+///  Compute screening factor for pair production and Bremsstrahlung
 ///  REFERENCE : EGS MANUAL SLAC 210 - UC32 - JUNE 78
 ///                        FORMULA 2.7.22
 
@@ -1076,4 +1095,55 @@ Double_t TGeoMaterial::ScreenFactor(Double_t z)
    Double_t alz  = TMath::Log(z)/3.;
    Double_t factor = (al1440 - 2*alz) / (al183 - alz - TGeoMaterial::Coulomb(z));
    return factor;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+/// Compute Derived Quantities as in Geant4
+
+void TGeoMixture::ComputeDerivedQuantities()
+{
+   fVecNbOfAtomsPerVolume = new Double_t[fNelements];
+
+   // Formula taken from G4Material.cxx L312
+   for (Int_t i=0; i<fNelements; ++i) {
+      fVecNbOfAtomsPerVolume[i] = TGeoUnit::Avogadro*fDensity*fWeights[i]/((TGeoElement*)fElements->At(i))->A();
+   }
+   ComputeRadiationLength();
+   ComputeNuclearInterLength();
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+/// Compute Radiation Length based on Geant4 formula
+
+void TGeoMixture::ComputeRadiationLength()
+{
+   // Formula taken from G4Material.cxx L556
+   Double_t radinv = 0.0 ;
+   for (Int_t i=0;i<fNelements;++i) {
+     radinv += fVecNbOfAtomsPerVolume[i]*((TGeoElement*)fElements->At(i))->GetfRadTsai();
+   }
+   fRadLen = (radinv <= 0.0 ? DBL_MAX : 1./radinv);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+/// Compute Nuclear Interaction Length based on Geant4 formula
+void TGeoMixture::ComputeNuclearInterLength()
+{
+
+   // Formula taken from G4Material.cxx L567
+   constexpr Double_t lambda0  = 35*TGeoUnit::g/TGeoUnit::cm2;
+   constexpr Double_t twothird = 2.0/3.0;
+   Double_t NILinv = 0.0;
+   for (Int_t i=0; i<fNelements; ++i) {
+      Int_t Z = static_cast<Int_t>(((TGeoElement*)fElements->At(i))->Z()+0.5);
+      Double_t A = ((TGeoElement*)fElements->At(i))->Neff();
+      if(1 == Z) {
+         NILinv += fVecNbOfAtomsPerVolume[i]*A;
+      } else {
+         NILinv += fVecNbOfAtomsPerVolume[i]*TMath::Exp(twothird*TMath::Log(A));
+      }
+   }
+   NILinv *= TGeoUnit::amu/lambda0;
+   fIntLen = (NILinv <= 0.0 ? DBL_MAX : 1./NILinv);
 }

@@ -12,51 +12,21 @@
 #ifndef ROOT_TColor
 #define ROOT_TColor
 
-//////////////////////////////////////////////////////////////////////////
-//                                                                      //
-// TColor                                                               //
-//                                                                      //
-// Color defined by RGB or HLS.                                         //
-// At initialization time, a table of colors is generated. This linked  //
-// list can be accessed from the ROOT object                            //
-// (see TROOT::GetListOfColors()). When a color is defined in the range //
-// of [1,50], two "companion" colors are also defined:                  //
-//    - the dark version (color_index + 100)                            //
-//    - the bright version (color_index + 150)                          //
-// The dark and bright color are used to give 3-D effects when drawing  //
-// various boxes (see TWbox, TPave, TPaveText, TPaveLabel,etc).         //
-//                                                                      //
-// This is the list of currently supported basic colors (here dark and  //
-// bright colors are not shown).                                        //
-//Begin_Html
-/*
-<img src="gif/colors.gif">
-*/
-//End_Html
-//                                                                      //
-//////////////////////////////////////////////////////////////////////////
-
-#ifndef ROOT_TNamed
 #include "TNamed.h"
-#endif
-#ifndef ROOT_TArrayI
 #include "TArrayI.h"
-#endif
 
 
 class TColor : public TNamed {
 protected:
-   Int_t          fNumber;        //Color number identifier
+   Int_t          fNumber;        ///< Color number identifier
 private:
-   Float_t        fRed;           //Fraction of Red
-   Float_t        fGreen;         //Fraction of Green
-   Float_t        fBlue;          //Fraction of Blue
-   Float_t        fHue;           //Hue
-   Float_t        fLight;         //Light
-   Float_t        fSaturation;    //Saturation
-   Float_t        fAlpha;         //Alpha (transparency)
-   // static Bool_t  fgGrayscaleMode;//if set, GetColor will return grayscale
-   // static TArrayI fgPalette;      //Color palette
+   Float_t        fRed;           ///< Fraction of Red
+   Float_t        fGreen;         ///< Fraction of Green
+   Float_t        fBlue;          ///< Fraction of Blue
+   Float_t        fHue;           ///< Hue
+   Float_t        fLight;         ///< Light
+   Float_t        fSaturation;    ///< Saturation
+   Float_t        fAlpha;         ///< Alpha (transparency)
 
    void           Allocate();
    static Float_t HLStoRGB1(Float_t rn1, Float_t rn2, Float_t huei);
@@ -64,6 +34,7 @@ private:
 public:
    TColor();
    TColor(Int_t color, Float_t r, Float_t g, Float_t b, const char *name="", Float_t a = 1);
+   TColor(Float_t r, Float_t g, Float_t b, Float_t a = 1);
    TColor(const TColor &color);
    virtual ~TColor();
    const char   *AsHexString() const;
@@ -113,6 +84,8 @@ public:
    static Int_t   GetColorBright(Int_t color);
    static Int_t   GetColorDark(Int_t color);
    static Int_t   GetColorTransparent(Int_t color, Float_t a);
+   static Int_t   GetFreeColorIndex();
+   static const TArrayI& GetPalette();
    static ULong_t Number2Pixel(Int_t ci);
    static ULong_t RGB2Pixel(Int_t r, Int_t g, Int_t b);
    static ULong_t RGB2Pixel(Float_t r, Float_t g, Float_t b);
@@ -120,6 +93,9 @@ public:
    static void    Pixel2RGB(ULong_t pixel, Float_t &r, Float_t &g, Float_t &b);
    static const char *PixelAsHexString(ULong_t pixel);
    static void    SaveColor(std::ostream &out, Int_t ci);
+   static void    SetColorThreshold(Float_t t);
+   static Bool_t  DefinedColors();
+   static void    InvertPalette();
    static Bool_t  IsGrayscale();
    static void    SetGrayscale(Bool_t set = kTRUE);
    static void    SetPalette(Int_t ncolors, Int_t *colors,Float_t alpha=1.);
@@ -147,6 +123,6 @@ public:
                        kStarryNight=102,     kSunset=103,      kTemperatureMap=104,
                        kThermometer=105,     kValentine=106,   kVisibleSpectrum=107,
                        kWaterMelon=108,      kCool=109,        kCopper=110,
-                       kGistEarth=111,       kViridis=112};
+                       kGistEarth=111,       kViridis=112,     kCividis=113};
 #endif
 

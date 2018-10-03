@@ -10,55 +10,61 @@
  * For the list of contributors see $ROOTSYS/README/CREDITS.             *
  *************************************************************************/
 
-//--------------------------------------------------------------------------
-// TGeoCone - conical tube  class. It has 5 parameters :
-//            dz - half length in z
-//            Rmin1, Rmax1 - inside and outside radii at -dz
-//            Rmin2, Rmax2 - inside and outside radii at +dz
-//
-//--------------------------------------------------------------------------
-//Begin_Html
-/*
-<img src="gif/t_cone.gif">
-*/
-//End_Html
-//
-//Begin_Html
-/*
-<img src="gif/t_conedivR.gif">
-*/
-//End_Html
-//
-//Begin_Html
-/*
-<img src="gif/t_conedivPHI.gif">
-*/
-//End_Html
-//Begin_Html
-/*
-<img src="gif/t_conedivZ.gif">
-*/
-//End_Html
+/** \class TGeoCone
+\ingroup Geometry_classes
 
-//--------------------------------------------------------------------------
-// TGeoConeSeg - a phi segment of a conical tube. Has 7 parameters :
-//            - the same 5 as a cone;
-//            - first phi limit (in degrees)
-//            - second phi limit
-//
-//--------------------------------------------------------------------------
-//
-//Begin_Html
-/*
-<img src="gif/t_coneseg.gif">
+Conical tube  class. It has 5 parameters :
+  - dz - half length in z
+  - Rmin1, Rmax1 - inside and outside radii at -dz
+  - Rmin2, Rmax2 - inside and outside radii at +dz
+
+Begin_Macro(source)
+{
+   TCanvas *c = new TCanvas("c", "c",0,0,600,600);
+   new TGeoManager("cone", "poza4");
+   TGeoMaterial *mat = new TGeoMaterial("Al", 26.98,13,2.7);
+   TGeoMedium *med = new TGeoMedium("MED",1,mat);
+   TGeoVolume *top = gGeoManager->MakeBox("TOP",med,100,100,100);
+   gGeoManager->SetTopVolume(top);
+   TGeoVolume *vol = gGeoManager->MakeCone("CONE",med, 40,10,20,35,45);
+   vol->SetLineWidth(2);
+   top->AddNode(vol,1);
+   gGeoManager->CloseGeometry();
+   gGeoManager->SetNsegments(30);
+   top->Draw();
+   TView *view = gPad->GetView();
+   view->ShowAxis();
+}
+End_Macro
 */
-//End_Html
-//
-//Begin_Html
-/*
-<img src="gif/t_conesegdivstepZ.gif">
+
+
+/** \class TGeoConeSeg
+\ingroup Geometry_classes
+
+A phi segment of a conical tube. Has 7 parameters :
+  - the same 5 as a cone;
+  - first phi limit (in degrees)
+  - second phi limit
+
+Begin_Macro(source)
+{
+   TCanvas *c = new TCanvas("c", "c",0,0,600,600);
+   new TGeoManager("coneseg", "poza5");
+   TGeoMaterial *mat = new TGeoMaterial("Al", 26.98,13,2.7);
+   TGeoMedium *med = new TGeoMedium("MED",1,mat);
+   TGeoVolume *top = gGeoManager->MakeBox("TOP",med,100,100,100);
+   gGeoManager->SetTopVolume(top);
+   TGeoVolume *vol = gGeoManager->MakeCons("CONESEG",med, 40,30,40,10,20,-30,250);
+   top->AddNode(vol,1);
+   gGeoManager->CloseGeometry();
+   gGeoManager->SetNsegments(30);
+   top->Draw();
+   TView *view = gPad->GetView();
+   view->ShowAxis();
+}
+End_Macro
 */
-//End_Html
 
 #include "Riostream.h"
 
@@ -71,7 +77,7 @@
 #include "TBuffer3DTypes.h"
 #include "TMath.h"
 
-ClassImp(TGeoCone)
+ClassImp(TGeoCone);
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Default constructor
@@ -118,11 +124,11 @@ TGeoCone::TGeoCone(const char *name, Double_t dz, Double_t rmin1, Double_t rmax1
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Default constructor specifying minimum and maximum radius
-/// param[0] = dz
-/// param[1] = Rmin1
-/// param[2] = Rmax1
-/// param[3] = Rmin2
-/// param[4] = Rmax2
+///  - param[0] = dz
+///  - param[1] = Rmin1
+///  - param[2] = Rmax1
+///  - param[3] = Rmin2
+///  - param[4] = Rmax2
 
 TGeoCone::TGeoCone(Double_t *param)
          :TGeoBBox(0, 0, 0)
@@ -352,11 +358,11 @@ Double_t TGeoCone::DistFromInside(const Double_t *point, const Double_t *dir, In
 ////////////////////////////////////////////////////////////////////////////////
 /// Compute distance from outside point to surface of the tube
 /// Boundary safe algorithm.
-/// compute distance to Z planes
 
 Double_t TGeoCone::DistFromOutsideS(const Double_t *point, const Double_t *dir, Double_t dz,
                              Double_t rmin1, Double_t rmax1, Double_t rmin2, Double_t rmax2)
 {
+   // compute distance to Z planes
    if (dz<=0) return TGeoShape::Big();
    Double_t snxt;
    Double_t xp, yp, zp;
@@ -482,16 +488,16 @@ Double_t TGeoCone::DistFromOutsideS(const Double_t *point, const Double_t *dir, 
 
 ////////////////////////////////////////////////////////////////////////////////
 /// compute distance from outside point to surface of the tube
-/// compute safe radius
 
 Double_t TGeoCone::DistFromOutside(const Double_t *point, const Double_t *dir, Int_t iact, Double_t step, Double_t *safe) const
 {
+   // compute safe radius
    if (iact<3 && safe) {
       *safe = Safety(point, kFALSE);
       if (iact==0) return TGeoShape::Big();
       if ((iact==1) && (*safe>step)) return TGeoShape::Big();
    }
-// Check if the bounding box is crossed within the requested distance
+   // Check if the bounding box is crossed within the requested distance
    Double_t sdist = TGeoBBox::DistFromOutside(point,dir, fDX, fDY, fDZ, fOrigin, step);
    if (sdist>=step) return TGeoShape::Big();
    // compute distance to Z planes
@@ -545,7 +551,7 @@ Int_t TGeoCone::DistancetoPrimitive(Int_t px, Int_t py)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-///--- Divide this cone shape belonging to volume "voldiv" into ndiv volumes
+/// Divide this cone shape belonging to volume "voldiv" into ndiv volumes
 /// called divname, from start position with the given step. Returns pointer
 /// to created division cell volume in case of Z divisions. For Z division
 /// creates all volumes with different shapes and returns pointer to volume that
@@ -646,7 +652,7 @@ Double_t TGeoCone::GetAxisRange(Int_t iaxis, Double_t &xlo, Double_t &xhi) const
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-///--- Fill vector param[4] with the bounding cylinder parameters. The order
+/// Fill vector param[4] with the bounding cylinder parameters. The order
 /// is the following : Rmin, Rmax, Phi1, Phi2, dZ
 
 void TGeoCone::GetBoundingCylinder(Double_t *param) const
@@ -656,7 +662,7 @@ void TGeoCone::GetBoundingCylinder(Double_t *param) const
    param[1] = TMath::Max(fRmax1, fRmax2); // Rmax
    param[1] *= param[1];
    param[2] = 0.;                         // Phi1
-   param[3] = 360.;                       // Phi1
+   param[3] = 360.;                       // Phi2
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -867,7 +873,9 @@ Double_t TGeoCone::Safety(const Double_t *point, Bool_t in) const
    saf[1] = TGeoShape::SafetySeg(r,point[2], fRmax2, fDz, fRmin2, fDz, !in);
    saf[2] = TGeoShape::SafetySeg(r,point[2], fRmin2, fDz, fRmin1, -fDz, !in);
    saf[3] = TGeoShape::SafetySeg(r,point[2], fRmax1, -fDz, fRmax2, fDz, !in);
-   return saf[TMath::LocMin(4,saf)];
+   Double_t safety = saf[TMath::LocMin(4,saf)];
+   if (safety>1.E20) safety = 0.;
+   return safety;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -898,7 +906,10 @@ Double_t TGeoCone::SafetyS(const Double_t *point, Bool_t in, Double_t dz, Double
          saf[1] = TGeoShape::SafetySeg(r,point[2], rmax2, dz, rmin2, dz, !in);
    }
    // Safety to inner part
-   saf[2] = TGeoShape::SafetySeg(r,point[2], rmin1, -dz, rmin2, dz, in);
+   if (rmin1>0 || rmin2>0)
+      saf[2] = TGeoShape::SafetySeg(r,point[2], rmin2, dz, rmin1, -dz, !in);
+   else
+      saf[2] = TGeoShape::Big();
    saf[3] = TGeoShape::SafetySeg(r,point[2], rmax1, -dz, rmax2, dz, !in);
    return saf[TMath::LocMin(4,saf)];
 }
@@ -1096,14 +1107,7 @@ Int_t TGeoCone::GetNmeshVertices() const
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-////// fill size of this 3-D object
-////    TVirtualGeoPainter *painter = gGeoManager->GetGeomPainter();
-////    if (!painter) return;
-////    Int_t n = gGeoManager->GetNsegments();
-////    Int_t numPoints = n*4;
-////    Int_t numSegs   = n*8;
-////    Int_t numPolys  = n*4;
-////    painter->AddSize3D(numPoints, numSegs, numPolys);
+/// Fill size of this 3-D object
 
 void TGeoCone::Sizeof3D() const
 {
@@ -1163,7 +1167,7 @@ void TGeoCone::ComputeNormal_v(const Double_t *points, const Double_t *dirs, Dou
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Compute distance from array of input points having directions specisied by dirs. Store output in dists
+/// Compute distance from array of input points having directions specified by dirs. Store output in dists
 
 void TGeoCone::DistFromInside_v(const Double_t *points, const Double_t *dirs, Double_t *dists, Int_t vecsize, Double_t* step) const
 {
@@ -1171,7 +1175,7 @@ void TGeoCone::DistFromInside_v(const Double_t *points, const Double_t *dirs, Do
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Compute distance from array of input points having directions specisied by dirs. Store output in dists
+/// Compute distance from array of input points having directions specified by dirs. Store output in dists
 
 void TGeoCone::DistFromOutside_v(const Double_t *points, const Double_t *dirs, Double_t *dists, Int_t vecsize, Double_t* step) const
 {
@@ -1188,7 +1192,7 @@ void TGeoCone::Safety_v(const Double_t *points, const Bool_t *inside, Double_t *
    for (Int_t i=0; i<vecsize; i++) safe[i] = Safety(&points[3*i], inside[i]);
 }
 
-ClassImp(TGeoConeSeg)
+ClassImp(TGeoConeSeg);
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Default constructor
@@ -1202,6 +1206,7 @@ TGeoConeSeg::TGeoConeSeg()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+/// Default constructor specifying minimum and maximum radius
 
 TGeoConeSeg::TGeoConeSeg(Double_t dz, Double_t rmin1, Double_t rmax1,
                           Double_t rmin2, Double_t rmax2, Double_t phi1, Double_t phi2)
@@ -1209,7 +1214,6 @@ TGeoConeSeg::TGeoConeSeg(Double_t dz, Double_t rmin1, Double_t rmax1,
              fPhi1(0.), fPhi2(0.), fS1(0.), fC1(0.), fS2(0.), fC2(0.), fSm(0.), fCm(0.), fCdfi(0.)
 
 {
-// Default constructor specifying minimum and maximum radius
    SetShapeBit(TGeoShape::kGeoConeSeg);
    SetConsDimensions(dz, rmin1, rmax1, rmin2, rmax2, phi1, phi2);
    ComputeBBox();
@@ -1230,13 +1234,13 @@ TGeoConeSeg::TGeoConeSeg(const char *name, Double_t dz, Double_t rmin1, Double_t
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Default constructor specifying minimum and maximum radius
-/// param[0] = dz
-/// param[1] = Rmin1
-/// param[2] = Rmax1
-/// param[3] = Rmin2
-/// param[4] = Rmax2
-/// param[5] = phi1
-/// param[6] = phi2
+///  - param[0] = dz
+///  - param[1] = Rmin1
+///  - param[2] = Rmax1
+///  - param[3] = Rmin2
+///  - param[4] = Rmax2
+///  - param[5] = phi1
+///  - param[6] = phi2
 
 TGeoConeSeg::TGeoConeSeg(Double_t *param)
             :TGeoCone(0,0,0,0,0),
@@ -1682,7 +1686,7 @@ Double_t TGeoConeSeg::DistFromOutsideS(const Double_t *point, const Double_t *di
       // We may cross again a phi of rmin boundary
       // check first if we are on phi1 or phi2
          Double_t un;
-         if (TMath::Abs(point[1]-s1*r) < TMath::Abs(point[1]-s2*r)) {
+         if (point[0]*c1 + point[1]*s1 > point[0]*c2 + point[1]*s2) {
             un = dir[0]*s1-dir[1]*c1;
             if (un < 0) return 0.0;
             if (cdfi>=0) return TGeoShape::Big();
@@ -1878,16 +1882,16 @@ Double_t TGeoConeSeg::DistFromOutsideS(const Double_t *point, const Double_t *di
 
 ////////////////////////////////////////////////////////////////////////////////
 /// compute distance from outside point to surface of the tube
-/// compute safe radius
 
 Double_t TGeoConeSeg::DistFromOutside(const Double_t *point, const Double_t *dir, Int_t iact, Double_t step, Double_t *safe) const
 {
+   // compute safe radius
    if (iact<3 && safe) {
       *safe = Safety(point, kFALSE);
       if (iact==0) return TGeoShape::Big();
       if ((iact==1) && (*safe>step)) return TGeoShape::Big();
    }
-// Check if the bounding box is crossed within the requested distance
+   // Check if the bounding box is crossed within the requested distance
    Double_t sdist = TGeoBBox::DistFromOutside(point,dir, fDX, fDY, fDZ, fOrigin, step);
    if (sdist>=step) return TGeoShape::Big();
    if ((fPhi2-fPhi1)>=360.) return TGeoCone::DistFromOutsideS(point,dir,fDz,fRmin1,fRmax1,fRmin2,fRmax2);
@@ -1905,7 +1909,7 @@ Int_t TGeoConeSeg::DistancetoPrimitive(Int_t px, Int_t py)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-///--- Divide this cone segment shape belonging to volume "voldiv" into ndiv volumes
+/// Divide this cone segment shape belonging to volume "voldiv" into ndiv volumes
 /// called divname, from start position with the given step. Returns pointer
 /// to created division cell volume in case of Z divisions. For Z division
 /// creates all volumes with different shapes and returns pointer to volume that
@@ -1993,7 +1997,7 @@ Double_t TGeoConeSeg::GetAxisRange(Int_t iaxis, Double_t &xlo, Double_t &xhi) co
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-///--- Fill vector param[4] with the bounding cylinder parameters. The order
+/// Fill vector param[4] with the bounding cylinder parameters. The order
 /// is the following : Rmin, Rmax, Phi1, Phi2
 
 void TGeoConeSeg::GetBoundingCylinder(Double_t *param) const
@@ -2354,16 +2358,7 @@ Int_t TGeoConeSeg::GetNmeshVertices() const
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-////// fill size of this 3-D object
-////    TVirtualGeoPainter *painter = gGeoManager->GetGeomPainter();
-////    if (!painter) return;
-////
-////    Int_t n = gGeoManager->GetNsegments()+1;
-////
-////    Int_t numPoints = n*4;
-////    Int_t numSegs   = n*8;
-////    Int_t numPolys  = n*4-2;
-////    painter->AddSize3D(numPoints, numSegs, numPolys);
+/// Fill size of this 3-D object
 
 void TGeoConeSeg::Sizeof3D() const
 {
@@ -2466,7 +2461,7 @@ void TGeoConeSeg::ComputeNormal_v(const Double_t *points, const Double_t *dirs, 
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Compute distance from array of input points having directions specisied by dirs. Store output in dists
+/// Compute distance from array of input points having directions specified by dirs. Store output in dists
 
 void TGeoConeSeg::DistFromInside_v(const Double_t *points, const Double_t *dirs, Double_t *dists, Int_t vecsize, Double_t* step) const
 {
@@ -2474,7 +2469,7 @@ void TGeoConeSeg::DistFromInside_v(const Double_t *points, const Double_t *dirs,
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Compute distance from array of input points having directions specisied by dirs. Store output in dists
+/// Compute distance from array of input points having directions specified by dirs. Store output in dists
 
 void TGeoConeSeg::DistFromOutside_v(const Double_t *points, const Double_t *dirs, Double_t *dists, Int_t vecsize, Double_t* step) const
 {

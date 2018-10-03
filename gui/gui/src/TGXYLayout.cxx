@@ -72,7 +72,7 @@
 //    .                                                                 //
 // }                                                                    //
 //                                                                      //
-// Normaly there is one layout hint per widget. Therefore these         //
+// Normally there is one layout hint per widget. Therefore these        //
 // can be deleted like in the following example in the desctuctor       //
 // of the frame:                                                        //
 //                                                                      //
@@ -102,8 +102,8 @@
 #include "Riostream.h"
 
 
-ClassImp(TGXYLayout)
-ClassImp(TGXYLayoutHints)
+ClassImp(TGXYLayout);
+ClassImp(TGXYLayoutHints);
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Constructor. The x, y, w and h define the position of the widget in

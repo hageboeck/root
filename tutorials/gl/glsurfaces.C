@@ -1,23 +1,29 @@
-// Various surfaces rendered with GL.
-// This example draws 6 surfaces using OpenGL in pad (one is remake
-// of a classic surfaces.C, another contains 4 surfaces).
-//
-// The commands used are exactly the same as with a normal pad.
-// The only command to add is: gStyle->SetCanvasPreferGL(true);
-// Authors: Rene Brun, Timur Pocheptsov
+/// \file
+/// \ingroup tutorial_gl
+/// Various surfaces rendered with GL.
+/// This example draws 6 surfaces using OpenGL in pad (one is remake
+/// of a classic surfaces.C, another contains 4 surfaces).
+///
+/// The commands used are exactly the same as with a normal pad.
+/// The only command to add is: `gStyle->SetCanvasPreferGL(true);`
+///
+/// \macro_image(nobatch)
+/// \macro_code
+///
+/// \authors Rene Brun, Timur Pocheptsov
 
 void glsurfaces()
 {
    gStyle->SetPalette(0);
 
-   // after this command all legos surfaces (surf/srf1/surf2/surf4/tf3
+   // after this command all legos surfaces (surf/surf1/surf2/surf4/tf3
    // options) are automatically rendered with OpenGL.
    gStyle->SetCanvasPreferGL(kTRUE);
 
    TCanvas *c1 = new TCanvas("glc1","Surfaces Drawing Options",200,10,700,900);
    c1->SetFillColor(42);
    gStyle->SetFrameFillColor(42);
-   title = new TPaveText(0.2, 0.96, 0.8, 0.995);
+   auto title = new TPaveText(0.2, 0.96, 0.8, 0.995);
    title->SetFillColor(33);
    title->AddText("Examples of Surface options");
    title->Draw();

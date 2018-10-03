@@ -44,7 +44,7 @@ To use this file, try the following session on your Tree T:
 /// Default, constructor.
 
 TSelectorEntries::TSelectorEntries(TTree *tree, const char *selection) :
-   fChain(tree), fSelect(0), fSelectedRows(0), fSelectMultiple(kFALSE)
+   fOwnInput(kFALSE), fChain(tree), fSelect(0), fSelectedRows(0), fSelectMultiple(kFALSE)
 {
    if (selection && selection[0]) {
       TSelectorEntries::SetSelection(selection);
@@ -55,7 +55,7 @@ TSelectorEntries::TSelectorEntries(TTree *tree, const char *selection) :
 /// Constructor.
 
 TSelectorEntries::TSelectorEntries(const char *selection) :
-   fChain(0), fSelect(0), fSelectedRows(0), fSelectMultiple(kFALSE)
+   fOwnInput(kFALSE), fChain(0), fSelect(0), fSelectedRows(0), fSelectMultiple(kFALSE)
 {
    TSelectorEntries::SetSelection(selection);
 }
@@ -65,7 +65,12 @@ TSelectorEntries::TSelectorEntries(const char *selection) :
 
 TSelectorEntries::~TSelectorEntries()
 {
-   delete fSelect; fSelect = 0;
+   delete fSelect; fSelect = nullptr;
+   if (fOwnInput) {
+      fInput->Delete();
+      delete fInput;
+      fInput = nullptr;
+   }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -116,7 +121,7 @@ Int_t TSelectorEntries::GetEntry(Long64_t entry, Int_t getall)
 /// The Init() function is called when the selector needs to initialize
 /// a new tree or chain. Typically here the branch addresses and branch
 /// pointers of the tree will be set.
-/// It is normaly not necessary to make changes to the generated
+/// It is normally not necessary to make changes to the generated
 /// code, but the routine can be extended by the user if needed.
 /// Init() will be called many times when running on PROOF
 /// (once per file to be processed).
@@ -193,6 +198,7 @@ Bool_t TSelectorEntries::Process(Long64_t /* entry */)
 void TSelectorEntries::SetSelection(const char *selection)
 {
    if (!fInput) {
+      fOwnInput = kTRUE;
       fInput = new TList;
    }
    TNamed *cselection = (TNamed*)fInput->FindObject("selection");

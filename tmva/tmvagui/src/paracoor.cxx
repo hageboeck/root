@@ -13,14 +13,14 @@ using std::vector;
 
 // plot parallel coordinates
 
-void TMVA::paracoor( TString fin , Bool_t useTMVAStyle )
+void TMVA::paracoor(TString dataset, TString fin , Bool_t useTMVAStyle )
 {
    // set style and remove existing canvas'
    TMVAGlob::Initialize( useTMVAStyle );
 
    // checks if file with name "fin" is already open, and if not opens one
    TFile* file = TMVAGlob::OpenFile( fin );  
-   TTree* tree = (TTree*)file->Get("TestTree");
+   TTree* tree = (TTree*)file->GetDirectory(dataset.Data())->Get("TestTree");
    if(!tree) {
       cout << "--- No TestTree saved in ROOT file. Parallel coordinates will not be plotted" << endl;
       return;
@@ -38,7 +38,7 @@ void TMVA::paracoor( TString fin , Bool_t useTMVAStyle )
              leafName != "class" && leafName != "className" && leafName != "classID" && 
              !leafName.Contains("prob_")) {
             // is MVA ?
-            if (TMVAGlob::ExistMethodName( leafName )) {
+            if (TMVAGlob::ExistMethodName( leafName,file->GetDirectory(dataset.Data()) )) {
                mvas.push_back( leafName );
             }
             else {
@@ -53,9 +53,6 @@ void TMVA::paracoor( TString fin , Bool_t useTMVAStyle )
    
 
    TString type[2] = { "Signal", "Background" };
-   const UInt_t nmva = mvas.size();
-   TCanvas* csig[nmva];
-   TCanvas* cbkg[nmva];
    for (UInt_t imva=0; imva<mvas.size(); imva++) {
       cout << "--- Plotting parallel coordinates for : " << mvas[imva] << " & input variables" << endl;
 
@@ -68,8 +65,7 @@ void TMVA::paracoor( TString fin , Bool_t useTMVAStyle )
 
          // create canvas
          TString mvashort = mvas[imva]; mvashort.ReplaceAll("MVA_","");
-         TCanvas* c1 = (itype == 0) ? csig[imva] : cbkg[imva];
-         c1 = new TCanvas( Form( "c1_%i_%s",itype,mvashort.Data() ), 
+         auto c1 = new TCanvas( Form( "c1_%i_%s",itype,mvashort.Data() ),
                            Form( "Parallel coordinate representation for %s and input variables (%s events)", 
                                  mvashort.Data(), type[itype].Data() ), 
                            50*(itype), 50*(itype), 750, 500 );      
@@ -110,7 +106,7 @@ void TMVA::paracoor( TString fin , Bool_t useTMVAStyle )
 
          c1->Update();
 
-         TString fname = Form( "plots/paracoor_c%i_%s", imva, itype == 0 ? "S" : "B" );
+         TString fname = Form( "%s/plots/paracoor_c%i_%s",dataset.Data(), imva, itype == 0 ? "S" : "B" );
          TMVAGlob::imgconv( c1, fname );
       }
    }

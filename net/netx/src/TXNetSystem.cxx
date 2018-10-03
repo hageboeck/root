@@ -2,12 +2,13 @@
 // Author: Frank Winklmeier, Fabrizio Furano
 
 /*************************************************************************
- * Copyright (C) 1995-2005, Rene Brun and Fons Rademakers.               *
+ * Copyright (C) 1995-2016, Rene Brun and Fons Rademakers.               *
  * All rights reserved.                                                  *
  *                                                                       *
  * For the licensing terms see $ROOTSYS/LICENSE.                         *
  * For the list of contributors see $ROOTSYS/README/CREDITS.             *
  *************************************************************************/
+
 
 //////////////////////////////////////////////////////////////////////////
 //                                                                      //
@@ -42,6 +43,15 @@
 #include "XProtocol/XProtocol.hh"
 
 #include "XrdProofdXrdVers.h"
+
+
+////////////////////////////////////////////////////////////////////////////////
+/// PluginManager creation function
+
+TSystem* ROOT_Plugin_TXNetSystem(const char *url, Bool_t owner) {
+   return new TXNetSystem(url, owner);
+}
+
 
 ClassImp(TXNetSystem);
 
@@ -136,7 +146,7 @@ XrdClientAdmin *TXNetSystem::Connect(const char *url)
             TSocket *s = new TSocket(sd);
 
             // We will clean it by ourselves
-            R__LOCKGUARD2(gROOTMutex);
+            R__LOCKGUARD(gROOTMutex);
             gROOT->GetListOfSockets()->Remove(s);
 
             s->SetOption(kNoBlock, 0);

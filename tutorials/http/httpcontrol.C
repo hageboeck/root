@@ -1,3 +1,22 @@
+/// \file
+/// \ingroup tutorial_http
+///  This program demonstrates simple application control via THttpServer
+///  Two histogram are filled within endless loop.
+///  Via published commands one can enable/disable histograms filling
+///  There are also command to clear histograms content
+///
+///  After macro started, open in browser with url
+/// ~~~
+///      http://localhost:8080
+/// ~~~
+///
+///  Histograms will be automatically displayed and
+///  monitoring with interval 2000 ms started
+///
+/// \macro_code
+///
+/// \author Sergey Linev
+
 #include "TH1.h"
 #include "TH2.h"
 #include "TRandom3.h"
@@ -8,17 +27,6 @@ Bool_t bFillHist = kTRUE;
 
 void httpcontrol()
 {
-//  This program demonstrates simple application control via THttpServer
-//  Two histogram are filled within endless loop.
-//  Via published commands one can enable/disable histograms filling
-//  There are also command to clear histograms content
-//
-//  After macro started, open in browser with url
-//      http://localhost:8080
-//
-//  Histograms will be automatically displayed and
-//  monitoring with interval 2000 ms started
-
    // create histograms
    TH1D *hpx = new TH1D("hpx","This is the px distribution",100,-4,4);
    hpx->SetFillColor(48);
@@ -30,8 +38,8 @@ void httpcontrol()
    THttpServer* serv = new THttpServer("http:8080");
 
    // One could specify location of newer version of JSROOT
-   // serv->SetJSROOT("https://root.cern.ch/js/3.5/");
-   // serv->SetJSROOT("http://web-docs.gsi.de/~linev/js/3.5/");
+   // serv->SetJSROOT("https://root.cern.ch/js/latest/");
+   // serv->SetJSROOT("http://jsroot.gsi.de/latest/");
 
    // register histograms
    serv->Register("/", hpx);
@@ -82,7 +90,7 @@ void httpcontrol()
          // IMPORTANT: one should regularly call ProcessEvents
          // to let http server process requests
 
-         serv->SetItemField("/Debug", "value", Form("\\(\\displaystyle{x+1\\over y-1}\\) Loop:%d", cnt/kUPDATE));
+         serv->SetItemField("/Debug", "value", Form("\\(\\displaystyle{x+1\\over y-1}\\) Loop:%ld", cnt/kUPDATE));
 
          if (gSystem->ProcessEvents()) break;
       }

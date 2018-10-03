@@ -1,6 +1,12 @@
-#
-# To see the output of this macro, click begin_html <a href="gif/surfaces.gif">here</a> end_html
-#
+## \file
+## \ingroup tutorial_pyroot
+## \notebook
+## Surfaces example
+##
+## \macro_image
+## \macro_code
+##
+## \author Wim Lavrijsen
 
 from ROOT import TCanvas, TPaveText, TPad, TF2
 from ROOT import gROOT, gStyle

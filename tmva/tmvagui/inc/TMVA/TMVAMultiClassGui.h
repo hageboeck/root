@@ -17,10 +17,10 @@ namespace TMVA{
    TList* MultiClassGetKeyList( const TString& pattern );
    // utility function
    void MultiClassActionButton( TControlBar* cbar, 
-                      const TString& title, const TString& macro, const TString& comment, 
-                      const TString& buttonType, TString requiredKey = "" ); 
+                                const TString& title, const TString& macro, const TString& comment, 
+                                const TString& buttonType, TString requiredKey = "" ); 
 
    // main GUI
-   void TMVAMultiClassGui( const char* fName = "TMVAMulticlass.root" ); 
+   void TMVAMultiClassGui( const char* fName = "TMVAMulticlass.root",TString dataset="" ); 
 }
 #endif
