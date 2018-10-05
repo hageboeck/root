@@ -17,7 +17,7 @@
 
 #include "ROOT/RHist.hxx"
 #include "ROOT/RCanvas.hxx"
-#include "ROOT/TFitPanel.hxx"
+#include "ROOT/RFitPanel.hxx"
 #include "ROOT/TDirectory.hxx"
 
 void fitpanel0() {
@@ -35,7 +35,7 @@ void fitpanel0() {
   pHist->Fill(3);
 
 
-  auto panel = std::make_shared<TFitPanel>("FitPanel Title");
+  auto panel = std::make_shared<RFitPanel>("FitPanel Title");
   panel->Show();
 
   // Register the histogram with ROOT: now it lives even after draw() ends.
@@ -71,7 +71,7 @@ void fitpanel() {
    canvas->Show();
    canvas->Update(); // need to ensure canvas is drawn
 
-   auto panel = std::make_shared<TFitPanel>("FitPanel Title");
+   auto panel = std::make_shared<RFitPanel>("FitPanel Title");
 
    ROOT::Experimental::TDirectory::Heap().Add("fitpanel", panel);
    ROOT::Experimental::TDirectory::Heap().Add("firsthisto", pHist);

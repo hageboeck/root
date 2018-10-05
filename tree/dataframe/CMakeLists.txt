@@ -20,48 +20,66 @@ endif()
 
 ROOT_STANDARD_LIBRARY_PACKAGE(ROOTDataFrame
   HEADERS
-    ROOT/GraphNode.hxx
     ROOT/RCsvDS.hxx
-    ROOT/RCutFlowReport.hxx
     ROOT/RDataFrame.hxx
     ROOT/RDataSource.hxx
-    ROOT/RDFActionHelpers.hxx
-    ROOT/RDFBookedCustomColumns.hxx
-    ROOT/RDFDisplay.hxx
-    ROOT/RDFGraphUtils.hxx
     ROOT/RDFHelpers.hxx
-    ROOT/RDFHistoModels.hxx
-    ROOT/RDFInterface.hxx
-    ROOT/RDFInterfaceUtils.hxx
-    ROOT/RDFNodes.hxx
-    ROOT/RDFNodesUtils.hxx
-    ROOT/RDFUtils.hxx
     ROOT/RLazyDS.hxx
-    ROOT/RLazyDSImpl.hxx
-    ROOT/RLoopManager.hxx
-    ROOT/RNodeBase.hxx
     ROOT/RResultPtr.hxx
     ROOT/RRootDS.hxx
-    ROOT/RSlotStack.hxx
     ROOT/RSnapshotOptions.hxx
     ROOT/RTrivialDS.hxx
+    ROOT/RDF/ActionHelpers.hxx
+    ROOT/RDF/GraphNode.hxx
+    ROOT/RDF/GraphUtils.hxx
+    ROOT/RDF/HistoModels.hxx
+    ROOT/RDF/InterfaceUtils.hxx
+    ROOT/RDF/NodesUtils.hxx
+    ROOT/RDF/RActionBase.hxx
+    ROOT/RDF/RAction.hxx
+    ROOT/RDF/RBookedCustomColumns.hxx
+    ROOT/RDF/RColumnValue.hxx
+    ROOT/RDF/RCustomColumnBase.hxx
+    ROOT/RDF/RCustomColumn.hxx
+    ROOT/RDF/RCutFlowReport.hxx
+    ROOT/RDF/RDisplay.hxx
+    ROOT/RDF/RFilterBase.hxx
+    ROOT/RDF/RFilter.hxx
+    ROOT/RDF/RInterface.hxx
+    ROOT/RDF/RJittedAction.hxx
+    ROOT/RDF/RJittedCustomColumn.hxx
+    ROOT/RDF/RJittedFilter.hxx
+    ROOT/RDF/RLazyDSImpl.hxx
+    ROOT/RDF/RLoopManager.hxx
+    ROOT/RDF/RNodeBase.hxx
+    ROOT/RDF/RRangeBase.hxx
+    ROOT/RDF/RRange.hxx
+    ROOT/RDF/RSlotStack.hxx
+    ROOT/RDF/Utils.hxx
     ${RDATAFRAME_EXTRA_HEADERS}
   SOURCES
-    RCsvDS.cxx
-    RCutFlowReport.cxx
-    RDataFrame.cxx
-    RDFActionHelpers.cxx
-    RDFBookedCustomColumns.cxx
-    RDFDisplay.cxx
-    RDFGraphUtils.cxx
-    RDFHistoModels.cxx
-    RDFInterfaceUtils.cxx
-    RDFNodes.cxx
-    RDFUtils.cxx
-    RLoopManager.cxx
-    RRootDS.cxx
-    RSlotStack.cxx
-    RTrivialDS.cxx
+    src/RActionBase.cxx
+    src/RColumnValue.cxx
+    src/RCsvDS.cxx
+    src/RCustomColumnBase.cxx
+    src/RCutFlowReport.cxx
+    src/RDataFrame.cxx
+    src/RDFActionHelpers.cxx
+    src/RDFBookedCustomColumns.cxx
+    src/RDFDisplay.cxx
+    src/RDFGraphUtils.cxx
+    src/RDFHistoModels.cxx
+    src/RDFInterfaceUtils.cxx
+    src/RDFUtils.cxx
+    src/RFilterBase.cxx
+    src/RJittedAction.cxx
+    src/RJittedCustomColumn.cxx
+    src/RJittedFilter.cxx
+    src/RLoopManager.cxx
+    src/RRangeBase.cxx
+    src/RRootDS.cxx
+    src/RSlotStack.cxx
+    src/RTrivialDS.cxx
   DICTIONARY_OPTIONS
     -writeEmptyRootPCM
     ${RDATAFRAME_EXTRA_INCLUDES}

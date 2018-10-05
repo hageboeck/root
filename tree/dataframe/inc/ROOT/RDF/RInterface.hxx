@@ -1,7 +1,7 @@
 // Author: Enrico Guiraud, Danilo Piparo CERN  03/2017
 
 /*************************************************************************
- * Copyright (C) 1995-2016, Rene Brun and Fons Rademakers.               *
+ * Copyright (C) 1995-2018, Rene Brun and Fons Rademakers.               *
  * All rights reserved.                                                  *
  *                                                                       *
  * For the licensing terms see $ROOTSYS/LICENSE.                         *
@@ -11,64 +11,52 @@
 #ifndef ROOT_RDF_TINTERFACE
 #define ROOT_RDF_TINTERFACE
 
-#include <stddef.h>
+#include "ROOT/RDataSource.hxx"
+#include "ROOT/RDF/ActionHelpers.hxx"
+#include "ROOT/RDF/RBookedCustomColumns.hxx"
+#include "ROOT/RDF/HistoModels.hxx"
+#include "ROOT/RDF/InterfaceUtils.hxx"
+#include "ROOT/RDF/RRange.hxx"
+#include "ROOT/RDF/Utils.hxx"
+#include "ROOT/RIntegerSequence.hxx"
+#include "ROOT/RDF/RLazyDSImpl.hxx"
+#include "ROOT/RResultPtr.hxx"
+#include "ROOT/RSnapshotOptions.hxx"
+#include "ROOT/RStringView.hxx"
+#include "ROOT/TypeTraits.hxx"
+#include "RtypesCore.h" // for ULong64_t
+#include "TChain.h"
+#include "TClassEdit.h"
+#include "TDirectory.h"
+#include "TH1.h" // For Histo actions
+#include "TH2.h" // For Histo actions
+#include "TH3.h" // For Histo actions
+#include "TInterpreter.h"
+#include "TProfile.h"
+#include "TProfile2D.h"
+#include "TRegexp.h"
+#include "TROOT.h" // IsImplicitMTEnabled
+
 #include <algorithm>
+#include <cstddef>
 #include <initializer_list>
 #include <limits>
 #include <memory>
 #include <sstream>
 #include <stdexcept>
 #include <string>
-#include <tuple>
 #include <type_traits> // is_same, enable_if
 #include <typeinfo>
 #include <vector>
 
-#include "ROOT/RIntegerSequence.hxx"
-#include "ROOT/RStringView.hxx"
-#include "ROOT/RCutFlowReport.hxx"
-#include "ROOT/RDFActionHelpers.hxx"
-#include "ROOT/RDFHistoModels.hxx"
-#include "ROOT/RDFInterfaceUtils.hxx"
-#include "ROOT/RDFNodes.hxx"
-#include "ROOT/RDFBookedCustomColumns.hxx"
-#include "ROOT/RDFNodesUtils.hxx"
-#include "ROOT/RDFUtils.hxx"
-#include "ROOT/RDataSource.hxx"
-#include "ROOT/RLazyDSImpl.hxx"
-#include "ROOT/RResultPtr.hxx"
-#include "ROOT/RSnapshotOptions.hxx"
-#include "ROOT/TypeTraits.hxx"
-#include "ROOT/RDFDisplay.hxx"
-#include "RtypesCore.h" // for ULong64_t
-#include "TAxis.h"
-#include "TChain.h"
-#include "TClassEdit.h"
-#include "TDirectory.h"
-#include "TError.h"
-#include "TGraph.h" // For Graph action
-#include "TH1.h" // For Histo actions
-#include "TH2.h" // For Histo actions
-#include "TH3.h" // For Histo actions
-#include "TInterpreter.h"
-#include "TProfile.h"   // For Histo actions
-#include "TProfile2D.h" // For Histo actions
-#include "TROOT.h"      // IsImplicitMTEnabled
-#include "TRegexp.h"
-#include "TString.h"
-#include "TTreeReader.h"
-
-class TH2D;
-class TH3D;
-class TProfile2D;
-class TProfile;
+class TGraph;
 
 // Windows requires a forward decl of printValue to accept it as a valid friend function in RInterface
 namespace ROOT {
 class RDataFrame;
-namespace Internal{
-namespace RDF{
-   class GraphCreatorHelper;
+namespace Internal {
+namespace RDF {
+class GraphCreatorHelper;
 }
 }
 }
@@ -87,12 +75,18 @@ class RInterface;
 
 using RNode = RInterface<::ROOT::Detail::RDF::RNodeBase, void>;
 
+// clang-format off
 /**
  * \class ROOT::RDF::RInterface
  * \ingroup dataframe
  * \brief The public interface to the RDataFrame federation of classes
- * \tparam T One of the "node" base types (e.g. RLoopManager, RFilterBase). The user never specifies this type manually.
+ * \tparam Proxied One of the "node" base types (e.g. RLoopManager, RFilterBase). The user never specifies this type manually.
+ * \tparam DataSource The type of the RDataSource which is providing the data to the data frame. There is no source by default.
+ *
+ * The documentation of each method features a one liner illustrating how to use the method, for example showing how
+ * the majority of the template parameters are automatically deduced requiring no or very little effort by the user.
  */
+// clang-format on
 template <typename Proxied, typename DataSource = void>
 class RInterface {
    using DS_t = DataSource;
@@ -137,7 +131,6 @@ public:
    {
       AddDefaultColumns();
    }
-
 
    ////////////////////////////////////////////////////////////////////////////
    /// \brief Cast any RDataFrame node to a common type ROOT::RDF::RNode.
@@ -609,8 +602,7 @@ public:
       // If we proceed, the jitted call will not compile!
       if (columnList.empty()) {
          auto nEntries = *this->Count();
-         RInterface<RLoopManager> emptyRDF(
-            std::make_shared<RLoopManager>(nEntries));
+         RInterface<RLoopManager> emptyRDF(std::make_shared<RLoopManager>(nEntries));
          return emptyRDF;
       }
 
@@ -634,9 +626,9 @@ public:
          cacheCall << RDFInternal::ColumnName2ColumnTypeName(c, nsID, tree, fDataSource, isCustom) << ", ";
       };
       if (!columnList.empty())
-         cacheCall.seekp(-2, cacheCall.cur);                          // remove the last ",
+         cacheCall.seekp(-2, cacheCall.cur);                         // remove the last ",
       cacheCall << ">(*reinterpret_cast<std::vector<std::string>*>(" // vector<string> should be ColumnNames_t
-               << RDFInternal::PrettyPrintAddr(&columnList) << "));";
+                << RDFInternal::PrettyPrintAddr(&columnList) << "));";
       // jit cacheCall, return result
       TInterpreter::EErrorCode errorCode;
       gInterpreter->Calc(cacheCall.str().c_str(), &errorCode);
@@ -849,8 +841,7 @@ public:
 
       const auto validColumnNames = GetValidatedColumnNames(1, columns);
 
-      auto newColumns = CheckAndFillDSColumns(validColumnNames,
-                                                 std::make_index_sequence<1>(), TTraits::TypeList<T>());
+      auto newColumns = CheckAndFillDSColumns(validColumnNames, std::make_index_sequence<1>(), TTraits::TypeList<T>());
 
       using Helper_t = RDFInternal::TakeHelper<T, T, COLL>;
       using Action_t = RDFInternal::RAction<Helper_t, Proxied>;
@@ -1124,8 +1115,8 @@ public:
       auto graph = std::make_shared<::TGraph>();
       const std::vector<std::string_view> columnViews = {v1Name, v2Name};
       const auto userColumns = RDFInternal::AtLeastOneEmptyString(columnViews)
-                               ? ColumnNames_t()
-                               : ColumnNames_t(columnViews.begin(), columnViews.end());
+                                  ? ColumnNames_t()
+                                  : ColumnNames_t(columnViews.begin(), columnViews.end());
       return CreateAction<RDFInternal::ActionTags::Graph, V1, V2>(userColumns, graph);
    }
 
@@ -1489,8 +1480,7 @@ public:
 
       auto columnNames = fCustomColumns.GetNames();
 
-      std::for_each(columnNames.begin(), columnNames.end(),
-                    addIfNotInternal);
+      std::for_each(columnNames.begin(), columnNames.end(), addIfNotInternal);
 
       auto tree = fLoopManager->GetTree();
       if (tree) {
@@ -1551,7 +1541,7 @@ public:
 
       auto columns = fCustomColumns.GetColumns();
 
-      for(auto column: columns){
+      for (auto column : columns) {
          if (!RDFInternal::IsInternalColumn(column.first) && !column.second->IsDataSourceColumn())
             definedColumns.emplace_back(column.first);
       }
@@ -1665,7 +1655,7 @@ public:
    /// * std::shared_ptr<Result_t> GetResultPtr() const: return a shared_ptr to the result of this action (of type
    ///   Result_t). The RResultPtr returned by Book will point to this object.
    ///
-   /// See $ROOTSYS/tree/treeplayer/inc/ROOT/RDFActionHelpers.hxx for the helpers used by standard RDF actions.
+   /// See $ROOTSYS/tree/treeplayer/inc/ROOT/RDF/ActionHelpers.hxx for the helpers used by standard RDF actions.
    // clang-format on
    template <typename... ColumnTypes, typename Helper>
    RResultPtr<typename Helper::Result_t> Book(Helper &&helper, const ColumnNames_t &columns = {})
@@ -1683,7 +1673,8 @@ public:
       using Action_t = typename RDFInternal::RAction<Helper, Proxied, TTraits::TypeList<ColumnTypes...>>;
       auto resPtr = helper.GetResultPtr();
 
-      auto action = std::make_unique<Action_t>(Helper(std::forward<Helper>(helper)), validColumnNames, fProxiedPtr, fCustomColumns);
+      auto action = std::make_unique<Action_t>(Helper(std::forward<Helper>(helper)), validColumnNames, fProxiedPtr,
+                                               fCustomColumns);
       fLoopManager->Book(action.get());
       return MakeResultPtr(resPtr, *fLoopManager, std::move(action));
    }
@@ -1722,7 +1713,7 @@ public:
       CheckIMTDisabled("Display");
       auto displayer = std::make_shared<RDFInternal::RDisplay>(columnList, GetColumnTypeNamesList(columnList), nRows);
       return CreateAction<RDFInternal::ActionTags::Display, RDFDetail::RInferredType>(columnList, displayer,
-                                                                                   columnList.size());
+                                                                                      columnList.size());
    }
 
    ////////////////////////////////////////////////////////////////////////////
@@ -1775,8 +1766,8 @@ private:
       fLoopManager->RegisterCustomColumn(entryColumn.get());
 
       // Declare return type to the interpreter, for future use by jitted actions
-      auto retTypeDeclaration =
-         "namespace __tdf" + std::to_string(fLoopManager->GetID()) + " { using " + entryColName + "_type = ULong64_t; }";
+      auto retTypeDeclaration = "namespace __tdf" + std::to_string(fLoopManager->GetID()) + " { using " + entryColName +
+                                "_type = ULong64_t; }";
       gInterpreter->Declare(retTypeDeclaration.c_str());
 
       // Slot number column
@@ -1803,7 +1794,6 @@ private:
       fCustomColumns.AddName("tdfentry_");
       fLoopManager->AddColumnAlias("tdfslot_", slotColName);
       fCustomColumns.AddName("tdfslot_");
-
    }
 
    ColumnNames_t ConvertRegexToColumns(std::string_view columnNameRegexp, std::string_view callerName)
@@ -1874,8 +1864,9 @@ private:
       return types;
    }
 
-   void CheckIMTDisabled(std::string_view callerName){
-      if (ROOT::IsImplicitMTEnabled()){
+   void CheckIMTDisabled(std::string_view callerName)
+   {
+      if (ROOT::IsImplicitMTEnabled()) {
          std::string error(callerName);
          error += " was called with ImplicitMT enabled, but multi-thread is not supported.";
          throw std::runtime_error(error);
@@ -1992,10 +1983,10 @@ private:
    // This overload is chosen when the callable passed to Define or DefineSlot returns void.
    // It simply fires a compile-time error. This is preferable to a static_assert in the main `Define` overload because
    // this way compilation of `Define` has no way to continue after throwing the error.
-   template <typename F, typename CustomColumnType, typename RetType = typename TTraits::CallableTraits<F>::ret_type>
-   typename std::enable_if<!std::is_convertible<F, std::string>::value &&
-                              !std::is_default_constructible<RetType>::value,
-                           RInterface<Proxied, DS_t>>::type
+   template <typename F, typename CustomColumnType, typename RetType = typename TTraits::CallableTraits<F>::ret_type,
+             bool IsFStringConv = std::is_convertible<F, std::string>::value,
+             bool IsRetTypeDefConstr = std::is_default_constructible<RetType>::value>
+   typename std::enable_if<!IsFStringConv && !IsRetTypeDefConstr, RInterface<Proxied, DS_t>>::type
    DefineImpl(std::string_view, F, const ColumnNames_t &)
    {
       static_assert(std::is_default_constructible<typename TTraits::CallableTraits<F>::ret_type>::value,
@@ -2061,8 +2052,7 @@ private:
       // between clang (and thus cling) and gcc in the way std::forward is handled.
       // See https://sft.its.cern.ch/jira/browse/ROOT-9236 for more detail.
       auto rlm_ptr = std::make_shared<RLoopManager>(nullptr, validCols);
-      auto snapshotRDF = std::make_shared<RInterface<RLoopManager>>(
-         rlm_ptr);
+      auto snapshotRDF = std::make_shared<RInterface<RLoopManager>>(rlm_ptr);
       auto chain = std::make_shared<TChain>(fullTreename.c_str());
       chain->Add(std::string(filename).c_str());
       snapshotRDF->fProxiedPtr->SetTree(chain);
@@ -2092,10 +2082,9 @@ private:
       auto colHolders = std::make_tuple(Take<BranchTypes>(columnList[S])...);
       auto ds = std::make_unique<RLazyDS<BranchTypes...>>(std::make_pair(columnList[S], std::get<S>(colHolders))...);
 
-      RInterface<RLoopManager> cachedRDF(
-         std::make_shared<RLoopManager>(std::move(ds), columnList));
+      RInterface<RLoopManager> cachedRDF(std::make_shared<RLoopManager>(std::move(ds), columnList));
 
-      (void) s; //Prevents unused warning
+      (void)s; // Prevents unused warning
 
       return cachedRDF;
    }
@@ -2137,7 +2126,6 @@ protected:
 };
 
 } // end NS RDF
-
 
 } // namespace ROOT
 

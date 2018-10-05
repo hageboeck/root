@@ -64,7 +64,7 @@ namespace {
    };
 
    // Reader interface for STL
-   class TSTLReader: public TVirtualCollectionReader {
+   class TSTLReader final: public TVirtualCollectionReader {
    public:
       ~TSTLReader() {}
       TVirtualCollectionProxy* GetCP(ROOT::Detail::TBranchProxy* proxy) {
@@ -99,7 +99,7 @@ namespace {
       }
    };
 
-   class TCollectionLessSTLReader : public TVirtualCollectionReader {
+   class TCollectionLessSTLReader final: public TVirtualCollectionReader {
    private:
       TVirtualCollectionProxy *fLocalCollection;
    public:
@@ -129,7 +129,11 @@ namespace {
       virtual void* At(ROOT::Detail::TBranchProxy* proxy, size_t idx) {
          TVirtualCollectionProxy *myCollectionProxy = GetCP(proxy);
          if (!myCollectionProxy) return 0;
-         TVirtualCollectionProxy::TPushPop ppRaii(myCollectionProxy, proxy->GetWhere());
+         // Here we do not use a RAII but we empty the proxy to then fill it.
+         // This is done because we are returning a pointer and we need to keep
+         // alive the memory it points to.
+         myCollectionProxy->PopProxy();
+         myCollectionProxy->PushProxy(proxy->GetWhere());
          if (myCollectionProxy->HasPointers()){
             return *(void**)myCollectionProxy->At(idx);
          } else {
@@ -239,7 +243,7 @@ namespace {
       virtual size_t GetSize(ROOT::Detail::TBranchProxy* /*proxy*/) { return fSize; }
    };
 
-   class TBasicTypeArrayReader : public TVirtualCollectionReader {
+   class TBasicTypeArrayReader final: public TVirtualCollectionReader {
    public:
       ~TBasicTypeArrayReader() {}
 
@@ -266,7 +270,7 @@ namespace {
       }
    };
 
-   class TBasicTypeClonesReader : public TClonesReader {
+   class TBasicTypeClonesReader final: public TClonesReader {
    private:
       Int_t fOffset;
    public:

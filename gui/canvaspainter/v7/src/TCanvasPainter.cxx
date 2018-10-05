@@ -337,7 +337,7 @@ void ROOT::Experimental::TCanvasPainter::CanvasUpdated(uint64_t ver, bool async,
    fSnapshotVersion = ver;
    fSnapshot = CreateSnapshot(fCanvas);
 
-   if (!fWindow || !fWindow->HasConnection()) {
+   if (!fWindow || !fWindow->HasConnection(0, false)) {
       if (callback)
          callback(false);
       return;
@@ -356,7 +356,7 @@ void ROOT::Experimental::TCanvasPainter::CanvasUpdated(uint64_t ver, bool async,
             return 1;
 
          // all connections are gone
-         if (fWebConn.empty() && !fWindow->HasConnection(0,false))
+         if (fWebConn.empty() && !fWindow->HasConnection(0, false))
             return -2;
 
          // time is not important - timeout handle before
@@ -380,10 +380,18 @@ void ROOT::Experimental::TCanvasPainter::DoWhenReady(const std::string &name, co
       return;
    }
 
+   // ensure that window exists
    CreateWindow();
 
-   // create batch job to execute action
-   unsigned connid = fWindow->MakeBatch();
+   unsigned connid = 0;
+
+   if (arg == "AddPanel") {
+      // take first connection to add panel
+      connid = fWindow->GetConnectionId();
+   } else {
+      // create batch job to execute action
+      connid = fWindow->MakeBatch();
+   }
 
    if (!connid) {
       if (callback)
@@ -557,6 +565,9 @@ int ROOT::Experimental::TCanvasPainter::NumDisplays() const
 
 bool ROOT::Experimental::TCanvasPainter::AddPanel(std::shared_ptr<RWebWindow> win)
 {
+   if (gROOT->IsWebDisplayBatch())
+      return false;
+
    if (!fWindow) {
       R__ERROR_HERE("CanvasPainter") << "Canvas not yet shown in AddPanel";
       return false;
