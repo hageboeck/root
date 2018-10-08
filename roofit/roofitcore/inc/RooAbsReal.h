@@ -412,37 +412,42 @@ protected:
   friend class RooAbsOptGoodnessOfFit ;
   
   struct PlotOpt {
-   PlotOpt() : drawOptions("L"), scaleFactor(1.0), stype(Relative), projData(0), binProjData(kFALSE), projSet(0), precision(1e-3), 
-               shiftToZero(kFALSE),projDataSet(0),normRangeName(0),rangeLo(0),rangeHi(0),postRangeFracScale(kFALSE),wmode(RooCurve::Extended),
-               projectionRangeName(0),curveInvisible(kFALSE), curveName(0),addToCurveName(0),addToWgtSelf(1.),addToWgtOther(1.),
-               numCPU(1),interleave(RooFit::Interleave),curveNameSuffix(""), numee(10), eeval(0), doeeval(kFALSE), progress(kFALSE) {} ;
-   Option_t* drawOptions ;
-   Double_t scaleFactor ;	 
-   ScaleType stype ;
-   const RooAbsData* projData ;
-   Bool_t binProjData ;
-   const RooArgSet* projSet ;
-   Double_t precision ;
-   Bool_t shiftToZero ;
-   const RooArgSet* projDataSet ;
-   const char* normRangeName ;
-   Double_t rangeLo ;
-   Double_t rangeHi ;
-   Bool_t postRangeFracScale ;
-   RooCurve::WingMode wmode ;
-   const char* projectionRangeName ;
-   Bool_t curveInvisible ;
-   const char* curveName ;
-   const char* addToCurveName ;
-   Double_t addToWgtSelf ;
-   Double_t addToWgtOther ;
-   Int_t    numCPU ;
-   RooFit::MPSplit interleave ;
-   const char* curveNameSuffix ; 
-   Int_t    numee ;
-   Double_t eeval ;
-   Bool_t   doeeval ;
-   Bool_t progress ;
+    PlotOpt() : drawOptions("L"), scaleFactor(1.0), projData(0), projSet(0), precision(1e-3), 
+    projDataSet(0), normRangeName(0), rangeLo(0), rangeHi(0), projectionRangeName(0),
+    curveName(0), addToCurveName(0), addToWgtSelf(1.), addToWgtOther(1.), curveNameSuffix(""),
+    eeval(0), stype(Relative), wmode(RooCurve::Extended), numCPU(1), interleave(RooFit::Interleave),
+    numee(10),
+    binProjData(kFALSE), shiftToZero(kFALSE), postRangeFracScale(kFALSE),
+    curveInvisible(kFALSE), doeeval(kFALSE), progress(kFALSE) {};
+
+    Option_t* drawOptions ;
+    Double_t scaleFactor ;	 
+    const RooAbsData* projData ;
+    const RooArgSet* projSet ;
+    Double_t precision ;
+    const RooArgSet* projDataSet ;
+    const char* normRangeName ;
+    Double_t rangeLo ;
+    Double_t rangeHi ;
+    const char* projectionRangeName ;
+    const char* curveName ;
+    const char* addToCurveName ;
+    Double_t addToWgtSelf ;
+    Double_t addToWgtOther ;
+    const char* curveNameSuffix ; 
+    Double_t eeval ;
+    ScaleType stype ;
+    RooCurve::WingMode wmode ;
+    Int_t  numCPU ;
+    RooFit::MPSplit interleave ;
+    Int_t  numee ;
+    //Grouping bools saves padding memory
+    Bool_t binProjData ;
+    Bool_t shiftToZero ;
+    Bool_t postRangeFracScale ;
+    Bool_t curveInvisible ;
+    Bool_t doeeval ;
+    Bool_t progress ;
   } ;
 
   // Plot implementation functions
