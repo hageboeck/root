@@ -39,7 +39,7 @@ public:
   //  set output prefix
   void SetOutputFilePrefix( const std::string& prefix ) { fOutputFilePrefix = prefix; }
   // retrieve prefix for output files
-  std::string GetOutputFilePrefix() { return fOutputFilePrefix; }
+  std::string GetOutputFilePrefix() const { return fOutputFilePrefix; }
 
   // insert PoI at beginning of vector of PoIs
   void SetPOI( const std::string& POI ) { fPOI.insert( fPOI.begin(), POI ); }
@@ -48,7 +48,7 @@ public:
   // get name of PoI at given index
   std::string GetPOI(unsigned int i=0) { return fPOI.at(i); }
   // get vector of PoI names
-  std::vector<std::string>& GetPOIList() { return fPOI; }
+  std::vector<std::string>& GetPOIList() const { return fPOI; }
 
 
   // Add a parameter to be set as constant
@@ -57,13 +57,13 @@ public:
   // empty vector of constant parameters
   void ClearConstantParams() { fConstantParams.clear(); }
   // get vector of all constant parameters
-  std::vector< std::string >& GetConstantParams() { return fConstantParams; }
+  std::vector< std::string >& GetConstantParams() const { return fConstantParams; }
 
   // Set a parameter to a specific value
   // (And optionally fix it)
   void SetParamValue( const std::string& param, double value);
   // get map: parameter name <--> parameter value
-  std::map<std::string, double>& GetParamValues() { return fParamValues; }
+  std::map<std::string, double>& GetParamValues() const { return fParamValues; }
   // clear map of parameter values
   void ClearParamValues() { fParamValues.clear(); }
 
@@ -72,11 +72,11 @@ public:
   void AddFunctionObject( const RooStats::HistFactory::PreprocessFunction function) { fFunctionObjects.push_back( function ); }
   void SetFunctionObjects( std::vector< RooStats::HistFactory::PreprocessFunction > objects ) { fFunctionObjects = objects; }
   // get vector of defined function objects
-  std::vector< RooStats::HistFactory::PreprocessFunction >& GetFunctionObjects() { return fFunctionObjects; }
+  std::vector< RooStats::HistFactory::PreprocessFunction >& GetFunctionObjects() const { return fFunctionObjects; }
   std::vector< std::string > GetPreprocessFunctions();
 
   // get vector of defined Asimov Datasets
-  std::vector< RooStats::HistFactory::Asimov >& GetAsimovDatasets() { return fAsimovDatasets; }
+  std::vector< RooStats::HistFactory::Asimov >& GetAsimovDatasets() const { return fAsimovDatasets; }
   // add an Asimov Dataset
   void AddAsimovDataset( RooStats::HistFactory::Asimov dataset ) { fAsimovDatasets.push_back(dataset); }
 
@@ -85,24 +85,24 @@ public:
   // set relative uncertainty on luminosity
   void SetLumiRelErr( double RelErr ) { fLumiRelErr = RelErr; }
   // retrieve integrated luminosity
-  double GetLumi() { return fLumi; }
+  double GetLumi() const { return fLumi; }
   // retrieve relative uncertainty on luminosity
-  double GetLumiRelErr() { return fLumiRelErr; }
+  double GetLumiRelErr() const { return fLumiRelErr; }
   
   void SetBinLow( int BinLow ) { fBinLow = BinLow; }
   void SetBinHigh ( int BinHigh ) { fBinHigh = BinHigh; }
-  int GetBinLow() { return fBinLow; }
-  int GetBinHigh() { return fBinHigh; } 
+  int GetBinLow() const { return fBinLow; }
+  int GetBinHigh() const { return fBinHigh; } 
 
   // do not produce any plots or tables, just save the model
   void SetExportOnly( bool ExportOnly ) { fExportOnly = ExportOnly; }
-  bool GetExportOnly() { return fExportOnly; }
+  bool GetExportOnly() const { return fExportOnly; }
 
 
-  void PrintTree( std::ostream& = std::cout ); // Print to a stream
-  void PrintXML( std::string Directory="", std::string NewOutputPrefix="" );
+  void PrintTree( std::ostream& = std::cout ) const; // Print to a stream
+  void PrintXML( const std::string & Directory="", const std::string & NewOutputPrefix="" ) const;
 
-  std::vector< RooStats::HistFactory::Channel >& GetChannels() { return fChannels; }
+  std::vector< RooStats::HistFactory::Channel >& GetChannels() const { return fChannels; }
   RooStats::HistFactory::Channel& GetChannel( std::string );
   // add a completely configured channel
   void AddChannel( RooStats::HistFactory::Channel chan ) { fChannels.push_back( chan ); }
@@ -118,10 +118,10 @@ public:
   void AddUniformSyst(std::string syst);
   void AddNoSyst(std::string syst);
 
-  std::map< std::string, double >& GetGammaSyst() { return fGammaSyst; }
-  std::map< std::string, double >& GetUniformSyst() { return fUniformSyst; }
-  std::map< std::string, double >& GetLogNormSyst() { return fLogNormSyst; }
-  std::map< std::string, double >& GetNoSyst() { return fNoSyst; }
+  std::map< std::string, double >& GetGammaSyst() const { return fGammaSyst; }
+  std::map< std::string, double >& GetUniformSyst() const { return fUniformSyst; }
+  std::map< std::string, double >& GetLogNormSyst() const { return fLogNormSyst; }
+  std::map< std::string, double >& GetNoSyst() const { return fNoSyst; }
 
 
 private:
