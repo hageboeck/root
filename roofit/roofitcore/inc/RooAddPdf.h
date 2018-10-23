@@ -132,7 +132,7 @@ protected:
 
   RooListProxy _pdfList ;   //  List of component PDFs
   RooListProxy _coefList ;  //  List of coefficients
-  mutable RooArgList* _snormList ;  //!  List of supplemental normalization factors
+  mutable RooArgList* _snormList{nullptr} ;  //!  List of supplemental normalization factors
   TIterator* _pdfIter ;     //! Iterator over PDF list
   TIterator* _coefIter ;    //! Iterator over coefficient list
   
