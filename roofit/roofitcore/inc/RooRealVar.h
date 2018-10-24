@@ -147,14 +147,21 @@ public:
 
   inline RooRealVarSharedProperties* sharedProp() const {
     if (!_sharedProp) {
-      _sharedProp = (RooRealVarSharedProperties*) _sharedPropList.registerProperties(new RooRealVarSharedProperties()) ;
+      _sharedProp = (RooRealVarSharedProperties*) getSharedPropList().registerProperties(new RooRealVarSharedProperties()) ;
     }
     return _sharedProp ;
   }
 
   virtual void setExpensiveObjectCache(RooExpensiveObjectCache&) { ; } // variables don't need caches 
   
-  static RooSharedPropertiesList _sharedPropList; // List of properties shared among clone sets 
+  ///The shared properties list needs to be encapsulated in a function in order to be able
+  ///to outlive all instances of this class. If it doesn't, deleting instances will lead to
+  ///crashes.
+  RooSharedPropertiesList& getSharedPropList() const {
+    static RooSharedPropertiesList propList;
+    return propList;
+  }
+  //static RooSharedPropertiesList _sharedPropList; // List of properties shared among clone sets
   static RooRealVarSharedProperties _nullProp ; // Null property
   mutable RooRealVarSharedProperties* _sharedProp ; //! Shared properties associated with this instance
 

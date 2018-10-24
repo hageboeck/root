@@ -20,12 +20,14 @@
 \ingroup Roofitcore
 
 RooSentinel is a special purposes singleton class that terminates
-all other RooFit singleton services when the process exists. 
+all other RooFit singleton services when the process exits.
 
 All function RooFit singleton services are created on the heap with
 a static wrapper function to avoid the 'static initialization order fiasco'
 but are not automatically destroyed at the end of the session. This class
-installs an atexit() function that takes care of this
+installs an atexit() function that takes care of this.
+However, since the destruction order cannot be controlled entirely, the
+cleanup functions might have to leak memory.
 **/
 
 #include "RooFit.h"

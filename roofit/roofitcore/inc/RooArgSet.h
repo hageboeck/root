@@ -21,12 +21,12 @@
 class RooArgList ;
 
 
-#define USEMEMPOOL
+#define USEMEMPOOLFORARGSET
 
 class RooArgSet : public RooAbsCollection {
 public:
   
-#ifdef USEMEMPOOL
+#ifdef USEMEMPOOLFORARGSET
   void* operator new (size_t bytes);
   void* operator new (size_t bytes, void* ptr) noexcept;
   void operator delete (void *ptr);
@@ -127,11 +127,39 @@ public:
 
 protected:
 
+  //This is a malloc-ed block with a use counter and pointers into the block
+  //for fast memory allocation ensuring consecutive and unique addresses of RooArgSets.
+  //Apparently, RooFit relies on them being unique as explained in the comment of
+  //operator new().
+  //The memory pool works as before, but the '_poolXXX' pointers have been pulled
+  //into this struct to get rid of the global statics
+  struct POOLDATA
+  {
+    void* _base;
+    std::size_t _useCount;
+    char* _poolBegin ; //! Start of memory pool
+    char* _poolCur ;   //! Next free slot in memory pool
+    char* _poolEnd ;   //! End of memory pool
+
+    POOLDATA() : _base{nullptr}, _useCount{0},
+        _poolBegin{nullptr}, _poolCur{nullptr}, _poolEnd{nullptr} {}
+  };
+
+  //Static init has to happen inside a function to solve the
+  //static initialisation order fiasco. The list might have to
+  //leak at exit if instances of RooArgSet are still alive
+  //when the static destruction hits this list
+  static std::vector<POOLDATA> * getMemPoolList() {
+    static auto memPoolList = new std::vector<POOLDATA>;
+    return memPoolList;
+  }
+
+  static void prunePools(std::vector<POOLDATA>& memPoolList);
+
+
   Bool_t checkForDup(const RooAbsArg& arg, Bool_t silent) const ;
 
-  static char* _poolBegin ; //! Start of memory pool
-  static char* _poolCur ;   //! Next free slot in memory pool
-  static char* _poolEnd ;   //! End of memory pool  
+
   
   ClassDef(RooArgSet,1) // Set of RooAbsArg objects
 };

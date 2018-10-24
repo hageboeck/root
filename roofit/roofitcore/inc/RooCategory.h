@@ -80,8 +80,13 @@ public:
   }
  
 protected:
-  
-  static RooSharedPropertiesList _sharedPropList; // List of properties shared among clone sets 
+  ///The shared properties list needs to be encapsulated in a function in order to be able
+  ///to outlive all instances of this class. If it doesn't, deleting instances will lead to
+  ///crashes.
+  RooSharedPropertiesList& getSharedPropList() const {
+    static RooSharedPropertiesList sharedPropList; // List of properties shared among clone sets
+    return sharedPropList;
+  }
   static RooCategorySharedProperties _nullProp ; // Null property
   RooCategorySharedProperties* _sharedProp ; //! Shared properties associated with this instance
 

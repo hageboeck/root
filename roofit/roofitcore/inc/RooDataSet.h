@@ -23,13 +23,13 @@ class RooDataHist ;
 #include "RooAbsData.h"
 #include "RooDirItem.h"
 
-#define USEMEMPOOL
+#define USEMEMPOOLFORDATASET
 
 
 class RooDataSet : public RooAbsData, public RooDirItem {
 public:
 
-#ifdef USEMEMPOOL
+#ifdef USEMEMPOOLFORDATASET
   void* operator new (size_t bytes);
   void operator delete (void *ptr);
 #endif

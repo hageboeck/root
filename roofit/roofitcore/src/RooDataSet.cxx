@@ -67,7 +67,7 @@ ClassImp(RooDataSet);
 char* RooDataSet::_poolBegin = 0 ;
 char* RooDataSet::_poolCur = 0 ;
 char* RooDataSet::_poolEnd = 0 ;
-#define POOLSIZE 1048576
+#define DATASETPOOLSIZE 1048576
 
 struct POOLDATA 
 {
@@ -91,7 +91,7 @@ void RooDataSet::cleanup()
 }
 
 
-#ifdef USEMEMPOOL
+#ifdef USEMEMPOOLFORDATASET
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Overloaded new operator guarantees that all RooDataSets allocated with new
@@ -132,13 +132,13 @@ void* RooDataSet::operator new (size_t bytes)
         free(toFree);
      }
 
-     void *mem = malloc(POOLSIZE);
-     memset(mem, TStorage::kObjectAllocMemValue, POOLSIZE);
+     void *mem = malloc(DATASETPOOLSIZE);
+     memset(mem, TStorage::kObjectAllocMemValue, DATASETPOOLSIZE);
 
      _poolBegin = (char *)mem;
      // Reserve space for pool counter at head of pool
      _poolCur = _poolBegin + sizeof(Int_t);
-     _poolEnd = _poolBegin + (POOLSIZE);
+     _poolEnd = _poolBegin + (DATASETPOOLSIZE);
 
      // Clear pool counter
      *((Int_t *)_poolBegin) = 0;
@@ -169,7 +169,7 @@ void RooDataSet::operator delete (void* ptr)
 {
   // Decrease use count in pool that ptr is on
   for (std::list<POOLDATA>::iterator poolIter =  _memPoolList.begin() ; poolIter!=_memPoolList.end() ; ++poolIter) {
-    if ((char*)ptr > (char*)poolIter->_base && (char*)ptr < (char*)poolIter->_base + POOLSIZE) {
+    if ((char*)ptr > (char*)poolIter->_base && (char*)ptr < (char*)poolIter->_base + DATASETPOOLSIZE) {
       (*(Int_t*)(poolIter->_base))-- ;
       break ;
     }

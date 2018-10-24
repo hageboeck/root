@@ -46,11 +46,10 @@ a optionally series of alternate named ranges.
 using namespace std;
 
 ClassImp(RooRealVar);
-;
 
 Bool_t RooRealVar::_printScientific(kFALSE) ;
 Int_t  RooRealVar::_printSigDigits(5) ;
-RooSharedPropertiesList RooRealVar::_sharedPropList ;
+//RooSharedPropertiesList RooRealVar::_sharedPropList ;
 RooRealVarSharedProperties RooRealVar::_nullProp("00000000-0000-0000-0000-000000000000") ;
 
 
@@ -146,7 +145,7 @@ RooRealVar::RooRealVar(const RooRealVar& other, const char* name) :
   _asymErrLo(other._asymErrLo),
   _asymErrHi(other._asymErrHi)
 {
-  _sharedProp =  (RooRealVarSharedProperties*) _sharedPropList.registerProperties(other.sharedProp()) ;
+  _sharedProp =  (RooRealVarSharedProperties*) getSharedPropList().registerProperties(other.sharedProp()) ;
   if (other._binning) {
      _binning = other._binning->clone() ;
      _binning->insertHook(*this) ;
@@ -180,7 +179,7 @@ RooRealVar::~RooRealVar()
   _altNonSharedBinning.Delete() ;
 
   if (_sharedProp) {
-    _sharedPropList.unregisterProperties(_sharedProp) ;
+    getSharedPropList().unregisterProperties(_sharedProp) ;
   }
 
   TRACE_DESTROY
@@ -1158,13 +1157,13 @@ void RooRealVar::Streamer(TBuffer &R__b)
     }
     if (R__v==3) {
       R__b >> _sharedProp ;
-      _sharedProp = (RooRealVarSharedProperties*) _sharedPropList.registerProperties(_sharedProp,kFALSE) ;
+      _sharedProp = (RooRealVarSharedProperties*) getSharedPropList().registerProperties(_sharedProp,kFALSE) ;
     }
     if (R__v>=4) {
       RooRealVarSharedProperties* tmpSharedProp = new RooRealVarSharedProperties() ;
       tmpSharedProp->Streamer(R__b) ;
       if (!(_nullProp==*tmpSharedProp)) {
-	_sharedProp = (RooRealVarSharedProperties*) _sharedPropList.registerProperties(tmpSharedProp,kFALSE) ;
+	_sharedProp = (RooRealVarSharedProperties*) getSharedPropList().registerProperties(tmpSharedProp,kFALSE) ;
       } else {
 	delete tmpSharedProp ;
 	_sharedProp = 0 ;
@@ -1199,7 +1198,7 @@ void RooRealVar::Streamer(TBuffer &R__b)
 void RooRealVar::deleteSharedProperties()
 {
   if (_sharedProp) {
-    _sharedPropList.unregisterProperties(_sharedProp) ;
+    getSharedPropList().unregisterProperties(_sharedProp) ;
     _sharedProp = 0 ;
   }
 }

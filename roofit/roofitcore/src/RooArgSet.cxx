@@ -63,34 +63,44 @@ char* operator+( streampos&, char* );
 ClassImp(RooArgSet);
   ;
 
-char* RooArgSet::_poolBegin = 0 ;
-char* RooArgSet::_poolCur = 0 ;
-char* RooArgSet::_poolEnd = 0 ;
-#define POOLSIZE 1048576
-
-struct POOLDATA 
-{
-  void* _base ;
-} ;
-
-static std::list<POOLDATA> _memPoolList ;
+//char* RooArgSet::_poolBegin = 0 ;
+//char* RooArgSet::_poolCur = 0 ;
+//char* RooArgSet::_poolEnd = 0 ;
+//#define POOLSIZE 1048576
+#define ARGSETPOOLSIZE 5*sizeof(RooArgSet)
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Clear memoery pool on exit to avoid reported memory leaks
+/// Clear memory pool on exit to avoid reported memory leaks. Since the destruction order
+/// cannot be controlled completely, pool memory might have to leak, nevertheless.
 
 void RooArgSet::cleanup()
 {
-  std::list<POOLDATA>::iterator iter = _memPoolList.begin() ;
-  while(iter!=_memPoolList.end()) {
-    free(iter->_base) ;
-    iter->_base=0 ;
-    ++iter ;
+  auto memPoolList = getMemPoolList();
+  prunePools(*memPoolList);
+
+  //Only if all memory pools have been cleared, (no RooArgSets alive), the list can be deleted
+  if (memPoolList->empty()) {
+    delete memPoolList;
   }
-  _memPoolList.clear() ;
 }
 
 
-#ifdef USEMEMPOOL
+#ifdef USEMEMPOOLFORARGSET
+
+void RooArgSet::prunePools(std::vector<POOLDATA>& poolList) {
+  for (auto iter = poolList.begin(); iter != poolList.end(); ++iter) {
+    std::cout << iter - poolList.begin() << " has useCount=" << iter->_useCount << std::endl;
+    if (iter->_useCount == 0) {
+      std::cout << "Freeing ..." << std::endl;
+      free(iter->_base);
+    }
+  }
+
+  auto newEnd = std::remove_if(poolList.begin(), poolList.end(), [](POOLDATA& data){
+    return data._useCount == 0;
+  });
+  poolList.erase(newEnd, poolList.end());
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Overloaded new operator guarantees that all RooArgSets allocated with new
@@ -101,61 +111,36 @@ void RooArgSet::cleanup()
 
 void* RooArgSet::operator new (size_t bytes)
 {
-  //cout << " RooArgSet::operator new(" << bytes << ")" << endl ;
+  auto& poolList = *getMemPoolList();
 
-  if (!_poolBegin || _poolCur+(sizeof(RooArgSet)) >= _poolEnd) {
+  if (poolList.empty() || poolList.back()._poolCur+(sizeof(RooArgSet)) > poolList.back()._poolEnd) {
 
-    if (_poolBegin!=0) {
+    if (!poolList.empty()) {
       oocxcoutD((TObject*)0,Caching) << "RooArgSet::operator new(), starting new 1MB memory pool" << endl ;
     }
 
-    RooTrace::createSpecial("RooArgSet_pool",POOLSIZE) ;
-
-    // Start pruning empty memory pools if number exceeds 3
-    if (_memPoolList.size()>3) {
-      
-      void* toFree(0) ;
-
-      for (std::list<POOLDATA>::iterator poolIter =  _memPoolList.begin() ; poolIter!=_memPoolList.end() ; ++poolIter) {
-
-	// If pool is empty, delete it and remove it from list
-	if ((*(Int_t*)(poolIter->_base))==0) {
-	  oocxcoutD((TObject*)0,Caching) << "RooArgSet::operator new(), pruning empty memory pool " << (void*)(poolIter->_base) << endl ;
-
-	  toFree = poolIter->_base ;
-	  _memPoolList.erase(poolIter) ;
-	  RooTrace::destroySpecial("RooArgSet_pool") ;
-	  
-	  break ;
-	}
-      }      
-
-      free(toFree) ;      
-    }
+    RooTrace::createSpecial("RooArgSet_pool",ARGSETPOOLSIZE) ;
     
-    void* mem = malloc(POOLSIZE) ;
-    memset(mem, TStorage::kObjectAllocMemValue, POOLSIZE);
-
-    _poolBegin = (char*)mem ;
-    // Reserve space for pool counter at head of pool
-    _poolCur = _poolBegin+sizeof(Int_t) ;
-    _poolEnd = _poolBegin+(POOLSIZE) ;
-
-    // Clear pool counter
-    *((Int_t*)_poolBegin)=0 ;
+    void* mem = malloc(ARGSETPOOLSIZE) ;
+    memset(mem, TStorage::kObjectAllocMemValue, ARGSETPOOLSIZE);
     
-    POOLDATA p ;
-    p._base=mem ;
-    _memPoolList.push_back(p) ;
+    POOLDATA p;
+    p._base = mem ;
+    p._poolBegin = (char*) mem;
+    p._poolCur = p._poolBegin;
+    p._poolEnd = p._poolBegin+(ARGSETPOOLSIZE) ;
+    poolList.push_back(std::move(p)) ;
 
     RooSentinel::activate() ;
   }
 
-  char* ptr = _poolCur ;
-  _poolCur += bytes ;
+  auto & pooldata = poolList.back();
+
+  char* ptr = pooldata._poolCur ;
+  pooldata._poolCur += bytes ;
 
   // Increment use counter of pool
-  (*((Int_t*)_poolBegin))++ ;
+  pooldata._useCount += bytes/sizeof(RooArgSet);
 
   return ptr ;
 
@@ -179,9 +164,11 @@ void* RooArgSet::operator new (size_t bytes, void* ptr) noexcept
 void RooArgSet::operator delete (void* ptr)
 {
   // Decrease use count in pool that ptr is on
-  for (std::list<POOLDATA>::iterator poolIter =  _memPoolList.begin() ; poolIter!=_memPoolList.end() ; ++poolIter) {
-    if ((char*)ptr > (char*)poolIter->_base && (char*)ptr < (char*)poolIter->_base + POOLSIZE) {
-      (*(Int_t*)(poolIter->_base))-- ;
+  for (auto& poolItem : *getMemPoolList()) {
+    if ((char*)ptr >= (char*)poolItem._base && (char*)ptr < (char*)poolItem._base + ARGSETPOOLSIZE) {
+      if (--poolItem._useCount == 0)
+        prunePools(*getMemPoolList());
+
       return ;
     }
   }

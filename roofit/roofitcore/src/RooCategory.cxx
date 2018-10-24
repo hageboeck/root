@@ -43,7 +43,6 @@ using namespace std;
 ClassImp(RooCategory); 
 ;
 
-RooSharedPropertiesList RooCategory::_sharedPropList ;
 RooCategorySharedProperties RooCategory::_nullProp("00000000-0000-0000-0000-000000000000") ;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -61,7 +60,7 @@ RooCategory::RooCategory() : _sharedProp(0)
 RooCategory::RooCategory(const char *name, const char *title) : 
   RooAbsCategoryLValue(name,title)
 {
-  _sharedProp = (RooCategorySharedProperties*) _sharedPropList.registerProperties(new RooCategorySharedProperties()) ;
+  _sharedProp = (RooCategorySharedProperties*) getSharedPropList().registerProperties(new RooCategorySharedProperties()) ;
 
   setValueDirty() ;  
   setShapeDirty() ;  
@@ -76,7 +75,7 @@ RooCategory::RooCategory(const char *name, const char *title) :
 RooCategory::RooCategory(const RooCategory& other, const char* name) :
   RooAbsCategoryLValue(other, name)
 {
-  _sharedProp =  (RooCategorySharedProperties*) _sharedPropList.registerProperties(other._sharedProp) ;
+  _sharedProp =  (RooCategorySharedProperties*) getSharedPropList().registerProperties(other._sharedProp) ;
   TRACE_CREATE   
 }
 
@@ -87,7 +86,7 @@ RooCategory::RooCategory(const RooCategory& other, const char* name) :
 
 RooCategory::~RooCategory()
 {
-  _sharedPropList.unregisterProperties(_sharedProp) ;
+  getSharedPropList().unregisterProperties(_sharedProp) ;
   TRACE_DESTROY
 }
 
@@ -313,7 +312,7 @@ void RooCategory::Streamer(TBuffer &R__b)
       RooCategorySharedProperties* tmpSharedProp = new RooCategorySharedProperties() ;
       tmpSharedProp->Streamer(R__b) ;
       if (!(_nullProp==*tmpSharedProp)) {
-	_sharedProp = (RooCategorySharedProperties*) _sharedPropList.registerProperties(tmpSharedProp,kFALSE) ;
+	_sharedProp = (RooCategorySharedProperties*) getSharedPropList().registerProperties(tmpSharedProp,kFALSE) ;
       } else {
 	delete tmpSharedProp ;
 	_sharedProp = 0 ;
