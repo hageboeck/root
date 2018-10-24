@@ -21,7 +21,7 @@
 class RooArgList ;
 
 
-#define USEMEMPOOLFORARGSET
+//#define USEMEMPOOLFORARGSET
 
 class RooArgSet : public RooAbsCollection {
 public:
@@ -127,10 +127,11 @@ public:
 
 protected:
 
+#ifdef USEMEMPOOLFORARGSET
   //This is a malloc-ed block with a use counter and pointers into the block
   //for fast memory allocation ensuring consecutive and unique addresses of RooArgSets.
   //Apparently, RooFit relies on them being unique as explained in the comment of
-  //operator new().
+  //RooArgSet::operator new().
   //The memory pool works as before, but the '_poolXXX' pointers have been pulled
   //into this struct to get rid of the global statics
   struct POOLDATA
@@ -155,6 +156,7 @@ protected:
   }
 
   static void prunePools(std::vector<POOLDATA>& memPoolList);
+#endif
 
 
   Bool_t checkForDup(const RooAbsArg& arg, Bool_t silent) const ;

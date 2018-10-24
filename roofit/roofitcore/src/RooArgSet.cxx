@@ -61,13 +61,9 @@ char* operator+( streampos&, char* );
 #endif
 
 ClassImp(RooArgSet);
-  ;
 
-//char* RooArgSet::_poolBegin = 0 ;
-//char* RooArgSet::_poolCur = 0 ;
-//char* RooArgSet::_poolEnd = 0 ;
-//#define POOLSIZE 1048576
-#define ARGSETPOOLSIZE 5*sizeof(RooArgSet)
+#ifdef USEMEMPOOLFORARGSET
+#define ARGSETPOOLSIZE 6240*sizeof(RooArgSet) //About 1 Mb
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Clear memory pool on exit to avoid reported memory leaks. Since the destruction order
@@ -84,9 +80,8 @@ void RooArgSet::cleanup()
   }
 }
 
-
-#ifdef USEMEMPOOLFORARGSET
-
+////////////////////////////////////////////////////////////////////////////////
+/// Delete pages that don't have users, any more
 void RooArgSet::prunePools(std::vector<POOLDATA>& poolList) {
   for (auto iter = poolList.begin(); iter != poolList.end(); ++iter) {
     std::cout << iter - poolList.begin() << " has useCount=" << iter->_useCount << std::endl;
@@ -166,6 +161,7 @@ void RooArgSet::operator delete (void* ptr)
   // Decrease use count in pool that ptr is on
   for (auto& poolItem : *getMemPoolList()) {
     if ((char*)ptr >= (char*)poolItem._base && (char*)ptr < (char*)poolItem._base + ARGSETPOOLSIZE) {
+
       if (--poolItem._useCount == 0)
         prunePools(*getMemPoolList());
 
@@ -176,6 +172,8 @@ void RooArgSet::operator delete (void* ptr)
   ::operator delete(ptr);
 }
 
+#else
+void RooArgSet::cleanup() {}
 #endif
 
 
