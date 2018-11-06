@@ -920,7 +920,8 @@ const RooAbsReal *RooAbsReal::createPlotProjection(const RooArgSet &dependentVar
   if(0 != projectedVars) leafNodes.remove(*projectedVars,kTRUE);
 
   // Make a deep-clone of ourself so later operations do not disturb our original state
-  cloneSet= (RooArgSet*)RooArgSet(*this).snapshot(kTRUE);
+  RooArgSet tempSet(*this);
+  cloneSet= (RooArgSet*) tempSet.snapshot(kTRUE);
   if (!cloneSet) {
     coutE(Plotting) << "RooAbsPdf::createPlotProjection(" << GetName() << ") Couldn't deep-clone PDF, abort," << endl ;
     return 0 ;

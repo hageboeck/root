@@ -1144,12 +1144,13 @@ void RooAbsArg::registerProxy(RooArgProxy& proxy)
     return ;
   }
 
-//   cout << (void*)this << " " << GetName() << ": registering proxy "
-//        << (void*)&proxy << " with name " << proxy.name() << " in mode "
-//        << (proxy.isValueServer()?"V":"-") << (proxy.isShapeServer()?"S":"-") << endl ;
+   cout << (void*)this << " " << GetName() << ": registering proxy "
+        << (void*)&proxy << " with name " << proxy.name() << " in mode "
+        << (proxy.isValueServer()?"V":"-") << (proxy.isShapeServer()?"S":"-") << endl ;
 
   // Register proxied object as server
   if (proxy.absArg()) {
+    proxy.Print("V");
     addServer(*proxy.absArg(),proxy.isValueServer(),proxy.isShapeServer()) ;
   }
 

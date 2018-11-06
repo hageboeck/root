@@ -54,6 +54,7 @@ RooGaussian::RooGaussian(const RooGaussian& other, const char* name) :
   RooAbsPdf(other,name), x("x",this,other.x), mean("mean",this,other.mean),
   sigma("sigma",this,other.sigma)
 {
+  std::cout << "Copy " << &other << "\t" << other.GetName() << " --> " << this << std::endl;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

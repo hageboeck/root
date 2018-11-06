@@ -235,6 +235,7 @@ Bool_t RooAbsCollection::snapshot(RooAbsCollection& output, Bool_t deepCopy) con
   RooFIter iterat= fwdIterator();
   RooAbsArg *orig = 0;
   while((0 != (orig= iterat.next()))) {
+    std::cout << "Cloning " << orig << "\t" << orig->GetName() << std::endl;
     RooAbsArg *copy= (RooAbsArg*)orig->Clone();
     output.add(*copy);
   }
