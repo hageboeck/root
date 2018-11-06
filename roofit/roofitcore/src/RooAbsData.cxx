@@ -1777,7 +1777,7 @@ RooPlot *RooAbsData::plotOn(RooPlot *frame, PlotOpt o) const
   // calculate the number of entries in the dataset in the plot variable fit range
   RooAbsRealLValue* dataVar = (RooAbsRealLValue*) _vars.find(var->GetName()) ;
   Double_t nEnt(sumEntries()) ;
-  if (dataVar->getMin()<var->getMin() || dataVar->getMax()>var->getMax()) {
+  if (dataVar && (dataVar->getMin()<var->getMin() || dataVar->getMax()>var->getMax())) {
     RooAbsData* tmp = ((RooAbsData*)this)->reduce(*var) ;
     nEnt = tmp->sumEntries() ;
     delete tmp ;
