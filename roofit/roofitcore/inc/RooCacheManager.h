@@ -104,9 +104,9 @@ public:
  
 protected:
 
-  Int_t _maxSize ;    //! Maximum size
-  Int_t _size ;       //! Actual use
-  Int_t _lastIndex ;  //! Last slot accessed
+  Int_t _maxSize{0};    //! Maximum size
+  Int_t _size{0};       //! Actual use
+  Int_t _lastIndex{-1};  //! Last slot accessed
 
   std::vector<RooNormSetCache> _nsetCache ; //! Normalization/Integration set manager
   std::vector<T*> _object ;                 //! Payload
