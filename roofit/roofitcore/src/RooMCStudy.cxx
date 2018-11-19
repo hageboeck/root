@@ -520,7 +520,9 @@ Bool_t RooMCStudy::run(Bool_t doGenerate, Bool_t DoFit, Int_t nSamples, Int_t nE
 	// Calculate the number of (extended) events for this run
 	if (_extendedGen) {
 	  _nExpGen = _genModel->expectedEvents(&_dependents) ;
-	  nEvt = RooRandom::randomGenerator()->Poisson(nEvtPerSample==0?_nExpGen:nEvtPerSample) ;
+	  TRandom* rnd = RooRandom::randomGenerator();
+	  rnd->SetSeed(1337 + nSamples*123456);
+	  nEvt = rnd->Poisson(nEvtPerSample==0?_nExpGen:nEvtPerSample) ;
 	}	
 
 	// Binned generation
@@ -531,7 +533,9 @@ Bool_t RooMCStudy::run(Bool_t doGenerate, Bool_t DoFit, Int_t nSamples, Int_t nE
 	// Calculate the number of (extended) events for this run
 	if (_extendedGen) {
 	  _nExpGen = _genModel->expectedEvents(&_dependents) ;
-	  nEvt = RooRandom::randomGenerator()->Poisson(nEvtPerSample==0?_nExpGen:nEvtPerSample) ;
+	  TRandom* rnd = RooRandom::randomGenerator();
+	  rnd->SetSeed(1338 + nSamples*123456);
+	  nEvt = rnd->Poisson(nEvtPerSample==0?_nExpGen:nEvtPerSample) ;
 	}
 	
 	// Optional randomization of protodata for this run
