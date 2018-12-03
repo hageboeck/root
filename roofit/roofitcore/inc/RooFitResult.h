@@ -178,11 +178,11 @@ protected:
   Double_t correlation(Int_t row, Int_t col) const;
   Double_t covariance(Int_t row, Int_t col) const;
 
-  Int_t    _status ;          // MINUIT status code
-  Int_t    _covQual ;         // MINUIT quality code of covariance matrix
-  Int_t    _numBadNLL ;       // Number calls with bad (zero,negative) likelihood 
-  Double_t _minNLL ;          // NLL at minimum
-  Double_t _edm ;             // Estimated distance to minimum
+  Int_t    _status{-1000};    // MINUIT status code
+  Int_t    _covQual{-1000};   // MINUIT quality code of covariance matrix
+  Int_t    _numBadNLL{-1};    // Number calls with bad (zero,negative) likelihood
+  Double_t _minNLL{0.};       // NLL at minimum
+  Double_t _edm{0.};          // Estimated distance to minimum
   RooArgList* _constPars ;    // List of constant parameters
   RooArgList* _initPars ;     // List of floating parameters with initial values
   RooArgList* _finalPars ;    // List of floating parameters with final values

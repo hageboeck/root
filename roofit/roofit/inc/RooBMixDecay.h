@@ -59,10 +59,10 @@ protected:
   Int_t _basisExp ;
   Int_t _basisCos ;
 
-  Double_t _genMixFrac ;   //! do not persist
-  Double_t _genFlavFrac ;  //!
-  Double_t _genFlavFracMix ;   //!
-  Double_t _genFlavFracUnmix ; //!
+  Double_t _genMixFrac{0.};   //! do not persist
+  Double_t _genFlavFrac{0.} ;  //!
+  Double_t _genFlavFracMix{0.} ;   //!
+  Double_t _genFlavFracUnmix{0.} ; //!
 
   ClassDef(RooBMixDecay,1) // B Mixing decay PDF
 };
