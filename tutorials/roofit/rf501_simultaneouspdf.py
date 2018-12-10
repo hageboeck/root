@@ -106,18 +106,19 @@ combData.plotOn(frame1, ROOT.RooFit.Cut("sample==sample::physics"))
 # NBL You _must_ project the sample index category with data using ProjWData
 # as a RooSimultaneous makes no prediction on the shape in the index category
 # and can thus not be integrated
+sampleSet = ROOT.RooArgSet(sample)
 simPdf.plotOn(frame1, ROOT.RooFit.Slice(sample, "physics"),
-                ROOT.RooFit.ProjWData(ROOT.RooArgSet(sample), combData))
+                ROOT.RooFit.ProjWData(sampleSet, combData))
 simPdf.plotOn(frame1, ROOT.RooFit.Slice(sample, "physics"), ROOT.RooFit.Components(
-    "px"), ROOT.RooFit.ProjWData(ROOT.RooArgSet(sample), combData), ROOT.RooFit.LineStyle(ROOT.kDashed))
+    "px"), ROOT.RooFit.ProjWData(sampleSet, combData), ROOT.RooFit.LineStyle(ROOT.kDashed))
 
 # The same plot for the control sample slice
 frame2 = x.frame(ROOT.RooFit.Bins(30), ROOT.RooFit.Title("Control sample"))
 combData.plotOn(frame2, ROOT.RooFit.Cut("sample==sample::control"))
 simPdf.plotOn(frame2, ROOT.RooFit.Slice(sample, "control"),
-                ROOT.RooFit.ProjWData(ROOT.RooArgSet(sample), combData))
+                ROOT.RooFit.ProjWData(sampleSet, combData))
 simPdf.plotOn(frame2, ROOT.RooFit.Slice(sample, "control"), ROOT.RooFit.Components(
-    "px_ctl"), ROOT.RooFit.ProjWData(ROOT.RooArgSet(sample), combData), ROOT.RooFit.LineStyle(ROOT.kDashed))
+    "px_ctl"), ROOT.RooFit.ProjWData(sampleSet, combData), ROOT.RooFit.LineStyle(ROOT.kDashed))
 
 c = ROOT.TCanvas("rf501_simultaneouspdf",
                     "rf501_simultaneouspdf", 800, 400)
