@@ -5,6 +5,9 @@
 ///
 ///  Extended maximum likelihood fit with alternate range definition
 ///  for observed number of events.
+///  If multiple ranges are used, or only a part of the data is fitted,
+///  it is advisable to use a RooAddPdf to extend the model. See tutorial
+///  204a.
 ///
 /// \macro_output
 /// \macro_code
@@ -52,6 +55,8 @@ void rf204_extrangefit()
    RooAddPdf sig("sig","Signal",RooArgList(sig1,sig2),sig1frac) ;
 
 
+   // C o n s t r u c t   e x t e n d e d   c o m p s   wi t h   r a n g e   s p e c
+   // ------------------------------------------------------------------------------
 
    // Define signal range in which events counts are to be defined
    x.setRange("signalRange",4,6) ;
@@ -59,14 +64,15 @@ void rf204_extrangefit()
    // Associated nsig/nbkg as expected number of events with sig/bkg _in_the_range_ "signalRange"
    RooRealVar nsig("nsig","number of signal events in signalRange",500,0.,10000) ;
    RooRealVar nbkg("nbkg","number of background events in signalRange",500,0,10000) ;
-   
-   // Use AddPdf to extend the model:
-   RooAddPdf  model("model","(g1+g2)+a", RooArgList(bkg,sig), RooArgList(nbkg,nsig)) ;
-   
-   // Need to clone these models because the interpretation of normalisation coefficients changes
-   // when different ranges are used:
-   RooAddPdf model2(model);
-   RooAddPdf model3(model);
+   RooExtendPdf esig("esig","extended signal p.d.f",sig,nsig,"signalRange") ;
+   RooExtendPdf ebkg("ebkg","extended background p.d.f",bkg,nbkg,"signalRange") ;
+
+
+   // S u m   e x t e n d e d   c o m p o n e n t s
+   // ---------------------------------------------
+
+   // Construct sum of two extended p.d.f. (no coefficients required)
+   RooAddPdf  model("model","(g1+g2)+a",RooArgList(ebkg,esig)) ;
 
 
    // S a m p l e   d a t a ,   f i t   m o d e l
@@ -76,66 +82,8 @@ void rf204_extrangefit()
    RooDataSet *data = model.generate(x,1000) ;
 
 
-
-   auto canv = new TCanvas("Canvas", "Canvas", 1500, 600);
-   canv->Divide(3,1);
-
-   // Fit full range
-   // -------------------------------------------
-
-   canv->cd(1);
-
-   // Perform unbinned ML fit to data, full range
-   RooFitResult* r = model.fitTo(*data,Save()) ;
+   // Perform unbinned extended ML fit to data
+   RooFitResult* r = model.fitTo(*data,Extended(kTRUE),Save()) ;
    r->Print() ;
-   
-   RooPlot * frame = x.frame(Title("Full range fitted"));
-   data->plotOn(frame);
-   model.plotOn(frame, VisualizeError(*r));
-   model.plotOn(frame);
-   model.paramOn(frame);
-   frame->Draw();
-   
-   
-   // Fit in two regions
-   // -------------------------------------------
-   
-   canv->cd(2);
-   x.setRange("left",  0., 4.);
-   x.setRange("right", 6., 10.);
-   
-   RooFitResult* r2 = model2.fitTo(*data,
-      Range("left,right"),
-      Save()) ;
-   r2->Print();
-   
-   
-   RooPlot * frame2 = x.frame(Title("Fit in left/right sideband"));
-   data->plotOn(frame2);
-   model2.plotOn(frame2, VisualizeError(*r2));
-   model2.plotOn(frame2);
-   model2.paramOn(frame2);
-   frame2->Draw();
-   
-   
-   // Fit in one region
-   // -------------------------------------------
-   
-   canv->cd(3);
-   x.setRange("leftToMiddle",  0., 5.);
-   
-   RooFitResult* r3 = model3.fitTo(*data,
-      Range("leftToMiddle"),
-      Save()) ;
-   r3->Print();
-   
-   
-   RooPlot * frame3 = x.frame(Title("Fit from left to middle"));
-   data->plotOn(frame3);
-   model3.plotOn(frame3, VisualizeError(*r3));
-   model3.plotOn(frame3);
-   model3.paramOn(frame3);
-   frame3->Draw();
-   
-   canv->Draw();
+
 }
