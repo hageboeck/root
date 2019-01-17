@@ -25,22 +25,14 @@ Class RooNumber implements numeric constants used by RooFit
 #include "RooFit.h"
 #include "RooNumber.h"
 
+#include <limits>
+
 using namespace std;
 
 ClassImp(RooNumber);
 ;
 
-#ifdef HAS_NUMERIC_LIMITS
-
-#include <numeric_limits.h>
-Double_t RooNumber::_Infinity= numeric_limits<Double_t>::infinity();
-#else
-
-// This assumes a well behaved IEEE-754 floating point implementation.
-// The next line may generate a compiler warning that can be ignored.
-Double_t RooNumber::_Infinity= 1.0e30 ;  //1./0.;
-
-#endif
+Double_t RooNumber::_Infinity = numeric_limits<Double_t>::infinity();
 
 
 ////////////////////////////////////////////////////////////////////////////////
