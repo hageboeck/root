@@ -37,7 +37,7 @@ class RooArgSet ;
 class RooLinkedList ;
 class RooAbsLValue ;
 
-class RooDataHist : public RooAbsData, public RooDirItem {
+class RooDataHist final : public RooAbsData, public RooDirItem {
 public:
 
   // Constructors, factory methods etc.
@@ -53,6 +53,7 @@ public:
 
 
   RooDataHist(const RooDataHist& other, const char* newname = 0) ;
+  RooDataHist& operator=(const RooDataHist& other);
   virtual TObject* Clone(const char* newname=0) const { return new RooDataHist(*this,newname?newname:GetName()) ; }
   virtual ~RooDataHist() ;
 
@@ -180,7 +181,6 @@ protected:
   Double_t*      _binv ; //[_arrSize] Bin volume array  
 
   RooArgSet  _realVars ; // Real dimensions of the dataset 
-  TIterator* _realIter ; //! Iterator over realVars
   Bool_t*    _binValid ; //! Valid bins with current range definition
  
   mutable Double_t _curWeight ; // Weight associated with the current coordinate

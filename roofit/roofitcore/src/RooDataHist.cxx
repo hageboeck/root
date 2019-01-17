@@ -71,7 +71,6 @@ RooDataHist::RooDataHist() : _pbinvCacheMgr(0,10)
   _pbinv = 0 ;
   _curWeight = 0 ;
   _curIndex = -1 ;
-  _realIter = _realVars.createIterator() ;
   _binValid = 0 ;
   _curSumW2 = 0 ;
   _curVolume = 1 ;
@@ -780,7 +779,6 @@ void RooDataHist::initialize(const char* binningName, Bool_t fillTree)
   for (auto real : _vars) {
     if (dynamic_cast<RooAbsReal*>(real)) _realVars.add(*real);
   }
-  _realIter = _realVars.createIterator() ;
 
   // Fill array of LValue pointers to variables
   for (auto rvarg : _vars) {
@@ -913,7 +911,6 @@ RooDataHist::RooDataHist(const RooDataHist& other, const char* newname) :
   for (auto arg : _vars) {
     if (dynamic_cast<RooAbsReal*>(arg)) _realVars.add(*arg) ;
   }
-  _realIter = _realVars.createIterator() ;
 
   // Fill array of LValue pointers to variables
   for (auto rvarg : _vars) {
@@ -969,6 +966,81 @@ RooDataHist::RooDataHist(const char* name, const char* title, RooDataHist* h, co
 
   appendToDir(this,kTRUE) ;
   TRACE_CREATE
+}
+
+RooDataHist::operator=(const RooDataHist& other)
+{
+  RooAbsData::operator=(other);
+  RooDirItem::operator=(other);
+
+//  RooAbsData(other,newname), RooDirItem(), _idxMult(other._idxMult), _binValid(0), _curWeight(0), _curVolume(1), _pbinv(0), _pbinvCacheMgr(other._pbinvCacheMgr,0), _cache_sum_valid(0)
+  std::vector<Int_t> _idxMult = other._idxMult;
+  _realVars = other._realVars;
+  TODOBool_t*    _binValid ; //! Valid bins with current range definition
+
+  _curWeight = other._curWeight;
+  _curWgtErrLo = other._curWgtErrLo;
+  _curWgtErrHi = other._curWgtErrHi;
+  _curSumW2 = other._curSumW2;
+  _curVolume = other._curVolume;
+  _curIndex = other._curIndex;
+
+  _pbinv = other._pbinv == nullptr ? nullptr : new std::vector<Double_t>(*other._pbinv);
+  _pbinvCacheMgr.reset();
+
+  delete _wgt, _errLo, _errHi, _binv, _sumw2;
+  // Allocate and initialize weight array
+  _arrSize = other._arrSize ;
+  _wgt = new Double_t[_arrSize] ;
+  _errLo = new Double_t[_arrSize] ;
+  _errHi = new Double_t[_arrSize] ;
+  _binv = new Double_t[_arrSize] ;
+  _sumw2 = new Double_t[_arrSize] ;
+  for (unsigned int i = 0; i < _arrSize; ++i) {
+    _wgt[i] = other._wgt[i] ;
+    _errLo[i] = other._errLo[i] ;
+    _errHi[i] = other._errHi[i] ;
+    _sumw2[i] = other._sumw2[i] ;
+    _binv[i] = other._binv[i] ;
+  }
+
+
+
+
+
+//  std::vector<RooAbsLValue*> _lvvars ; //! List of observables casted as RooAbsLValue
+//  std::vector<const RooAbsBinning*> _lvbins ; //! List of used binnings associated with lvalues
+  mutable std::vector<std::vector<Double_t> > _binbounds; //! list of bin bounds per dimension
+
+  mutable Int_t _cache_sum_valid ; //! Is cache sum valid
+  mutable Double_t _cache_sum ; //! Cache for sum of entries ;
+
+
+
+
+
+
+  // Save real dimensions of dataset separately
+  RooAbsArg* arg ;
+  _iterator->Reset() ;
+  while((arg=(RooAbsArg*)_iterator->Next())) {
+    if (dynamic_cast<RooAbsReal*>(arg)) _realVars.add(*arg) ;
+  }
+
+  // Fill array of LValue pointers to variables
+  _iterator->Reset() ;
+  RooAbsArg* rvarg ;
+  while((rvarg=(RooAbsArg*)_iterator->Next())) {
+    // coverity[FORWARD_NULL]
+    _lvvars.push_back(dynamic_cast<RooAbsLValue*>(rvarg)) ;
+    // coverity[FORWARD_NULL]
+    const RooAbsBinning* binning = dynamic_cast<RooAbsLValue*>(rvarg)->getBinningPtr(0) ;
+    _lvbins.push_back(binning ? binning->clone() : 0) ;
+  }
+
+  _dstore->setExternalWeightArray(_wgt,_errLo,_errHi,_sumw2) ;
+
+ appendToDir(this,kTRUE) ;
 }
 
 
@@ -1060,7 +1132,6 @@ RooDataHist::~RooDataHist()
   if (_errHi) delete[] _errHi ;
   if (_sumw2) delete[] _sumw2 ;
   if (_binv) delete[] _binv ;
-  if (_realIter) delete _realIter ;
   if (_binValid) delete[] _binValid ;
   vector<const RooAbsBinning*>::iterator iter = _lvbins.begin() ;
   while(iter!=_lvbins.end()) {
