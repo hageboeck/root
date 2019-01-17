@@ -119,7 +119,6 @@ RooAbsData::RooAbsData()
   claimVars(this) ;
   _dstore = 0 ;
   storageType = defaultStorageType;
-  _iterator = _vars.createIterator() ;
   _cacheIter = _cachedVars.createIterator() ;
 
   RooTrace::create(this) ;
@@ -143,9 +142,7 @@ RooAbsData::RooAbsData(const char *name, const char *title, const RooArgSet& var
    claimVars(this);
 
    // clone the fundamentals of the given data set into internal buffer
-   TIterator *iter = vars.createIterator();
-   RooAbsArg *var;
-   while ((0 != (var = (RooAbsArg *)iter->Next()))) {
+   for (auto var : vars) {
       if (!var->isFundamental()) {
          coutE(InputArguments) << "RooAbsDataStore::initialize(" << GetName()
                                << "): Data set cannot contain non-fundamental types, ignoring " << var->GetName()
@@ -154,16 +151,12 @@ RooAbsData::RooAbsData(const char *name, const char *title, const RooArgSet& var
          _vars.addClone(*var);
       }
    }
-   delete iter;
 
    // reconnect any parameterized ranges to internal dataset observables
-   iter = _vars.createIterator();
-   while ((0 != (var = (RooAbsArg *)iter->Next()))) {
-      var->attachDataSet(*this);
+   for (auto var : vars) {
+     var->attachDataSet(*this);
    }
-   delete iter;
 
-   _iterator = _vars.createIterator();
    _cacheIter = _cachedVars.createIterator();
 
    RooTrace::create(this);
@@ -182,15 +175,10 @@ RooAbsData::RooAbsData(const RooAbsData& other, const char* newname) :
   _vars.addClone(other._vars) ;
 
   // reconnect any parameterized ranges to internal dataset observables
-  TIterator* iter = _vars.createIterator() ;
-  RooAbsArg* var ;
-  while((0 != (var= (RooAbsArg*)iter->Next()))) {
+  for (auto var : _vars) {
     var->attachDataSet(*this) ;
   }
-  delete iter ;
 
-
-  _iterator= _vars.createIterator();
   _cacheIter = _cachedVars.createIterator() ;
 
 
@@ -236,7 +224,7 @@ RooAbsData::~RooAbsData()
 
   // delete owned contents.
   delete _dstore ;
-  delete _iterator ;
+//  delete _iterator ;
   delete _cacheIter ;
 
   // Delete owned dataset components
@@ -1386,21 +1374,19 @@ TH1 *RooAbsData::fillHistogram(TH1 *hist, const RooArgList &plotVars, const char
     // Apply range based selection criteria
     Bool_t selectByRange = kTRUE ;
     if (cutRange) {
-      _iterator->Reset() ;
-      RooAbsArg* arg ;
-      while((arg=(RooAbsArg*)_iterator->Next())) {
-   Bool_t selectThisArg = kFALSE ;
-   UInt_t icut ;
-   for (icut=0 ; icut<cutVec.size() ; icut++) {
-     if (arg->inRange(cutVec[icut].c_str())) {
-       selectThisArg = kTRUE ;
-       break ;
-     }
-   }
-   if (!selectThisArg) {
-     selectByRange = kFALSE ;
-     break ;
-   }
+      for (auto arg : _vars) {
+        Bool_t selectThisArg = kFALSE ;
+        UInt_t icut ;
+        for (icut=0 ; icut<cutVec.size() ; icut++) {
+          if (arg->inRange(cutVec[icut].c_str())) {
+            selectThisArg = kTRUE ;
+            break ;
+          }
+        }
+        if (!selectThisArg) {
+          selectByRange = kFALSE ;
+          break ;
+        }
       }
     }
 

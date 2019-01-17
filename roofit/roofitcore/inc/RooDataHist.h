@@ -79,7 +79,7 @@ public:
     return &_vars ; 
   } 
   virtual const RooArgSet* get(Int_t masterIdx) const ;
-  virtual const RooArgSet* get(const RooArgSet& coord) const ;
+  virtual const RooArgSet* get(const RooArgSet& coord) const;
   virtual Int_t numEntries() const ; 
   virtual Double_t sumEntries() const  ;
   virtual Double_t sumEntries(const char* cutSpec, const char* cutRange=0) const ;
