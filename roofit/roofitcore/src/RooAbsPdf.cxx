@@ -51,8 +51,8 @@ comparison to the `evaluate()` function.
 In addition, RooAbsPdf objects do not have a static concept of what
 variables are parameters and what variables are dependents (which
 need to be integrated over for a correct PDF normalization). 
-Instead the choice of normalization is always specified each time a
-normalized values is requested from the PDF via the getVal()
+Instead, the choice of normalization is always specified each time a
+normalized value is requested from the PDF via the getVal()
 method.
 
 RooAbsPdf manages the entire normalization logic of each PDF with
@@ -63,7 +63,7 @@ PDFs can advertise one or more (partial) analytical integrals of
 their function, and these will be used by RooRealIntegral, if it
 determines that this is safe (i.e. no hidden Jacobian terms,
 multiplication with other PDFs that have one or more dependents in
-commen etc)
+commen etc).
 
 #### Implementing analytical integrals
 To implement analytical integrals, two functions must be implemented. First,
@@ -76,19 +76,19 @@ is the set of dependents for which integration is requested. The
 function should copy the subset of dependents it can analytically
 integrate to `anaIntSet`, and return a unique identification code for
 this integration configuration.  If no integration can be
-performed, zero should be returned.  Second,
+performed, zero should be returned. Second,
 
 ```
 Double_t analyticalIntegral(Int_t code)
 ```
 
-Implements the actual analytical integral(s) advertised by
-getAnalyticalIntegral.  This functions will only be called with
-codes returned by getAnalyticalIntegral, except code zero.
+implements the actual analytical integral(s) advertised by
+`getAnalyticalIntegral()`.  This function will only be called with
+codes returned by `getAnalyticalIntegral()`, except code zero.
 
-The integration range for real each dependent to be integrated can
-be obtained from the dependents' proxy functions min() and
-max(). Never call these proxy functions for any proxy not known to
+The integration range for each dependent to be integrated can
+be obtained from the dependent's proxy functions `min()` and
+`max()`. Never call these proxy functions for any proxy not known to
 be a dependent via the integration code.  Doing so may be
 ill-defined, e.g. in case the proxy holds a function, and will
 trigger an assert. Integrated category dependents should always be
