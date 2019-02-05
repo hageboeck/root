@@ -23,16 +23,16 @@ RooAbsOptTestStatistic is the abstract base class for test
 statistics objects that evaluate a function or PDF at each point of a given
 dataset.  This class provides generic optimizations, such as
 caching and precalculation of constant terms that can be made for
-all such quantities
+all such quantities.
 
 Implementations should define evaluatePartition(), which calculates the
 value of a (sub)range of the dataset and optionally combinedValue(),
 which combines the values calculated for each partition. If combinedValue()
 is not overloaded, the default implementation will add the partition results
-to obtain the combined result
+to obtain the combined result.
 
 Support for calculation in partitions is needed to allow multi-core
-parallelized calculation of test statistics
+parallelized calculation of test statistics.
 **/
 
 #include "RooFit.h"
@@ -499,8 +499,8 @@ void RooAbsOptTestStatistic::printCompactTreeHook(ostream& os, const char* inden
 ////////////////////////////////////////////////////////////////////////////////
 /// Driver function to propagate constant term optimizations in test statistic.
 /// If code Activate is sent, constant term optimization will be executed.
-/// If code Deacivate is sent, any existing constant term optimizations will
-/// be abanoned. If codes ConfigChange or ValueChange are sent, any existing
+/// If code Deactivate is sent, any existing constant term optimizations will
+/// be abandoned. If codes ConfigChange or ValueChange are sent, any existing
 /// constant term optimizations will be redone.
 
 void RooAbsOptTestStatistic::constOptimizeTestStatistic(ConstOpCode opcode, Bool_t doAlsoTrackingOpt) 
@@ -599,7 +599,7 @@ void RooAbsOptTestStatistic::optimizeCaching()
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Driver function to activate global constant term optimization.
-/// If activated constant terms are found and cached with the dataset
+/// If activated, constant terms are found and cached with the dataset.
 /// The operation mode of cached nodes is set to AClean meaning that
 /// their getVal() call will never result in an evaluate call.
 /// Finally the branches in the dataset that correspond to observables
