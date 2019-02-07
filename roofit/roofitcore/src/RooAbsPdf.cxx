@@ -651,12 +651,12 @@ Double_t RooAbsPdf::getLogVal(const RooArgSet* nset) const
 
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Returned the extended likelihood term (Nexpect - Nobserved*log(NExpected)
-/// of this PDF for the given number of observed events
+/// Return the extended likelihood term (\f$ N_\mathrm{expect} - N_\mathrm{observed} \cdot \log(N_\mathrm{expect} \f$) 
+/// of this PDF for the given number of observed events.
 ///
-/// For successfull operation the PDF implementation must indicate
-/// it is extendable by overloading canBeExtended() and must
-/// implemented the expectedEvents() function.
+/// For successful operation, the PDF implementation must indicate that
+/// it is extendable by overloading `canBeExtended()`, and must
+/// implement the `expectedEvents()` function.
 
 Double_t RooAbsPdf::extendedTerm(Double_t observed, const RooArgSet* nset) const 
 {
@@ -2975,7 +2975,7 @@ RooAbsReal* RooAbsPdf::createCdf(const RooArgSet& iset, const RooArgSet& nset)
 
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Create an object that represents the integral of the function over one or more observables listed in iset
+/// Create an object that represents the integral of the function over one or more observables listed in `iset`.
 /// The actual integration calculation is only performed when the return object is evaluated. The name
 /// of the integral object is automatically constructed from the name of the input function, the variables
 /// it integrates and the range integrates over
