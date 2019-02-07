@@ -3982,9 +3982,9 @@ RooAbsReal* RooAbsReal::createScanRI(const RooArgSet& iset, const RooArgSet& nse
 
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Utility function for createRunningIntegral that construct an
+/// Utility function for createRunningIntegral. It creates an
 /// object implementing the standard (analytical) integration
-/// technique for calculating the running integral
+/// technique for calculating the running integral.
 
 RooAbsReal* RooAbsReal::createIntRI(const RooArgSet& iset, const RooArgSet& nset)
 {
