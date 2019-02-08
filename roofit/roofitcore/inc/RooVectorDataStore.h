@@ -68,12 +68,17 @@ public:
   // Retrieve a row
   using RooAbsDataStore::get ;
   virtual const RooArgSet* get(Int_t index) const ;
+
   virtual const RooArgSet* getNative(Int_t index) const ;
+
   virtual Double_t weight() const ;
   virtual Double_t weightError(RooAbsData::ErrorType etype=RooAbsData::Poisson) const ;
   virtual void weightError(Double_t& lo, Double_t& hi, RooAbsData::ErrorType etype=RooAbsData::Poisson) const ; 
   virtual Double_t weight(Int_t index) const ;
   virtual Bool_t isWeighted() const { return (_wgtVar!=0||_extWgtArray!=0) ; }
+
+  virtual std::vector<RooFit::DataBatch> getBatch(std::size_t first, std::size_t last) const override;
+  virtual RooFit::DataBatch getWeightBatch(std::size_t first, std::size_t last) const override;
 
   // Change observable name
   virtual Bool_t changeObservableName(const char* from, const char* to) ;
@@ -133,6 +138,7 @@ public:
 
   class RealVector {
   public:
+
     RealVector(UInt_t initialCapacity=(VECTOR_BUFFER_SIZE / sizeof(Double_t))) : 
       _nativeReal(0), _real(0), _buf(0), _nativeBuf(0), _tracker(0), _nset(0) {
       _vec.reserve(initialCapacity);
@@ -227,6 +233,13 @@ public:
       *_buf = *(_vec.begin() + idx) ;
     }
 
+    RooFit::DataBatch getRange(std::size_t first, std::size_t last) const {
+      auto beg = std::min(_vec.begin() + first, _vec.end());
+      auto end = std::min(_vec.begin() + last,  _vec.end());
+
+      return RooFit::DataBatch(beg, end);
+    }
+
     inline void getNative(Int_t idx) const { 
       *_nativeBuf = *(_vec.begin() + idx) ;
     }
@@ -253,7 +266,7 @@ public:
     }
 
   protected:
-    std::vector<Double_t> _vec ;
+    RooFit::DataBatch::DataStorage_t _vec ;
 
   private:
     friend class RooVectorDataStore ;
@@ -445,7 +458,7 @@ public:
     Double_t *_nativeBufE ; //!
     Double_t *_nativeBufEL ; //! 
     Double_t *_nativeBufEH ; //!
-    std::vector<Double_t> *_vecE, *_vecEL, *_vecEH ;
+    RooFit::DataBatch::DataStorage_t *_vecE, *_vecEL, *_vecEH ;
     ClassDef(RealFullVector,1) // STL-vector-based Data Storage class
   } ;
   

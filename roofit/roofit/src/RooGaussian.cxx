@@ -65,6 +65,23 @@ Double_t RooGaussian::evaluate() const
   return exp(-0.5*arg*arg/(sig*sig)) ;
 }
 
+
+
+////////////////////////////////////////////////////////////////////////////////
+/// Compute \f$ \exp(-0.5 \cdot \frac{(x - \mu)^2}{\sigma^2} \f$ in batches
+std::vector<double> RooGaussian::evaluateBatch(const std::vector<RooFit::DataBatch>& inputs) const {
+  std::vector<double> ret(inputs[0].begin(), inputs[0].end());
+
+  const double theMean = mean;
+  const double sigmaSq = sigma * sigma;
+  for (auto& elm : ret) {
+    const double arg = elm - theMean;
+    elm = exp(-0.5 * arg*arg / (sigmaSq));
+  }
+
+  return ret;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 Int_t RooGaussian::getAnalyticalIntegral(RooArgSet& allVars, RooArgSet& analVars, const char* /*rangeName*/) const
