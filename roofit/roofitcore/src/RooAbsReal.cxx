@@ -4797,3 +4797,12 @@ void RooAbsReal::setParameterizeIntegral(const RooArgSet& paramVars)
   }
   setStringAttribute("CACHEPARAMINT",plist.c_str()) ;
 }
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+/// Evaluate function for a batch of input data points. If not overridden by
+/// derived classes, this will call the single-valued evaluate successively.
+std::vector<double> RooAbsReal::evaluateBatch(const std::vector<RooFit::DataBatch>& inputs) const {
+  R__ASSERT(false); // TODO implement
+}

@@ -197,9 +197,14 @@ public:
   RooAbsReal* createScanCdf(const RooArgSet& iset, const RooArgSet& nset, Int_t numScanBins, Int_t intOrder) ;
 
   // Function evaluation support
-  virtual Bool_t traceEvalHook(Double_t value) const ;  
+  [[deprecated]] virtual Bool_t traceEvalHook(Double_t value) const ;
   virtual Double_t getValV(const RooArgSet* set=0) const ;
   virtual Double_t getLogVal(const RooArgSet* set=0) const ;
+
+  virtual std::vector<double> getValVBatch(const std::vector<RooFit::DataBatch>& inputBatch,
+      const RooArgSet* normSet=0) const;
+  std::vector<double> getLogValBatch(const std::vector<RooFit::DataBatch>& inputBatch,
+      const RooArgSet* normSet = nullptr) const;
 
   Double_t getNorm(const RooArgSet& nset) const { 
     // Get p.d.f normalization term needed for observables 'nset'
@@ -209,7 +214,12 @@ public:
 
   virtual void resetErrorCounters(Int_t resetValue=10) ;
   void setTraceCounter(Int_t value, Bool_t allNodes=kFALSE) ;
-  Bool_t traceEvalPdf(Double_t value) const ;
+private:
+  Bool_t traceEvalPdf(Double_t value) const;
+  template<class T>
+  bool traceEvalBatch(const T& inputs) const;
+
+public:
 
   Double_t analyticalIntegralWN(Int_t code, const RooArgSet* normSet, const char* rangeName=0) const ;
 
