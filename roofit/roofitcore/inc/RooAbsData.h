@@ -22,6 +22,7 @@
 #include "RooFormulaVar.h"
 #include <cmath>
 #include "TMatrixDSym.h"
+#include "DataBatch.h"
 
 class RooAbsArg;
 class RooAbsReal ;
@@ -33,6 +34,7 @@ class TH1;
 class RooAbsBinning ;
 class Roo1DTable ;
 class RooAbsDataStore ;
+
 
 class RooAbsData : public TNamed, public RooPrintable {
 public:
@@ -88,6 +90,13 @@ public:
   virtual Double_t weightError(ErrorType etype=Poisson) const ;
   virtual void weightError(Double_t& lo, Double_t& hi, ErrorType etype=Poisson) const ; 
   virtual const RooArgSet* get(Int_t index) const ;
+
+  virtual std::vector<RooFit::DataBatch> getBatch(std::size_t first, std::size_t last) const {
+    R__ASSERT("Not implemented.");
+  }
+  virtual RooFit::DataBatch getWeightBatch(std::size_t first, std::size_t last) const {
+    R__ASSERT("Not implemented.");
+  }
 
   virtual Int_t numEntries() const ;
   virtual Double_t sumEntries() const = 0 ;
