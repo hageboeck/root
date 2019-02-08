@@ -63,7 +63,7 @@ public:
   
 
   RooDataSet(RooDataSet const & other, const char* newname=0) ;  
-  virtual TObject* Clone(const char* newname=0) const { return new RooDataSet(*this,newname?newname:GetName()) ; }
+  virtual TObject* Clone(const char* newname=0) const override { return new RooDataSet(*this,newname?newname:GetName()) ; }
   virtual ~RooDataSet() ;
 
   virtual RooAbsData* emptyClone(const char* newName=0, const char* newTitle=0, const RooArgSet* vars=0, const char* wgtVarName=0) const ;
@@ -102,7 +102,11 @@ public:
   Double_t weightError(ErrorType etype=SumW2) const ;
 
   virtual const RooArgSet* get(Int_t index) const;
-  virtual const RooArgSet* get() const ; 
+  virtual const RooArgSet* get() const ;
+
+
+  virtual std::vector<RooFit::DataBatch> getBatch(std::size_t first, std::size_t last) const override;
+  virtual RooFit::DataBatch getWeightBatch(std::size_t first, std::size_t last) const override;
 
   // Add one ore more rows of data
   virtual void add(const RooArgSet& row, Double_t weight=1.0, Double_t weightError=0);

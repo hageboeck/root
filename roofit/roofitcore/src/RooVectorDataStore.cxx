@@ -522,7 +522,6 @@ const RooArgSet* RooVectorDataStore::get(Int_t index) const
 }
 
 
-
 ////////////////////////////////////////////////////////////////////////////////
 /// Load the n-th data point (n='index') in memory
 /// and return a pointer to the internal RooArgSet
@@ -611,7 +610,10 @@ Double_t RooVectorDataStore::weight() const
 }
 
 
+
 ////////////////////////////////////////////////////////////////////////////////
+/// Return the error of the current weight.
+/// @param[in] etype Switch between simple Poisson or sum-of-weights statistics
 
 Double_t RooVectorDataStore::weightError(RooAbsData::ErrorType etype) const 
 {
@@ -1315,8 +1317,6 @@ void RooVectorDataStore::recalculateCache( const RooArgSet *projectedArgs, Int_t
 }
 
 
-
-
 ////////////////////////////////////////////////////////////////////////////////
 /// Initialize cache of dataset: attach variables of cache ArgSet
 /// to the corresponding TTree branches
@@ -1526,8 +1526,46 @@ void RooVectorDataStore::CatVector::Streamer(TBuffer &R__b)
 }
 
 
+std::vector<RooFit::DataBatch> RooVectorDataStore::getBatch(std::size_t firstEvent, std::size_t lastEvent) const
+{
+  std::vector<RooFit::DataBatch> ret;
+
+  if (_cache) {
+    ret.reserve(_cache->_realStoreList.size());
+
+    for (const auto realVec : _cache->_realStoreList) {
+      ret.emplace_back(realVec->getRange(firstEvent, lastEvent));
+    }
+  }
+
+  return ret;
+}
 
 
+////////////////////////////////////////////////////////////////////////////////
+/// Return the weights of all events in [first, last[.
+
+RooFit::DataBatch RooVectorDataStore::getWeightBatch(std::size_t first, std::size_t last) const
+{
+  if (_extWgtArray) {
+    //TODO Evil hack. FIX!
+    return RooFit::DataBatch(
+        reinterpret_cast<RooFit::DataBatch::const_iterator>(_extWgtArray) + first,
+        reinterpret_cast<RooFit::DataBatch::const_iterator>(_extWgtArray) + last);
+  }
+
+  std::vector<double> weights(1., last-first);
+  if (_wgtVar) {
+    R__ASSERT(false); //Need to fill event by event?
+
+    // Otherwise look for weight variable
+    double theWeight = _wgtVar->getVal();
+
+    std::fill(weights.begin(), weights.end(), theWeight);
+  }
+
+  return weights;
+}
 
 
 

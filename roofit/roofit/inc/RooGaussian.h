@@ -44,6 +44,7 @@ protected:
   RooRealProxy sigma ;
 
   Double_t evaluate() const ;
+  std::vector<double> evaluateBatch(const std::vector<RooFit::DataBatch>& inputs) const override;
 
 private:
 
