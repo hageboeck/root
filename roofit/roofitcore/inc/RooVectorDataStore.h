@@ -42,8 +42,8 @@ public:
 
   // Empty ctor
   RooVectorDataStore(const char* name, const char* title, const RooArgSet& vars, const char* wgtVarName=0) ;
-  virtual RooAbsDataStore* clone(const char* newname=0) const { return new RooVectorDataStore(*this,newname) ; }
-  virtual RooAbsDataStore* clone(const RooArgSet& vars, const char* newname=0) const { return new RooVectorDataStore(*this,vars,newname) ; }
+  virtual RooAbsDataStore* clone(const char* newname=0) const override { return new RooVectorDataStore(*this,newname) ; }
+  virtual RooAbsDataStore* clone(const RooArgSet& vars, const char* newname=0) const override { return new RooVectorDataStore(*this,vars,newname) ; }
 
   RooVectorDataStore(const RooVectorDataStore& other, const char* newname=0) ;
   RooVectorDataStore(const RooTreeDataStore& other, const RooArgSet& vars, const char* newname=0) ;
@@ -56,73 +56,80 @@ public:
 
   virtual ~RooVectorDataStore() ;
 
-  RooArgSet varsNoWeight(const RooArgSet& allVars, const char* wgtName) ;
-  RooRealVar* weightVar(const RooArgSet& allVars, const char* wgtName) ;
-
-  // Write current row
-  virtual Int_t fill() ;
+private:
+  RooArgSet varsNoWeight(const RooArgSet& allVars, const char* wgtName);
+  RooRealVar* weightVar(const RooArgSet& allVars, const char* wgtName);
 
   // reserve storage for nEvt entries
-  virtual void reserve(Int_t nEvt);
+  void reserve(Int_t nEvt);
+
+public:
+  // Write current row
+  virtual Int_t fill() override;
 
   // Retrieve a row
-  using RooAbsDataStore::get ;
-  virtual const RooArgSet* get(Int_t index) const ;
-  virtual const RooArgSet* getNative(Int_t index) const ;
-  virtual Double_t weight() const ;
-  virtual Double_t weightError(RooAbsData::ErrorType etype=RooAbsData::Poisson) const ;
-  virtual void weightError(Double_t& lo, Double_t& hi, RooAbsData::ErrorType etype=RooAbsData::Poisson) const ; 
-  virtual Double_t weight(Int_t index) const ;
-  virtual Bool_t isWeighted() const { return (_wgtVar!=0||_extWgtArray!=0) ; }
+  using RooAbsDataStore::get;
+  virtual const RooArgSet* get(Int_t index) const override;
+
+  virtual const RooArgSet* getNative(Int_t index) const;
+
+  virtual Double_t weight() const override;
+  virtual Double_t weightError(RooAbsData::ErrorType etype=RooAbsData::Poisson) const override;
+  virtual void weightError(Double_t& lo, Double_t& hi, RooAbsData::ErrorType etype=RooAbsData::Poisson) const override;
+  virtual Double_t weight(Int_t index) const override;
+  virtual Bool_t isWeighted() const override { return (_wgtVar!=0||_extWgtArray!=0) ; }
+
+  virtual std::vector<RooSpan<const double>> getBatch(std::size_t first, std::size_t last) const override;
+  virtual RooSpan<const double> getWeightBatch(std::size_t first, std::size_t last) const override;
 
   // Change observable name
-  virtual Bool_t changeObservableName(const char* from, const char* to) ;
+  virtual Bool_t changeObservableName(const char* from, const char* to) override;
   
   // Add one or more columns
-  virtual RooAbsArg* addColumn(RooAbsArg& var, Bool_t adjustRange=kTRUE) ;
-  virtual RooArgSet* addColumns(const RooArgList& varList) ;
+  virtual RooAbsArg* addColumn(RooAbsArg& var, Bool_t adjustRange=kTRUE) override;
+  virtual RooArgSet* addColumns(const RooArgList& varList) override;
 
   // Merge column-wise
-  RooAbsDataStore* merge(const RooArgSet& allvars, std::list<RooAbsDataStore*> dstoreList) ;
+  RooAbsDataStore* merge(const RooArgSet& allvars, std::list<RooAbsDataStore*> dstoreList) override;
 
   // Add rows 
-  virtual void append(RooAbsDataStore& other) ;
+  virtual void append(RooAbsDataStore& other) override;
 
   // General & bookkeeping methods
-  virtual Bool_t valid() const ;
-  virtual Int_t numEntries() const ;
-  virtual Double_t sumEntries() const { return _sumWeight ; }
-  virtual void reset() ;
+  virtual Bool_t valid() const override;
+  virtual Int_t numEntries() const override;
+  virtual Double_t sumEntries() const override { return _sumWeight ; }
+  virtual void reset() override;
 
   // Buffer redirection routines used in inside RooAbsOptTestStatistics
-  virtual void attachBuffers(const RooArgSet& extObs) ; 
-  virtual void resetBuffers() ;
+  virtual void attachBuffers(const RooArgSet& extObs) override;
+  virtual void resetBuffers() override;
   
   
   // Constant term  optimizer interface
-  virtual const RooAbsArg* cacheOwner() { return _cacheOwner ; }
-  virtual void cacheArgs(const RooAbsArg* owner, RooArgSet& varSet, const RooArgSet* nset=0, Bool_t skipZeroWeights=kTRUE) ;
-  virtual void attachCache(const RooAbsArg* newOwner, const RooArgSet& cachedVars) ;
-  virtual void resetCache() ;
-  virtual void recalculateCache(const RooArgSet* /*proj*/, Int_t firstEvent, Int_t lastEvent, Int_t stepSize, Bool_t skipZeroWeights) ;
+  virtual const RooAbsArg* cacheOwner() override { return _cacheOwner ; }
+  virtual void cacheArgs(const RooAbsArg* owner, RooArgSet& varSet, const RooArgSet* nset=0, Bool_t skipZeroWeights=kTRUE) override;
+  virtual void attachCache(const RooAbsArg* newOwner, const RooArgSet& cachedVars) override;
+  virtual void resetCache() override;
+  virtual void recalculateCache(const RooArgSet* /*proj*/, Int_t firstEvent, Int_t lastEvent, Int_t stepSize, Bool_t skipZeroWeights) override;
 
-  virtual void setArgStatus(const RooArgSet& set, Bool_t active) ;
+  virtual void setArgStatus(const RooArgSet& set, Bool_t active) override;
 
   const RooVectorDataStore* cache() const { return _cache ; }
 
-  void loadValues(const RooAbsDataStore *tds, const RooFormulaVar* select=0, const char* rangeName=0, Int_t nStart=0, Int_t nStop=2000000000) ;
+  void loadValues(const RooAbsDataStore *tds, const RooFormulaVar* select=0, const char* rangeName=0, Int_t nStart=0, Int_t nStop=2000000000) override;
   
-  void dump() ;
+  void dump() override;
 
   void setExternalWeightArray(const Double_t* arrayWgt, const Double_t* arrayWgtErrLo,
-      const Double_t* arrayWgtErrHi, const Double_t* arraySumW2) {
+      const Double_t* arrayWgtErrHi, const Double_t* arraySumW2) override {
     _extWgtArray = arrayWgt ; 
     _extWgtErrLoArray = arrayWgtErrLo ;
     _extWgtErrHiArray = arrayWgtErrHi ;
     _extSumW2Array = arraySumW2 ;
   }
 
-  virtual void setDirtyProp(Bool_t flag) { 
+  virtual void setDirtyProp(Bool_t flag) override {
     _doDirtyProp = flag ; 
     if (_cache) {
       _cache->setDirtyProp(flag) ;
@@ -133,6 +140,7 @@ public:
 
   class RealVector {
   public:
+
     RealVector(UInt_t initialCapacity=(VECTOR_BUFFER_SIZE / sizeof(Double_t))) : 
       _nativeReal(0), _real(0), _buf(0), _nativeBuf(0), _tracker(0), _nset(0) {
       _vec.reserve(initialCapacity);
@@ -227,6 +235,13 @@ public:
       *_buf = *(_vec.begin() + idx) ;
     }
 
+    RooSpan<const double> getRange(std::size_t first, std::size_t last) const {
+      auto beg = std::min(_vec.cbegin() + first, _vec.cend());
+      auto end = std::min(_vec.cbegin() + last,  _vec.cend());
+
+      return RooSpan<const double>(beg, end);
+    }
+
     inline void getNative(Int_t idx) const { 
       *_nativeBuf = *(_vec.begin() + idx) ;
     }
@@ -253,7 +268,7 @@ public:
     }
 
   protected:
-    std::vector<Double_t> _vec ;
+    std::vector<double> _vec;
 
   private:
     friend class RooVectorDataStore ;
@@ -445,7 +460,7 @@ public:
     Double_t *_nativeBufE ; //!
     Double_t *_nativeBufEL ; //! 
     Double_t *_nativeBufEH ; //!
-    std::vector<Double_t> *_vecE, *_vecEL, *_vecEH ;
+    std::vector<double> *_vecE, *_vecEL, *_vecEH ;
     ClassDef(RealFullVector,1) // STL-vector-based Data Storage class
   } ;
   
@@ -676,9 +691,9 @@ public:
     return _realfStoreList.back() ;
   }
 
-  virtual Bool_t hasFilledCache() const { return _cache ? kTRUE : kFALSE ; }  
+  virtual Bool_t hasFilledCache() const override { return _cache ? kTRUE : kFALSE ; }
 
-  void forceCacheUpdate() ; 
+  void forceCacheUpdate() override;
 
  private:
   RooArgSet _varsww ;
@@ -687,6 +702,7 @@ public:
   std::vector<RealVector*> _realStoreList ;
   std::vector<RealFullVector*> _realfStoreList ;
   std::vector<CatVector*> _catStoreList ;
+  std::vector<double> _weights;
 
   void setAllBuffersNative() ;
 
@@ -713,7 +729,7 @@ public:
 
   Bool_t _forcedUpdate ; //! Request for forced cache update 
 
-  ClassDef(RooVectorDataStore,2) // STL-vector-based Data Storage class
+  ClassDefOverride(RooVectorDataStore,3) // STL-vector-based Data Storage class
 };
 
 

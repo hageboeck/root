@@ -27,11 +27,18 @@ Plain Gaussian p.d.f
 #include <math.h>
 
 #include "RooGaussian.h"
+
+#include "BatchHelpers.h"
 #include "RooAbsReal.h"
 #include "RooRealVar.h"
 #include "RooRandom.h"
 #include "RooMath.h"
 
+#ifdef USE_VDT
+#include "vdt/exp.h"
+#endif
+
+using namespace BatchHelpers;
 using namespace std;
 
 ClassImp(RooGaussian);
@@ -62,7 +69,82 @@ Double_t RooGaussian::evaluate() const
 {
   const double arg = x - mean;
   const double sig = sigma;
-  return exp(-0.5*arg*arg/(sig*sig)) ;
+  return exp(-0.5*arg*arg/(sig*sig));
+}
+
+
+namespace {
+
+///Actual computations for the batch evaluation of the Gaussian.
+///May vectorise over x, mean, sigma, depending on the types of the inputs.
+///\note The output and input spans are assumed to be non-overlapping. If they
+///overlap, results will likely be garbage.
+template<class Tx, class TMean, class TSig>
+void compute(RooSpan<double> output, Tx x, TMean mean, TSig sigma) {
+  const int n = output.size();
+
+  #pragma omp simd
+  for (int i = 0; i < n; ++i) {
+    const double arg = x[i] - mean[i];
+    const double halfBySigmaSq = -0.5 / (sigma[i] * sigma[i]);
+
+#ifdef USE_VDT
+    output[i] = vdt::fast_exp(arg*arg * halfBySigmaSq);
+#else
+    output[i] = exp(arg*arg * halfBySigmaSq);
+#endif
+  }
+}
+
+}
+
+////////////////////////////////////////////////////////////////////////////////
+/// Compute \f$ \exp(-0.5 \cdot \frac{(x - \mu)^2}{\sigma^2} \f$ in batches.
+/// Data corresponding to the local proxies {x, mean, sigma} will be searched for
+/// in the input data, and if found, the computation will be batched over their
+/// values. If the data is not found for one of the proxies, it is assumed to
+/// be constant over the batch, and its value is retrieved once at the beginning
+/// of the computation.
+/// \param[out] output Write the results into this batch.
+/// \param[in] inputs Data columns to read from.
+/// \param[in] inputVars Variables that correspond to the data columns in `inputs`. If
+/// {x, mean, sigma} are found in here, the corresponding data will be used.
+
+void RooGaussian::evaluateBatch(RooSpan<double> output,
+      const std::vector<RooSpan<const double>>& inputs,
+      const RooArgSet& inputVars) const {
+  BatchHelpers::LookupBatchData lu(inputs, inputVars, {x, mean, sigma});
+  assert(!lu.testOverlap(output));
+
+  //Now explicitly write down all possible template instantiations of compute() above:
+  const bool batchX = lu.isBatch(x);
+  const bool batchMean = lu.isBatch(mean);
+  const bool batchSigma = lu.isBatch(sigma);
+
+  if (batchX && !batchMean && !batchSigma) {
+    compute(output, lu.data(x), BracketAdapter<RooRealProxy>(mean), BracketAdapter<RooRealProxy>(sigma));
+  }
+  else if (batchX && batchMean && !batchSigma) {
+    compute(output, lu.data(x), lu.data(mean), BracketAdapter<RooRealProxy>(sigma));
+  }
+  else if (batchX && !batchMean && batchSigma) {
+    compute(output, lu.data(x), BracketAdapter<RooRealProxy>(mean), lu.data(sigma));
+  }
+  else if (batchX && batchMean && batchSigma) {
+    compute(output, lu.data(x), lu.data(mean), lu.data(sigma));
+  }
+  else if (!batchX && batchMean && !batchSigma) {
+    compute(output, BracketAdapter<RooRealProxy>(x), lu.data(mean), BracketAdapter<RooRealProxy>(sigma));
+  }
+  else if (!batchX && !batchMean && batchSigma) {
+    compute(output, BracketAdapter<RooRealProxy>(x), BracketAdapter<RooRealProxy>(mean), lu.data(sigma));
+  }
+  else if (!batchX && batchMean && batchSigma) {
+    compute(output, BracketAdapter<RooRealProxy>(x), lu.data(mean), lu.data(sigma));
+  } else {
+    assert(false);
+  }
+
 }
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -104,12 +104,9 @@ RooVectorDataStore::RooVectorDataStore(const char* name, const char* title, cons
   _cacheOwner(0),
   _forcedUpdate(kFALSE)
 {
-  TIterator* iter = _varsww.createIterator() ;
-  RooAbsArg* arg ;
-  while((arg=(RooAbsArg*)iter->Next())) {
+  for (auto arg : _varsww) {
     arg->attachToVStore(*this) ;
   }
-  delete iter ;
   
   setAllBuffersNative() ;
   TRACE_CREATE
@@ -522,7 +519,6 @@ const RooArgSet* RooVectorDataStore::get(Int_t index) const
 }
 
 
-
 ////////////////////////////////////////////////////////////////////////////////
 /// Load the n-th data point (n='index') in memory
 /// and return a pointer to the internal RooArgSet
@@ -611,7 +607,10 @@ Double_t RooVectorDataStore::weight() const
 }
 
 
+
 ////////////////////////////////////////////////////////////////////////////////
+/// Return the error of the current weight.
+/// @param[in] etype Switch between simple Poisson or sum-of-weights statistics
 
 Double_t RooVectorDataStore::weightError(RooAbsData::ErrorType etype) const 
 {
@@ -1085,12 +1084,10 @@ void RooVectorDataStore::cacheArgs(const RooAbsArg* owner, RooArgSet& newVarSet,
   // Reorder cached elements. First constant nodes, then tracked nodes in order of dependence
 
   // Step 1 - split in constant and tracked
-  RooArgSet newVarSetCopy(newVarSet) ;
-  RooFIter itern = newVarSetCopy.fwdIterator() ;
-  RooAbsArg* arg ;
-  RooArgSet orderedArgs ;
-  vector<RooAbsArg*> trackArgs ;
-  while((arg=itern.next())) {
+  RooArgSet newVarSetCopy(newVarSet);
+  RooArgSet orderedArgs;
+  vector<RooAbsArg*> trackArgs;
+  for (const auto arg : newVarSetCopy) {
     if (arg->getAttribute("ConstantExpression") && !arg->getAttribute("NOCacheAndTrack")) {
       orderedArgs.add(*arg) ;
     } else {
@@ -1108,31 +1105,26 @@ void RooVectorDataStore::cacheArgs(const RooAbsArg* owner, RooArgSet& newVarSet,
   }
 
   // Step 2 - reorder tracked nodes
-  if (trackArgs.size()>1) {
-    sort(trackArgs.begin(), trackArgs.end(), [](RooAbsArg* left, RooAbsArg* right){
-      return right->dependsOn(*left);
-    });
-  }
+  std::sort(trackArgs.begin(), trackArgs.end(), [](RooAbsArg* left, RooAbsArg* right){
+    return right->dependsOn(*left);
+  });
 
   // Step 3 - put back together
-  for (vector<RooAbsArg*>::iterator viter = trackArgs.begin() ; viter!=trackArgs.end() ; ++viter) {
-    orderedArgs.add(**viter) ;
+  for (const auto trackedArg : trackArgs) {
+    orderedArgs.add(*trackedArg);
   }
   
   // WVE need to prune tracking entries _below_ constant nodes as the're not needed
 //   cout << "Number of Cache-and-Tracked args are " << trackArgs.size() << endl ;
 //   cout << "Compound ordered cache parameters = " << endl ;
 //   orderedArgs.Print("v") ;
-
-  TIterator* vIter = orderedArgs.createIterator() ;
-  RooAbsArg* var ;
   
   checkInit() ;
   
-  list<RooArgSet*> vlist ;
-  RooArgList cloneSet ;
+  std::vector<RooArgSet*> vlist;
+  RooArgList cloneSet;
 
-  while((var=(RooAbsArg*)vIter->Next())) {
+  for (const auto var : orderedArgs) {
 
     // Clone variable and attach to cloned tree 
     RooArgSet* newVarCloneList = (RooArgSet*) RooArgSet(*var).snapshot() ;  
@@ -1141,25 +1133,20 @@ void RooVectorDataStore::cacheArgs(const RooAbsArg* owner, RooArgSet& newVarSet,
 
     vlist.push_back(newVarCloneList) ;
     cloneSet.add(*newVarClone) ;
-
   }
-  delete vIter ;
 
   _cacheOwner = (RooAbsArg*) owner ;
   RooVectorDataStore* newCache = new RooVectorDataStore("cache","cache",orderedArgs) ;
 
-  TIterator* cIter = cloneSet.createIterator() ;
-  RooAbsArg *cloneArg ;
 
   RooAbsArg::setDirtyInhibit(kTRUE) ;
 
-  vector<RooArgSet*> nsetList ;
-  list<RooArgSet*> argObsList ;
+  std::vector<RooArgSet*> nsetList ;
+  std::vector<RooArgSet*> argObsList ;
 
   // Now need to attach branch buffers of clones
-  TIterator* it = cloneSet.createIterator() ;
   RooArgSet *anset(0), *acset(0) ;
-  while ((arg=(RooAbsArg*)it->Next())) {
+  for (const auto arg : cloneSet) {
     arg->attachToVStore(*newCache) ;
     
     RooArgSet* argObs = nset ? arg->getObservables(*nset) : arg->getVariables() ;
@@ -1192,32 +1179,28 @@ void RooVectorDataStore::cacheArgs(const RooAbsArg* owner, RooArgSet& newVarSet,
 //     }
     nsetList.push_back(normSet) ;    
   }
-  delete it ;
+
 
   // Fill values of of placeholder
   newCache->reserve(numEntries());
   for (int i=0 ; i<numEntries() ; i++) {
     getNative(i) ;
     if (weight()!=0 || !skipZeroWeights) {    
-      cIter->Reset() ;
-      vector<RooArgSet*>::iterator niter = nsetList.begin() ;
-      while((cloneArg=(RooAbsArg*)cIter->Next())) {
-	// WVE need to intervene here for condobs from ProdPdf
-	RooArgSet* argNset = *niter ;
-	cloneArg->syncCache(argNset?argNset:nset) ;
-	++niter ;
+      for (std::size_t j = 0; j < cloneSet.size(); ++j) {
+        auto& cloneArg = cloneSet[j];
+        auto argNSet = nsetList[j];
+        // WVE need to intervene here for condobs from ProdPdf
+        cloneArg.syncCache(argNSet ? argNSet : nset) ;
       }
     }
     newCache->fill() ;
   }
-  delete cIter ;
 
   RooAbsArg::setDirtyInhibit(kFALSE) ;
 
 
   // Now need to attach branch buffers of original function objects 
-  it = orderedArgs.createIterator() ;
-  while ((arg=(RooAbsArg*)it->Next())) {
+  for (const auto arg : orderedArgs) {
     arg->attachToVStore(*newCache) ;
     
     // Activate change tracking mode, if requested
@@ -1236,13 +1219,13 @@ void RooVectorDataStore::cacheArgs(const RooAbsArg* owner, RooArgSet& newVarSet,
     }
     
   }
-  delete it ;
 
-  for (list<RooArgSet*>::iterator iter = vlist.begin() ; iter!=vlist.end() ; ++iter) {
-    delete *iter ;
+
+  for (auto set : vlist) {
+    delete set;
   }  
-  for (list<RooArgSet*>::iterator iter = argObsList.begin() ; iter!=argObsList.end() ; ++iter) {
-    delete *iter ;
+  for (auto set : argObsList) {
+    delete set;
   }  
 
   _cache = newCache ;
@@ -1313,8 +1296,6 @@ void RooVectorDataStore::recalculateCache( const RooArgSet *projectedArgs, Int_t
   delete ownedNset ;
 
 }
-
-
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1525,9 +1506,55 @@ void RooVectorDataStore::CatVector::Streamer(TBuffer &R__b)
    }
 }
 
+////////////////////////////////////////////////////////////////////////////////
+/// Return a batch of the data columns for all events in [firstEvent, lastEvent[.
+/// The
+
+std::vector<RooSpan<const double>> RooVectorDataStore::getBatch(std::size_t firstEvent, std::size_t lastEvent) const
+{
+  std::vector<RooSpan<const double>> ret;
+
+  ret.reserve(_realStoreList.size());
+
+  for (const auto realVec : _realStoreList) {
+    ret.emplace_back(realVec->getRange(firstEvent, lastEvent));
+  }
+
+  if (_cache) {
+    ret.reserve(ret.size() + _cache->_realStoreList.size());
+
+    for (const auto realVec : _cache->_realStoreList) {
+      ret.emplace_back(realVec->getRange(firstEvent, lastEvent));
+    }
+  }
+
+  return ret;
+}
 
 
+////////////////////////////////////////////////////////////////////////////////
+/// Return the weights of all events in [first, last[.
 
+RooSpan<const double> RooVectorDataStore::getWeightBatch(std::size_t first, std::size_t last) const
+{
+  if (_extWgtArray) {
+    return RooSpan<const double>(_extWgtArray + first, _extWgtArray + last);
+  }
+
+
+  if (_wgtVar) {
+    R__ASSERT(false); //Need to fill event by event?
+
+    // Otherwise look for weight variable
+    double theWeight = _wgtVar->getVal();
+
+//    std::fill(weights.begin(), weights.end(), theWeight);
+  }
+
+  //TODO FIXME!
+  static double dummyWeight = 1.;
+  return RooSpan<const double>(&dummyWeight, 1);
+}
 
 
 
