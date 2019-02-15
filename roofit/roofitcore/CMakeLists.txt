@@ -230,6 +230,7 @@ ROOT_STANDARD_LIBRARY_PACKAGE(RooFitCore
     RooWorkspaceHandle.h
     RooXYChi2Var.h
     RooHelpers.h
+    RooSpan.h
   SOURCES
     src/BidirMMapPipe.cxx
     src/BidirMMapPipe.h

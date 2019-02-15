@@ -69,17 +69,19 @@ Double_t RooGaussian::evaluate() const
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Compute \f$ \exp(-0.5 \cdot \frac{(x - \mu)^2}{\sigma^2} \f$ in batches
-std::vector<double> RooGaussian::evaluateBatch(const std::vector<RooFit::DataBatch>& inputs) const {
-  std::vector<double> ret(inputs[0].begin(), inputs[0].end());
-
+void RooGaussian::evaluateBatch(RooSpan<double> output,
+      const std::vector<RooSpan<const double>>& inputs) const {
   const double theMean = mean;
-  const double sigmaSq = sigma * sigma;
-  for (auto& elm : ret) {
-    const double arg = elm - theMean;
-    elm = exp(-0.5 * arg*arg / (sigmaSq));
+  const double oneBySigmaSq = 1. / (sigma * sigma);
+
+  auto xValues = inputs.front();
+  assert(xValues.size() == output.size());
+
+  for (int i = 0; i < output.size(); ++i) {
+    const double arg = xValues[i] - theMean;
+    *(output.begin() + i) = exp(-0.5 * arg*arg * oneBySigmaSq);
   }
 
-  return ret;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

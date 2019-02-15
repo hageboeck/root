@@ -53,10 +53,10 @@ public:
   virtual Double_t weight(Int_t index) const = 0 ;
   virtual Bool_t isWeighted() const = 0 ;
 
-  virtual std::vector<RooFit::DataBatch> getBatch(std::size_t first, std::size_t last) const {
+  virtual std::vector<RooSpan<const double>> getBatch(std::size_t first, std::size_t last) const {
     R__ASSERT("Not implemented.");
   }
-  virtual RooFit::DataBatch getWeightBatch(std::size_t first, std::size_t last) const;
+  virtual RooSpan<const double> getWeightBatch(std::size_t first, std::size_t last) const;
 
   // Change observable name
   virtual Bool_t changeObservableName(const char* from, const char* to) =0 ;

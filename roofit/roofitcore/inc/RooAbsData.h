@@ -22,7 +22,7 @@
 #include "RooFormulaVar.h"
 #include <cmath>
 #include "TMatrixDSym.h"
-#include "DataBatch.h"
+#include "RooSpan.h"
 
 class RooAbsArg;
 class RooAbsReal ;
@@ -91,10 +91,10 @@ public:
   virtual void weightError(Double_t& lo, Double_t& hi, ErrorType etype=Poisson) const ; 
   virtual const RooArgSet* get(Int_t index) const ;
 
-  virtual std::vector<RooFit::DataBatch> getBatch(std::size_t first, std::size_t last) const {
+  virtual std::vector<RooSpan<const double>> getBatch(std::size_t first, std::size_t last) const {
     R__ASSERT("Not implemented.");
   }
-  virtual RooFit::DataBatch getWeightBatch(std::size_t first, std::size_t last) const {
+  virtual RooSpan<const double> getWeightBatch(std::size_t first, std::size_t last) const {
     R__ASSERT("Not implemented.");
   }
 
