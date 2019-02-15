@@ -44,11 +44,12 @@ protected:
   RooRealProxy sigma ;
 
   Double_t evaluate() const ;
-  std::vector<double> evaluateBatch(const std::vector<RooFit::DataBatch>& inputs) const override;
+  void evaluateBatch(RooSpan<double> output,
+        const std::vector<RooSpan<const double>>& inputs) const override;
 
 private:
 
-  ClassDef(RooGaussian,1) // Gaussian PDF
+  ClassDefOverride(RooGaussian,1) // Gaussian PDF
 };
 
 #endif

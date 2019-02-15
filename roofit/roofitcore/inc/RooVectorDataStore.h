@@ -77,8 +77,8 @@ public:
   virtual Double_t weight(Int_t index) const ;
   virtual Bool_t isWeighted() const { return (_wgtVar!=0||_extWgtArray!=0) ; }
 
-  virtual std::vector<RooFit::DataBatch> getBatch(std::size_t first, std::size_t last) const override;
-  virtual RooFit::DataBatch getWeightBatch(std::size_t first, std::size_t last) const override;
+  virtual std::vector<RooSpan<const double>> getBatch(std::size_t first, std::size_t last) const override;
+  virtual RooSpan<const double> getWeightBatch(std::size_t first, std::size_t last) const override;
 
   // Change observable name
   virtual Bool_t changeObservableName(const char* from, const char* to) ;
@@ -233,11 +233,11 @@ public:
       *_buf = *(_vec.begin() + idx) ;
     }
 
-    RooFit::DataBatch getRange(std::size_t first, std::size_t last) const {
-      auto beg = std::min(_vec.begin() + first, _vec.end());
-      auto end = std::min(_vec.begin() + last,  _vec.end());
+    RooSpan<const double> getRange(std::size_t first, std::size_t last) const {
+      auto beg = std::min(_vec.cbegin() + first, _vec.cend());
+      auto end = std::min(_vec.cbegin() + last,  _vec.cend());
 
-      return RooFit::DataBatch(beg, end);
+      return RooSpan<const double>(beg, end);
     }
 
     inline void getNative(Int_t idx) const { 
@@ -266,7 +266,7 @@ public:
     }
 
   protected:
-    RooFit::DataBatch::DataStorage_t _vec ;
+    std::vector<double> _vec;
 
   private:
     friend class RooVectorDataStore ;
@@ -458,7 +458,7 @@ public:
     Double_t *_nativeBufE ; //!
     Double_t *_nativeBufEL ; //! 
     Double_t *_nativeBufEH ; //!
-    RooFit::DataBatch::DataStorage_t *_vecE, *_vecEL, *_vecEH ;
+    std::vector<double> *_vecE, *_vecEL, *_vecEH ;
     ClassDef(RealFullVector,1) // STL-vector-based Data Storage class
   } ;
   
@@ -700,6 +700,7 @@ public:
   std::vector<RealVector*> _realStoreList ;
   std::vector<RealFullVector*> _realfStoreList ;
   std::vector<CatVector*> _catStoreList ;
+  std::vector<double> _weights;
 
   void setAllBuffersNative() ;
 

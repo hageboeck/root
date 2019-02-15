@@ -220,7 +220,7 @@ void RooAbsDataStore::printMultiline(ostream& os, Int_t /*content*/, Bool_t verb
 /// event retrieved one by one.
 /// Derived classes may just return the range of the original data.
 
-RooFit::DataBatch RooAbsDataStore::getWeightBatch(std::size_t first, std::size_t last) const {
+RooSpan<const double> RooAbsDataStore::getWeightBatch(std::size_t first, std::size_t last) const {
 
     std::vector<double> ret;//TODO try to align storage
     ret.reserve(last-first);
@@ -229,6 +229,6 @@ RooFit::DataBatch RooAbsDataStore::getWeightBatch(std::size_t first, std::size_t
       ret.push_back(weight(i));
     }
 
-    return RooFit::DataBatch(std::move(ret));
+    return RooSpan<const double>(std::move(ret));
 }
 

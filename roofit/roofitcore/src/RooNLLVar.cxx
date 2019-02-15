@@ -257,10 +257,7 @@ Double_t RooNLLVar::evaluatePartition(std::size_t firstEvent, std::size_t lastEv
 
   // cout << "RooNLLVar::evaluatePartition(" << GetName() << ") projDeps = " << (_projDeps?*_projDeps:RooArgSet()) << endl ;
 
-  _dataClone->store()->recalculateCache( _projDeps, firstEvent, lastEvent, stepSize, (_binnedPdf?kFALSE:kTRUE) ) ;
-
-  assert(stepSize == 1);
-  auto dataBatches = _dataClone->store()->getBatch(firstEvent, lastEvent);
+  _dataClone->store()->recalculateCache( _projDeps, firstEvent, lastEvent, stepSize,(_binnedPdf?kFALSE:kTRUE) ) ;
 
   Double_t sumWeight(0), sumWeightCarry(0);
 
@@ -310,51 +307,15 @@ Double_t RooNLLVar::evaluatePartition(std::size_t firstEvent, std::size_t lastEv
     }
 
 
-  } else {
+  } else { //unbinned PDF
 
-    auto eventWeightBatch = _dataClone->getWeightBatch(firstEvent, lastEvent);
-    std::vector<double> eventWeights(eventWeightBatch.begin(), eventWeightBatch.end());
-    auto results = pdfClone->getLogValBatch(dataBatches, _normSet);
-
-    if (_weightSq) {
-      for (auto& weight : eventWeights) {
-        weight *= weight;
-      }
-    }
-
-    double mySumWeightCarry = 0.;
-    double mySumWeight = 0.;
-    double myCarry = 0.;
-    double myResult = 0.;
-    for (std::size_t i = 0; i < results.size(); ++i) {
-      results[i] = -eventWeights[i] * results[i];
-
-      double y = eventWeights[i] - mySumWeightCarry;
-      double t = mySumWeight + y;
-      mySumWeightCarry = (t - mySumWeight) - y;
-      mySumWeight = t;
-
-      y = results[i] - myCarry;
-      t = myResult + y;
-      myCarry = (t - myResult) - y;
-      myResult = t;
-
-    }
-
-    sumWeight = mySumWeight;
-    sumWeightCarry = mySumWeightCarry;
-
-    carry = myCarry;
-    result = myResult;
-
-/* TODO
     for (auto i=firstEvent ; i<lastEvent ; i+=stepSize) {
 
-//      _dataClone->get(i) ;
+      _dataClone->get(i) ;
 
       if (!_dataClone->valid()) continue;
 
-      Double_t eventWeight = _dataClone->weight(); //FIXME
+      Double_t eventWeight = _dataClone->weight();
       if (0. == eventWeight * eventWeight) continue ;
       if (_weightSq) eventWeight = _dataClone->weightSquared() ;
 
@@ -371,7 +332,6 @@ Double_t RooNLLVar::evaluatePartition(std::size_t firstEvent, std::size_t lastEv
       carry = (t - result) - y;
       result = t;
     }
-*/
 
     // include the extended maximum likelihood term, if requested
     if(_extended && _setNum==_extSet) {
@@ -379,8 +339,7 @@ Double_t RooNLLVar::evaluatePartition(std::size_t firstEvent, std::size_t lastEv
 
         // Calculate sum of weights-squared here for extended term
         Double_t sumW2(0), sumW2carry(0);
-        //TODO optimise
-        for (auto i=0 ; i<_dataClone->numEntries() ; i++) {
+        for (decltype(_dataClone->numEntries()) i = 0; i < _dataClone->numEntries() ; i++) {
           _dataClone->get(i);
           Double_t y = _dataClone->weightSquared() - sumW2carry;
           Double_t t = sumW2 + y;
