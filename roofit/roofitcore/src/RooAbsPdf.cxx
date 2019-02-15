@@ -330,12 +330,13 @@ Double_t RooAbsPdf::getValV(const RooArgSet* nset) const
 /// spoil the cache and interfere with returning the cached
 /// return value. Since unnormalized calls are typically
 /// done in integration calls, there is no performance hit.
-std::vector<double> RooAbsPdf::getValVBatch(const std::vector<RooFit::DataBatch>& inputBatch,
-    const RooArgSet* nset) const
+void RooAbsPdf::getValBatch(RooSpan<double> outputs,
+    const std::vector<RooSpan<const double>>& inputBatch,
+    const RooArgSet* normSet) const
 {
 
   // Special handling of case without normalization set (used in numeric integration of pdfs)
-  if (!nset) {
+  if (!normSet) {
     R__ASSERT(false); //TODO implement
     RooArgSet* tmp = _normSet ;
     _normSet = 0 ;
@@ -345,23 +346,22 @@ std::vector<double> RooAbsPdf::getValVBatch(const std::vector<RooFit::DataBatch>
 
     if (error) {
 //       raiseEvalError() ;
-      return std::vector<double>(0., inputBatch[0].size());
+      return;
     }
 
     //TODO FIXME
-    std::vector<double>(0., inputBatch[0].size());
 //    return val ;
   }
 
 
   // Process change in last data set used
   Bool_t nsetChanged(kFALSE) ;
-  if (nset!=_normSet || _norm==0) {
-    nsetChanged = syncNormalization(nset) ;
+  if (normSet!=_normSet || _norm==0) {
+    nsetChanged = syncNormalization(normSet) ;
   }
 
-  std::vector<double> values = evaluateBatch(inputBatch);
-  bool error = traceEvalBatch(values) ; // Error checking and printing
+  evaluateBatch(outputs, inputBatch);
+  bool error = traceEvalBatch(outputs) ; // Error checking and printing
 
 
   // Evaluate denominator
@@ -370,15 +370,14 @@ std::vector<double> RooAbsPdf::getValVBatch(const std::vector<RooFit::DataBatch>
     error = true;
     logEvalError(Form("p.d.f normalization integral is zero or negative."
         "\n\tInt(%s) = %f", GetName(), normDenom));
-    return std::vector<double>(0., values.size());
+    return;
   }
 
   const double normVal = 1./normDenom;
-  for (auto& val : values) {
+  for (double& val : outputs) {
     val *= normVal;
   }
 
-  return values;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -752,10 +751,11 @@ Double_t RooAbsPdf::getLogVal(const RooArgSet* nset) const
 ////////////////////////////////////////////////////////////////////////////////
 /// Return the log of the current value with given normalization
 /// An error message is printed if the argument of the log is negative.
-std::vector<double> RooAbsPdf::getLogValBatch(const std::vector<RooFit::DataBatch>& inputBatch,
-    const RooArgSet* nset) const
+void RooAbsPdf::getLogValBatch(RooSpan<double> outputs,
+    const std::vector<RooSpan<const double>>& inputBatch,
+    const RooArgSet* normSet) const
 {
-  std::vector<double> logProbabilities = getValVBatch(inputBatch, nset);
+  getValBatch(outputs, inputBatch, normSet);
 
   /* TODO
   if (fabs(prob)>1e6) {
@@ -783,12 +783,10 @@ std::vector<double> RooAbsPdf::getLogValBatch(const std::vector<RooFit::DataBatc
   }
   */
 
-  for (auto& item : logProbabilities) {
+  for (auto& item : outputs) {
     item = log(item);
   }
 
-
-  return logProbabilities;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

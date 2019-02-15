@@ -22,7 +22,7 @@
 #include "RooArgSet.h"
 #include "RooArgList.h"
 #include "RooGlobalFunc.h"
-#include "DataBatch.h"
+#include "RooSpan.h"
 
 class RooArgList ;
 class RooDataSet ;
@@ -390,7 +390,8 @@ protected:
   }
   /// Evaluate this PDF / function / constant. Needs to be overridden by all derived classes.
   virtual Double_t evaluate() const = 0;
-  virtual std::vector<double> evaluateBatch(const std::vector<RooFit::DataBatch>& inputs) const;
+  virtual void evaluateBatch(RooSpan<double> output,
+      const std::vector<RooSpan<const double>>& inputs) const;
 
   // Hooks for RooDataSet interface
   friend class RooRealIntegral ;

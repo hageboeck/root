@@ -4772,6 +4772,7 @@ void RooAbsReal::setParameterizeIntegral(const RooArgSet& paramVars)
 ////////////////////////////////////////////////////////////////////////////////
 /// Evaluate function for a batch of input data points. If not overridden by
 /// derived classes, this will call the single-valued evaluate successively.
-std::vector<double> RooAbsReal::evaluateBatch(const std::vector<RooFit::DataBatch>& inputs) const {
+void RooAbsReal::evaluateBatch(RooSpan<double> output,
+    const std::vector<RooSpan<const double>>& inputs) const {
   R__ASSERT(false); // TODO implement
 }

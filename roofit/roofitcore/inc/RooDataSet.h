@@ -107,8 +107,8 @@ public:
   virtual const RooArgSet* get() const ;
 
 
-  virtual std::vector<RooFit::DataBatch> getBatch(std::size_t first, std::size_t last) const override;
-  virtual RooFit::DataBatch getWeightBatch(std::size_t first, std::size_t last) const override;
+  virtual std::vector<RooSpan<const double>> getBatch(std::size_t first, std::size_t last) const override;
+  virtual RooSpan<const double> getWeightBatch(std::size_t first, std::size_t last) const override;
 
   // Add one ore more rows of data
   virtual void add(const RooArgSet& row, Double_t weight=1.0, Double_t weightError=0);
