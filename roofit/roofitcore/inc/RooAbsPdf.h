@@ -201,9 +201,11 @@ public:
   virtual Double_t getValV(const RooArgSet* set=0) const ;
   virtual Double_t getLogVal(const RooArgSet* set=0) const ;
 
-  virtual std::vector<double> getValVBatch(const std::vector<RooFit::DataBatch>& inputBatch,
-      const RooArgSet* normSet=0) const;
-  std::vector<double> getLogValBatch(const std::vector<RooFit::DataBatch>& inputBatch,
+  void getValBatch(RooSpan<double> outputs,
+      const std::vector<RooSpan<const double>>& inputBatch,
+      const RooArgSet* normSet = nullptr) const;
+  void getLogValBatch(RooSpan<double> outputs,
+      const std::vector<RooSpan<const double>>& inputBatch,
       const RooArgSet* normSet = nullptr) const;
 
   Double_t getNorm(const RooArgSet& nset) const { 
