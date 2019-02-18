@@ -34,6 +34,11 @@ Plain Gaussian p.d.f
 
 using namespace std;
 
+#define USE_VDT
+#ifdef USE_VDT
+#include "vdt/exp.h"
+#endif
+
 ClassImp(RooGaussian);
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -72,14 +77,19 @@ Double_t RooGaussian::evaluate() const
 void RooGaussian::evaluateBatch(RooSpan<double> output,
       const std::vector<RooSpan<const double>>& inputs) const {
   const double theMean = mean;
-  const double oneBySigmaSq = 1. / (sigma * sigma);
+  const double halfBySigmaSq = -0.5 / (sigma * sigma);
+  const int n = output.size();
 
   auto xValues = inputs.front();
   assert(xValues.size() == output.size());
 
-  for (int i = 0; i < output.size(); ++i) {
+  for (int i = 0; i < n; ++i) {
     const double arg = xValues[i] - theMean;
-    *(output.begin() + i) = exp(-0.5 * arg*arg * oneBySigmaSq);
+#ifdef USE_VDT
+    *(output.begin() + i) = vdt::fast_exp(arg*arg * halfBySigmaSq);
+#else
+    *(output.begin() + i) = exp(arg*arg * halfBySigmaSq);
+#endif
   }
 
 }
