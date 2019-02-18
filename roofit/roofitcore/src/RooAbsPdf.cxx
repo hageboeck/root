@@ -175,6 +175,11 @@ the proxy holds a function, and will trigger an assert.
 #include <string>
 #include "RooHelpers.h"
 
+#define USE_VDT
+#ifdef USE_VDT
+  #include "vdt/log.h"
+#endif
+
 using namespace std;
 
 ClassImp(RooAbsPdf); 
@@ -785,7 +790,11 @@ void RooAbsPdf::getLogValBatch(RooSpan<double> outputs,
   */
 
   for (auto& item : outputs) {
+#ifdef USE_VDT
+    item = vdt::fast_log(item);
+#else
     item = log(item);
+#endif
   }
 
 }
