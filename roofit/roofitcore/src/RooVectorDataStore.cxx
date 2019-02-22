@@ -1521,8 +1521,7 @@ std::vector<RooSpan<const double>> RooVectorDataStore::getBatch(std::size_t firs
   }
 
   if (_cache) {
-    std::cout << "Need this?" << std::endl;
-//    ret.reserve(_cache->_realStoreList.size());
+    ret.reserve(ret.size() + _cache->_realStoreList.size());
 
     for (const auto realVec : _cache->_realStoreList) {
       ret.emplace_back(realVec->getRange(firstEvent, lastEvent));
