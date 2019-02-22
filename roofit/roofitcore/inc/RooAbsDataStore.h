@@ -54,7 +54,9 @@ public:
   virtual Bool_t isWeighted() const = 0 ;
 
   virtual std::vector<RooSpan<const double>> getBatch(std::size_t first, std::size_t last) const {
-    R__ASSERT("Not implemented.");
+    assert(false);
+    std::vector<double> vec(first, last);
+    return {RooSpan<const double>(vec)};
   }
   virtual RooSpan<const double> getWeightBatch(std::size_t first, std::size_t last) const;
 

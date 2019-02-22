@@ -66,12 +66,12 @@ public:
   virtual TObject* Clone(const char* newname=0) const override { return new RooDataSet(*this,newname?newname:GetName()) ; }
   virtual ~RooDataSet() ;
 
-  virtual RooAbsData* emptyClone(const char* newName=0, const char* newTitle=0, const RooArgSet* vars=0, const char* wgtVarName=0) const ;
+  virtual RooAbsData* emptyClone(const char* newName=0, const char* newTitle=0, const RooArgSet* vars=0, const char* wgtVarName=0) const override;
 
   RooDataHist* binnedClone(const char* newName=0, const char* newTitle=0) const ;
 
-  virtual Double_t sumEntries() const ;
-  virtual Double_t sumEntries(const char* cutSpec, const char* cutRange=0) const ;
+  virtual Double_t sumEntries() const override;
+  virtual Double_t sumEntries(const char* cutSpec, const char* cutRange=0) const override;
 
   virtual RooPlot* plotOnXY(RooPlot* frame, 
 			    const RooCmdArg& arg1=RooCmdArg::none(), const RooCmdArg& arg2=RooCmdArg::none(),
@@ -93,23 +93,23 @@ public:
 /*     // Interpret given argument as event weight */
 /*     setWeightVar(arg.GetName()) ;  */
 /*   } */
-  virtual Bool_t isWeighted() const ;
-  virtual Bool_t isNonPoissonWeighted() const ;
+  virtual Bool_t isWeighted() const override;
+  virtual Bool_t isNonPoissonWeighted() const override;
 
-  virtual Double_t weight() const ; 
-  virtual Double_t weightSquared() const ; 
-  virtual void weightError(Double_t& lo, Double_t& hi,ErrorType etype=SumW2) const ;
-  Double_t weightError(ErrorType etype=SumW2) const ;
+  virtual Double_t weight() const override;
+  virtual Double_t weightSquared() const override;
+  virtual void weightError(Double_t& lo, Double_t& hi,ErrorType etype=SumW2) const override;
+  Double_t weightError(ErrorType etype=SumW2) const override;
 
-  virtual const RooArgSet* get(Int_t index) const;
-  virtual const RooArgSet* get() const ;
+  virtual const RooArgSet* get(Int_t index) const override;
+  virtual const RooArgSet* get() const override;
 
 
   virtual std::vector<RooSpan<const double>> getBatch(std::size_t first, std::size_t last) const override;
   virtual RooSpan<const double> getWeightBatch(std::size_t first, std::size_t last) const override;
 
   // Add one ore more rows of data
-  virtual void add(const RooArgSet& row, Double_t weight=1.0, Double_t weightError=0);
+  virtual void add(const RooArgSet& row, Double_t weight=1.0, Double_t weightError=0) override;
   virtual void add(const RooArgSet& row, Double_t weight, Double_t weightErrorLo, Double_t weightErrorHi);
 
   virtual void addFast(const RooArgSet& row, Double_t weight=1.0, Double_t weightError=0);
@@ -129,18 +129,18 @@ public:
   TH2F* createHistogram(const RooAbsRealLValue& var1, const RooAbsRealLValue& var2, Int_t nx, Int_t ny,
                         const char* cuts="", const char *name="hist") const;
 
-  void printMultiline(std::ostream& os, Int_t contents, Bool_t verbose=kFALSE, TString indent="") const ;
-  virtual void printArgs(std::ostream& os) const ;
-  virtual void printValue(std::ostream& os) const ;
+  void printMultiline(std::ostream& os, Int_t contents, Bool_t verbose=kFALSE, TString indent="") const override;
+  virtual void printArgs(std::ostream& os) const override;
+  virtual void printValue(std::ostream& os) const override;
 
-  void SetName(const char *name) ;
-  void SetNameTitle(const char *name, const char* title) ;
+  void SetName(const char *name) override;
+  void SetNameTitle(const char *name, const char* title) override;
 
   static void cleanup();
 
 protected:
 
-  virtual RooAbsData* cacheClone(const RooAbsArg* newCacheOwner, const RooArgSet* newCacheVars, const char* newName=0) ;
+  virtual RooAbsData* cacheClone(const RooAbsArg* newCacheOwner, const RooArgSet* newCacheVars, const char* newName=0) override;
 
   friend class RooProdGenContext ;
 
@@ -148,7 +148,7 @@ protected:
   
   // Cache copy feature is not publicly accessible
   RooAbsData* reduceEng(const RooArgSet& varSubset, const RooFormulaVar* cutVar, const char* cutRange=0, 
-	                Int_t nStart=0, Int_t nStop=2000000000, Bool_t copyCache=kTRUE) ;
+	                Int_t nStart=0, Int_t nStop=2000000000, Bool_t copyCache=kTRUE) override;
   RooDataSet(const char *name, const char *title, RooDataSet *ntuple, 
 	     const RooArgSet& vars, const RooFormulaVar* cutVar, const char* cutRange, int nStart, int nStop, Bool_t copyCache, const char* wgtVarName=0);
   
@@ -163,7 +163,7 @@ private:
   static MemPool * memPool();
 #endif
 
-  ClassDef(RooDataSet,2) // Unbinned data set
+  ClassDefOverride(RooDataSet,2) // Unbinned data set
 };
 
 #endif
