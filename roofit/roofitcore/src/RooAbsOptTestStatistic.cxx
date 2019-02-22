@@ -613,7 +613,7 @@ void RooAbsOptTestStatistic::optimizeConstantTerms(Bool_t activate, Bool_t apply
     if (_optimized) {
       return ;
     }
-    
+
     // Trigger create of all object caches now in nodes that have deferred object creation
     // so that cache contents can be processed immediately
     _funcClone->getVal(_normSet) ;
@@ -629,10 +629,10 @@ void RooAbsOptTestStatistic::optimizeConstantTerms(Bool_t activate, Bool_t apply
     // dataset is constructed in terms of a RooVectorDataStore
     if (applyTrackingOpt) {
       if (!dynamic_cast<RooVectorDataStore*>(_dataClone->store())) {
-	coutW(Optimization) << "RooAbsOptTestStatistic::optimizeConstantTerms(" << GetName() 
-			    << ") WARNING Cache-and-track optimization (Optimize level 2) is only available for datasets"
-			    << " implement in terms of RooVectorDataStore - ignoring this option for current dataset" << endl ;
-	applyTrackingOpt = kFALSE ;
+        coutW(Optimization) << "RooAbsOptTestStatistic::optimizeConstantTerms(" << GetName()
+			            << ") WARNING Cache-and-track optimization (Optimize level 2) is only available for datasets"
+			            << " implement in terms of RooVectorDataStore - ignoring this option for current dataset" << endl ;
+        applyTrackingOpt = kFALSE ;
       }
     }
 
@@ -650,7 +650,7 @@ void RooAbsOptTestStatistic::optimizeConstantTerms(Bool_t activate, Bool_t apply
       // Set CacheAndTrack flag on all remaining nodes
       trackNodes.setAttribAll("CacheAndTrack",kTRUE) ;
     }
-    
+
     // Find all nodes that depend exclusively on constant parameters
     _cachedNodes.removeAll() ;
 
@@ -666,7 +666,7 @@ void RooAbsOptTestStatistic::optimizeConstantTerms(Bool_t activate, Bool_t apply
 //     cout << "ROATS::oCT(" << GetName() << ") funcClone structure dump AFTER cacheArgs" << endl ;
 //     _funcClone->Print("t") ;
 
-    
+
     // Put all cached nodes in AClean value caching mode so that their evaluate() is never called
     for (auto cacheArg : _cachedNodes) {
       cacheArg->setOperMode(RooAbsArg::AClean) ;
@@ -685,9 +685,9 @@ void RooAbsOptTestStatistic::optimizeConstantTerms(Bool_t activate, Bool_t apply
     actualTrackNodes.remove(*constNodes) ;
     if (constNodes->getSize()>0) {
       if (constNodes->getSize()<20) {
-	coutI(Minimization) << " The following expressions have been identified as constant and will be precalculated and cached: " << *constNodes << endl ;
+        coutI(Minimization) << " The following expressions have been identified as constant and will be precalculated and cached: " << *constNodes << endl ;
       } else {
-	coutI(Minimization) << " A total of " << constNodes->getSize() << " expressions have been identified as constant and will be precalculated and cached." << endl ;
+        coutI(Minimization) << " A total of " << constNodes->getSize() << " expressions have been identified as constant and will be precalculated and cached." << endl ;
       }
 //       RooFIter i = constNodes->fwdIterator() ;
 //       RooAbsArg* cnode ;
@@ -697,31 +697,26 @@ void RooAbsOptTestStatistic::optimizeConstantTerms(Bool_t activate, Bool_t apply
     }
     if (actualTrackNodes.getSize()>0) {
       if (actualTrackNodes.getSize()<20) {
-	coutI(Minimization) << " The following expressions will be evaluated in cache-and-track mode: " << actualTrackNodes << endl ;
-// 	RooFIter iter = actualTrackNodes.fwdIterator() ;
-// 	RooAbsArg* atn ;
-// 	while((atn = iter.next())) {
-// 	  cout << atn->IsA()->GetName() << "::" << atn->GetName() << endl ;
-// 	}
+        coutI(Minimization) << " The following expressions will be evaluated in cache-and-track mode: " << actualTrackNodes << endl ;
       } else {
-	coutI(Minimization) << " A total of " << constNodes->getSize() << " expressions will be evaluated in cache-and-track-mode." << endl ;
+        coutI(Minimization) << " A total of " << constNodes->getSize() << " expressions will be evaluated in cache-and-track-mode." << endl ;
       }
     }
     delete constNodes ;
-    
+
     // Disable reading of observables that are no longer used
     _dataClone->optimizeReadingWithCaching(*_funcClone, _cachedNodes,requiredExtraObservables()) ;
 
     _optimized = kTRUE ;
 
   } else {
-    
+
     // Delete the cache
     _dataClone->resetCache() ;
-    
+
     // Reactivate all tree branches
     _dataClone->setArgStatus(*_dataClone->get(),kTRUE) ;
-    
+
     // Reset all nodes to ADirty   
     optimizeCaching() ;
 
