@@ -318,12 +318,15 @@ Double_t RooNLLVar::evaluatePartition(std::size_t firstEvent, std::size_t lastEv
 
 #ifdef BATCH_COMPUTATIONS
     auto eventWeightBatch = _dataClone->getWeightBatch(firstEvent, lastEvent);
-    //TODO eliminate: Write lambda that squares on the fly?
+
+    //TODO eliminate the copying if _weightSq: Write lambda that squares on the fly?
     std::vector<double> eventWeights(eventWeightBatch.begin(), eventWeightBatch.end());
 
     static std::vector<double> results;
     results.resize(lastEvent - firstEvent, 0.);
-    pdfClone->getLogValBatch(RooSpan<double>(results.begin(), results.end()), dataBatches, _normSet);
+    auto& vars = *_dataClone->get();
+    pdfClone->getLogValBatch(RooSpan<double>(results.begin(), results.end()),
+        dataBatches, vars, _normSet);
 
     if (_weightSq) {
       for (auto& weight : eventWeights) {
@@ -342,10 +345,8 @@ Double_t RooNLLVar::evaluatePartition(std::size_t firstEvent, std::size_t lastEv
       double myCarry = 0.;
       double myResult = 0.;
 
-      for (int i = 0; i < results.size(); ++i) {
-        results[i] = negWeight * results[i];
-
-        double y = results[i] - myCarry;
+      for (int i = 0; i < (int)results.size(); ++i) {
+        double y = negWeight * results[i] - myCarry;
         double t = myResult + y;
         myCarry = (t - myResult) - y;
         myResult = t;
@@ -359,7 +360,7 @@ Double_t RooNLLVar::evaluatePartition(std::size_t firstEvent, std::size_t lastEv
       //Sum the weights
       double mySumWeightCarry = 0.;
       double mySumWeight = 0.;
-      for (int i = 0; i < eventWeights.size(); ++i) {
+      for (int i = 0; i < (int)eventWeights.size(); ++i) {
         double y = eventWeights[i] - mySumWeightCarry;
         double t = mySumWeight + y;
         mySumWeightCarry = (t - mySumWeight) - y;
@@ -370,7 +371,7 @@ Double_t RooNLLVar::evaluatePartition(std::size_t firstEvent, std::size_t lastEv
       double myCarry = 0.;
       double myResult = 0.;
 
-      for (int i = 0; i < results.size(); ++i) {
+      for (int i = 0; i < (int)results.size(); ++i) {
         results[i] = -eventWeights[i] * results[i];
 
         double y = results[i] - myCarry;
