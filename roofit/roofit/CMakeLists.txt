@@ -132,6 +132,7 @@ ROOT_STANDARD_LIBRARY_PACKAGE(RooFit
     src/RooUnblindUniform.cxx
     src/RooUniform.cxx
     src/RooVoigtian.cxx
+    src/BatchHelpers.cxx
   DICTIONARY_OPTIONS
     "-writeEmptyRootPCM"
   LINKDEF
