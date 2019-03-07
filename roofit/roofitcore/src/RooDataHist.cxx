@@ -1112,17 +1112,15 @@ Double_t RooDataHist::weight(const RooArgSet& bin, Int_t intOrder, Bool_t correc
   if (_realVars.getSize()==1) {
 
     // 1-dimensional interpolation
-    RooFIter realIter = _realVars.fwdIterator() ;
-    RooRealVar* real=(RooRealVar*)realIter.next() ;
+    const auto real = static_cast<RooRealVar*>(_realVars[static_cast<std::size_t>(0)]);
     const RooAbsBinning* binning = real->getBinningPtr(0) ;
     wInt = interpolateDim(*real,binning,((RooAbsReal*)bin.find(*real))->getVal(), intOrder, correctForBinSize, cdfBoundaries) ;
     
   } else if (_realVars.getSize()==2) {
 
     // 2-dimensional interpolation
-    RooFIter realIter = _realVars.fwdIterator() ;
-    RooRealVar* realX=(RooRealVar*)realIter.next() ;
-    RooRealVar* realY=(RooRealVar*)realIter.next() ;
+    const auto realX = static_cast<RooRealVar*>(_realVars[static_cast<std::size_t>(0)]);
+    const auto realY = static_cast<RooRealVar*>(_realVars[static_cast<std::size_t>(1)]);
     Double_t xval = ((RooAbsReal*)bin.find(*realX))->getVal() ;
     Double_t yval = ((RooAbsReal*)bin.find(*realY))->getVal() ;
     
@@ -1512,8 +1510,6 @@ Double_t RooDataHist::sum(const RooArgSet& sumSet, const RooArgSet& sliceSet, Bo
   _vars = *sliceOnlySet ;
   calculatePartialBinVolume(*sliceOnlySet) ;
   delete sliceOnlySet ;
-
-  TIterator* ssIter = sumSet.createIterator() ;
   
   // Calculate mask and refence plot bins for non-iterating variables
   RooAbsArg* arg ;
@@ -1561,7 +1557,6 @@ Double_t RooDataHist::sum(const RooArgSet& sumSet, const RooArgSet& sliceSet, Bo
       total = t;
     }
   }
-  delete ssIter ;
 
   delete[] mask ;
   delete[] refBin ;
