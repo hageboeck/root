@@ -203,9 +203,11 @@ public:
 
   void getValBatch(RooSpan<double> outputs,
       const std::vector<RooSpan<const double>>& inputBatch,
+      const RooArgSet& inputVars,
       const RooArgSet* normSet = nullptr) const;
   void getLogValBatch(RooSpan<double> outputs,
       const std::vector<RooSpan<const double>>& inputBatch,
+      const RooArgSet& inputVars,
       const RooArgSet* normSet = nullptr) const;
 
   Double_t getNorm(const RooArgSet& nset) const { 

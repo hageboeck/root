@@ -911,7 +911,7 @@ Int_t RooProdPdf::getPartIntList(const RooArgSet* nset, const RooArgSet* iset, c
           cache->_partList.add(*func[0]);
           if (isOwned) cache->_ownedList.addOwned(*func[0]);
 
-          cache->_normList.push_back(norm->snapshot(kFALSE));
+          cache->_normList.emplace_back(norm->snapshot(kFALSE));
 
           cache->_numList.addOwned(*func[1]);
           cache->_denList.addOwned(*func[2]);

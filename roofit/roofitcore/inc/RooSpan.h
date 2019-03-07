@@ -92,14 +92,28 @@ public:
   }
 
   constexpr typename std::span<T>::reference operator[](typename std::span<T>::index_type i) const noexcept {
-    return _span[i];
+    return *(static_cast<typename std::span<T>::pointer __restrict__>(_span.data())+i);
   }
 
   constexpr typename std::span<T>::index_type size() const noexcept {
     return _span.size();
   }
 
+  ///Test if the span overlaps with `other`.
+  template <class Span_t>
+  bool overlaps(const Span_t& other) const {
+    return insideSpan(other.begin()) || insideSpan(other.end()-1)
+        || other.insideSpan(begin()) || other.insideSpan(end()-1);
+  }
+
+  ///Test if the given pointer/iterator is inside the span.
+  template <typename ptr_t>
+  bool insideSpan(ptr_t ptr) const {
+    return begin() <= ptr && ptr < end();
+  }
+
 private:
+
   /// If a class has does not own a contiguous block of memory, which
   /// could be used to create a span, the memory has to be kept alive
   /// until all referring spans are destroyed.

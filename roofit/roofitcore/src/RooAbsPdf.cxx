@@ -123,6 +123,15 @@ via the generation code.  Doing so may be ill-defined, e.g. in case
 the proxy holds a function, and will trigger an assert.
 
 
+### Batched function evaluations (Advanced usage)
+
+To speed up computations with large numbers of data events in unbinned fits,
+it is beneficial to override `evaluateBatch()`. Like this, large batches of
+computations can be done, without having to call `evaluate()` for each single data event.
+`evaluateBatch()` should execute the same computation as `evaluate()`, but it
+may choose an implementation that is capable of SIMD computations.
+If evaluateBatch is not implemented, the classic and slower `evaluate()` will be
+called for each data event.
 */
 
 #include "RooFit.h"
@@ -327,17 +336,20 @@ Double_t RooAbsPdf::getValV(const RooArgSet* nset) const
 
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Return current value, normalized by integrating over
-/// the observables in 'nset'. If 'nset' is 0, the unnormalized value
-/// is returned. All elements of 'nset' must be lvalues
+/// Compute batch of values for data in inputBatch, and normalise by integrating over
+/// the observables in `nset`. If 'nset' is `nullptr`, unnormalized values
+/// are returned. All elements of `nset` must be lvalues.
 ///
-/// Unnormalized values are not cached.
-/// Doing so would be complicated as _norm->getVal() could
-/// spoil the cache and interfere with returning the cached
-/// return value. Since unnormalized calls are typically
-/// done in integration calls, there is no performance hit.
+/// \param[out] outputs Write results into the range indicated by this span.
+/// \param[in] inputBatch Spans with the input data.
+/// \param[in] inputVars  Variables that the spans in `inputBatch` represent.
+/// \param[in] normSet    If not nullptr, normalise results by integrating over
+/// the variables in this set. The normalisation is only computed once, and applied
+/// to the full batch.
+///
 void RooAbsPdf::getValBatch(RooSpan<double> outputs,
     const std::vector<RooSpan<const double>>& inputBatch,
+    const RooArgSet& inputVars,
     const RooArgSet* normSet) const
 {
 
@@ -366,12 +378,15 @@ void RooAbsPdf::getValBatch(RooSpan<double> outputs,
     nsetChanged = syncNormalization(normSet) ;
   }
 
-  evaluateBatch(outputs, inputBatch);
+  evaluateBatch(outputs, inputBatch, inputVars);
   bool error = traceEvalBatch(outputs) ; // Error checking and printing
 
 
   // Evaluate denominator
   const double normDenom = _norm->getVal();
+  if (normDenom == 1.)
+    return;
+
   if (normDenom <= 0.) {
     error = true;
     logEvalError(Form("p.d.f normalization integral is zero or negative."
@@ -755,13 +770,15 @@ Double_t RooAbsPdf::getLogVal(const RooArgSet* nset) const
 
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Return the log of the current value with given normalization
-/// An error message is printed if the argument of the log is negative.
+/// Compute the log-likelihoods for all events in the input batch.
+/// The arguments are passed over to getValBatch(), and outputs will be written to
+/// `outputs`.
 void RooAbsPdf::getLogValBatch(RooSpan<double> outputs,
     const std::vector<RooSpan<const double>>& inputBatch,
+    const RooArgSet& inputVars,
     const RooArgSet* normSet) const
 {
-  getValBatch(outputs, inputBatch, normSet);
+  getValBatch(outputs, inputBatch, inputVars, normSet);
 
   /* TODO
   if (fabs(prob)>1e6) {
