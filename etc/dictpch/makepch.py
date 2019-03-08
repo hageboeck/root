@@ -20,6 +20,7 @@ import sys
 import os
 import subprocess
 import shutil
+import re
 
 #-------------------------------------------------------------------------------
 def getArgs():
@@ -38,11 +39,12 @@ def getArgs():
 
 #-------------------------------------------------------------------------------
 def getCppFlags(cppflagsFilename):
-   ifile = open(cppflagsFilename)
-   lines = ifile.readlines()
-   ifile.close()
-   cppFlags = " ".join(map(lambda line: line[:-1], lines))
-   return cppFlags
+   with open(cppflagsFilename) as ifile:
+      lines = ifile.readlines()
+   
+   blacklist = re.compile("-ftree.*|-fp-model pr.*|-fopen.*|-fopt.*")
+   lines = [line.strip() for line in lines if not blacklist.match(line)]
+   return " ".join(lines)
 
 
 #-------------------------------------------------------------------------------

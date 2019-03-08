@@ -44,4 +44,22 @@ private:
   ClassDef(RooExponential,1) // Exponential PDF
 };
 
+#define HAVE_ROOEXPONENTIALVEC
+class RooExponentialVec : public RooExponential {
+  public:
+  RooExponentialVec() {} ;
+  RooExponentialVec(const char *name, const char *title,
+      RooAbsReal& _x, RooAbsReal& _c);
+  RooExponentialVec(const RooExponentialVec& other, const char* name=0) :
+    RooExponential(other, name) { }
+  virtual TObject* clone(const char* newname) const override { return new RooExponentialVec(*this,newname); }
+
+  protected:
+  void evaluateBatch(RooSpan<double> output,
+      const std::vector<RooSpan<const double>>& inputs,
+      const RooArgSet& inputVars) const override;
+
+  ClassDefOverride(RooExponentialVec,0)
+};
+
 #endif

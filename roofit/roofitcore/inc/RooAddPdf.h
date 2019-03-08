@@ -128,6 +128,11 @@ protected:
 
 
   Double_t evaluate() const;
+  void evaluateBatch(RooSpan<double> output,
+        const std::vector<RooSpan<const double>>& inputs,
+        const RooArgSet& inputVars) const;
+
+
   mutable RooAICRegistry _codeReg ;  //! Registry of component analytical integration codes
 
   RooListProxy _pdfList ;   //  List of component PDFs

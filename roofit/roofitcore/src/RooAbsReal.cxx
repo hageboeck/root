@@ -4838,3 +4838,39 @@ void RooAbsReal::evaluateBatch(RooSpan<double> output,
 
 
 
+
+#ifdef CHECK_CACHED_VALUES
+#include "TSystem.h"
+#include "RooHelpers.h"
+
+using RooHelpers::CachingError;
+using RooHelpers::FormatPdfTree;
+
+
+Double_t RooAbsReal::getVal(const RooArgSet* normalisationSet) const {
+
+  const bool tmpFast = _fast;
+  const double tmp = _value;
+
+  double fullEval = 0.;
+  try {
+    fullEval = getValV(normalisationSet);
+  }
+  catch (CachingError& problem) {
+    throw CachingError(problem.indent(),
+        FormatPdfTree() << problem << *this);
+  }
+
+  const double ret = (_fast && !_inhibitDirty) ? _value : fullEval;
+
+  if (fabs( ret != 0. ? (ret - fullEval)/ret : ret - fullEval) > 1.E-9) {
+    gSystem->StackTrace();
+    throw CachingError("", FormatPdfTree()
+        << "\n[**Caching ERROR**:"
+        << GetName() << " " << this << " _fast=" << tmpFast << " _value=" << tmp << " ret=" << ret
+        << " actual=" << fullEval << " new _value=" << _value << "] ");
+  }
+
+  return ret;
+}
+#endif

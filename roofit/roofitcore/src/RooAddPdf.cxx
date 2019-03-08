@@ -836,6 +836,53 @@ Double_t RooAddPdf::evaluate() const
 }
 
 
+
+
+////////////////////////////////////////////////////////////////////////////////
+/// Compute addition of PDFs in batches.
+
+void RooAddPdf::evaluateBatch(RooSpan<double> output,
+      const std::vector<RooSpan<const double>>& inputs,
+      const RooArgSet& inputVars) const {
+  const RooArgSet* nset = _normSet;
+  const int n = output.size();
+
+  if (nset==0 || nset->getSize()==0) {
+    if (_refCoefNorm.getSize()!=0) {
+      nset = &_refCoefNorm ;
+    }
+  }
+
+  CacheElem* cache = getProjCache(nset);
+  updateCoefficients(*cache,nset);
+
+  for (auto& val : output) {
+    val = 0.;
+  }
+
+
+  //TODO thread safe?
+  static std::vector<double> pdfVal;
+  pdfVal.resize(output.size());
+
+  for (unsigned int pdfNo = 0; pdfNo < _pdfList.size(); ++pdfNo) {
+    const auto& pdf = static_cast<RooAbsPdf&>(_pdfList[pdfNo]);
+    pdf.getValBatch(RooSpan<double>(pdfVal.data(), n), inputs, inputVars, nset);
+
+    const double coef = _coefCache[pdfNo] / (cache->_needSupNorm ?
+        static_cast<RooAbsReal*>(cache->_suppNormList.at(pdfNo))->getVal() :
+        1.);
+
+    if (pdf.isSelectedComp()) {
+      #pragma omp simd
+      for (int i = 0; i < n; ++i) {
+        output[i] += pdfVal[i] * coef;
+      }
+    }
+  }
+}
+
+
 ////////////////////////////////////////////////////////////////////////////////
 /// Reset error counter to given value, limiting the number
 /// of future error messages for this pdf to 'resetValue'

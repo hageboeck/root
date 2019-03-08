@@ -18,6 +18,7 @@
 #define ROOFIT_ROOFITCORE_INC_ROOHELPERS_H_
 
 #include "RooMsgService.h"
+#include "RooAbsArg.h"
 
 #include <sstream>
 
@@ -62,7 +63,55 @@ class HijackMessageStream : public std::ostringstream {
     Int_t _thisStream;
 };
 
+
 std::vector<std::string> tokenise(const std::string &str, const std::string &delims);
+
+
+
+class CachingError : public std::logic_error {
+  public:
+    CachingError(const std::string& indent, const std::string& str) :
+    std::logic_error(str),
+    _indent{indent} { }
+
+
+    std::string indent() const {
+      return _indent + " ";
+    }
+
+  private:
+    std::string _indent;
+};
+
+class FormatPdfTree {
+  public:
+    FormatPdfTree& operator<<(const CachingError& arg) {
+      _stream << arg.what() << "\n" << arg.indent();
+      return *this;
+    }
+
+    template <class T,
+    typename std::enable_if<std::is_base_of<RooAbsArg, T>::value>::type* = nullptr >
+    FormatPdfTree& operator<<(const T& arg) {
+      _stream << arg.ClassName() << "::" << arg.GetName() << " " << &arg << " ";
+      arg.printArgs(_stream);
+      return *this;
+    }
+
+    template <class T,
+    typename std::enable_if< ! std::is_base_of<RooAbsArg, T>::value>::type* = nullptr >
+    FormatPdfTree& operator<<(const T& arg) {
+      _stream << arg;
+      return *this;
+    }
+
+    operator std::string() const {
+      return _stream.str();
+    }
+
+  private:
+    std::ostringstream _stream;
+};
 
 }
 
