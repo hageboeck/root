@@ -181,6 +181,7 @@ called for each data event.
 #include "RooRealIntegral.h"
 #include "RooWorkspace.h"
 #include "Math/CholeskyDecomp.h"
+#include "RooHelpers.h"
 #include <string>
 #include "RooHelpers.h"
 
@@ -987,6 +988,7 @@ RooAbsReal* RooAbsPdf::createNLL(RooAbsData& data, const RooLinkedList& cmdList)
   pc.defineInt("constrAll","Constrained",0,0) ;
   pc.defineInt("doOffset","OffsetLikelihood",0,0) ;
   pc.defineSet("extCons","ExternalConstraints",0,0) ;
+  pc.defineInt("BatchMode", "BatchMode", 0, 0);
   pc.defineMutex("Range","RangeWithName") ;
   pc.defineMutex("Constrain","Constrained") ;
   pc.defineMutex("GlobalObservables","GlobalObservablesTag") ;
@@ -1064,9 +1066,7 @@ RooAbsReal* RooAbsPdf::createNLL(RooAbsData& data, const RooLinkedList& cmdList)
    
     // Create range with name 'fit' with above limits on all observables
     RooArgSet* obs = getObservables(&data) ;
-    TIterator* iter = obs->createIterator() ;
-    RooAbsArg* arg ;
-    while((arg=(RooAbsArg*)iter->Next())) {
+    for (auto arg : *obs) {
       RooRealVar* rrv =  dynamic_cast<RooRealVar*>(arg) ;
       if (rrv) rrv->setRange("fit",rangeLo,rangeHi) ;
     }
@@ -1088,21 +1088,22 @@ RooAbsReal* RooAbsPdf::createNLL(RooAbsData& data, const RooLinkedList& cmdList)
     // Simple case: default range, or single restricted range
     //cout<<"FK: Data test 1: "<<data.sumEntries()<<endl;
 
-    nll = new RooNLLVar(baseName.c_str(),"-log(likelihood)",*this,data,projDeps,ext,rangeName,addCoefRangeName,numcpu,interl,verbose,splitr,cloneData) ;
-
+    auto theNLL = new RooNLLVar(baseName.c_str(),"-log(likelihood)",
+        *this,data,projDeps,ext,rangeName,addCoefRangeName,numcpu,interl,
+        verbose,splitr,cloneData);
+    theNLL->batchMode(pc.getInt("BatchMode"));
+    nll = theNLL;
   } else {
     // Composite case: multiple ranges
     RooArgList nllList ;
-    const size_t bufSize = strlen(rangeName)+1;
-    char* buf = new char[bufSize] ;
-    strlcpy(buf,rangeName,bufSize) ;
-    char* token = strtok(buf,",") ;
-    while(token) {
-      RooAbsReal* nllComp = new RooNLLVar(Form("%s_%s",baseName.c_str(),token),"-log(likelihood)",*this,data,projDeps,ext,token,addCoefRangeName,numcpu,interl,verbose,splitr,cloneData) ;
+    auto tokens = RooHelpers::tokenise(rangeName, ",");
+    for (const auto& token : tokens) {
+      auto nllComp = new RooNLLVar(Form("%s_%s",baseName.c_str(),token.c_str()),"-log(likelihood)",
+          *this,data,projDeps,ext,token.c_str(),addCoefRangeName,numcpu,interl,
+          verbose,splitr,cloneData);
+      nllComp->batchMode(pc.getInt("BatchMode"));
       nllList.add(*nllComp) ;
-      token = strtok(0,",") ;
     }
-    delete[] buf ;
     nll = new RooAddition(baseName.c_str(),"-log(likelihood)",nllList,kTRUE) ;
   }
   RooAbsReal::setEvalErrorLoggingMode(RooAbsReal::PrintErrors) ;
@@ -1314,7 +1315,9 @@ RooFitResult* RooAbsPdf::fitTo(RooAbsData& data, const RooLinkedList& cmdList)
   RooCmdConfig pc(Form("RooAbsPdf::fitTo(%s)",GetName())) ;
 
   RooLinkedList fitCmdList(cmdList) ;
-  RooLinkedList nllCmdList = pc.filterCmdList(fitCmdList,"ProjectedObservables,Extended,Range,RangeWithName,SumCoefRange,NumCPU,SplitRange,Constrained,Constrain,ExternalConstraints,CloneData,GlobalObservables,GlobalObservablesTag,OffsetLikelihood") ;
+  RooLinkedList nllCmdList = pc.filterCmdList(fitCmdList,"ProjectedObservables,Extended,Range,"
+      "RangeWithName,SumCoefRange,NumCPU,SplitRange,Constrained,Constrain,ExternalConstraints,"
+      "CloneData,GlobalObservables,GlobalObservablesTag,OffsetLikelihood,BatchMode");
 
   pc.defineDouble("prefit", "Prefit",0,0);
   pc.defineString("fitOpt","FitOptions",0,"") ;
