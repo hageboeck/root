@@ -188,10 +188,12 @@ Double_t RooGaussian::analyticalIntegral(Int_t code, const char* rangeName) cons
   const double ecmax = std::erfc(std::abs(max));
 
 
-  return resultScale * 0.5 * (
+  const double result = resultScale * 0.5 * (
       min*max < 0.0 ? 2.0 - (ecmin + ecmax)
                     : max <= 0. ? ecmax - ecmin : ecmin - ecmax
   );
+
+  return result != 0. ? result : 1.E-300;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
