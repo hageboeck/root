@@ -33,11 +33,11 @@ namespace BatchHelpers {
 /// Helper class to find RooRealProxy data in a vector of RooSpans.
 /// A lookup instance is constructed with the data batches, a RooArgSet of the input
 /// variables that the data batch contains, and a std::vector of proxy references.
-/// The proxies will be searched for in the batch data, and later the object can
+/// The proxies will be searched for in the batch data, and later the lookup object can
 /// be queried whether a proxy is in the batch data.
 /// The class further provides a helper to test if batches overlap, a condition that
 /// prohibits SIMD computations. Therefore, it should be asserted that the OUTPUT spans
-/// do not overlap with the input data.
+/// do not overlap with the input data using testOverlap().
 class LookupBatchData {
   public:
     ///Look up the index of all variables given in the proxies in the `inputVars`.
