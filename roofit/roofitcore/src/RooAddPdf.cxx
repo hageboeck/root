@@ -191,17 +191,13 @@ RooAddPdf::RooAddPdf(const char *name, const char *title, const RooArgList& inPd
   }
  
   // Constructor with N PDFs and N or N-1 coefs
-  TIterator* pdfIter = inPdfList.createIterator() ;
-  TIterator* coefIter = inCoefList.createIterator() ;
-  RooAbsPdf* pdf ;
-  RooAbsReal* coef ;
-
   RooArgList partinCoefList ;
 
   Bool_t first(kTRUE) ;
 
-  while((coef = (RooAbsPdf*)coefIter->Next())) {
-    pdf = (RooAbsPdf*) pdfIter->Next() ;
+  for (auto i = 0u; i < inCoefList.size(); ++i) {
+    auto coef = static_cast<RooAbsReal*>(inCoefList.at(i));
+    auto pdf  = static_cast<RooAbsPdf*>(inPdfList.at(i));
     if (!pdf) {
       coutE(InputArguments) << "RooAddPdf::RooAddPdf(" << GetName() 
 			    << ") number of pdfs and coefficients inconsistent, must have Npdf=Ncoef or Npdf=Ncoef+1" << endl ;
@@ -240,10 +236,11 @@ RooAddPdf::RooAddPdf(const char *name, const char *title, const RooArgList& inPd
     }
   }
 
-  pdf = (RooAbsPdf*) pdfIter->Next() ;
-  if (pdf) {
+  if (inPdfList.size() == inCoefList.size() + 1) {
+    auto pdf = static_cast<RooAbsPdf*>(inPdfList.at(inCoefList.size()));
+
     if (!dynamic_cast<RooAbsReal*>(pdf)) {
-      coutE(InputArguments) << "RooAddPdf::RooAddPdf(" << GetName() << ") last pdf " << coef->GetName() << " is not of type RooAbsPdf, fatal error" << endl ;
+      coutE(InputArguments) << "RooAddPdf::RooAddPdf(" << GetName() << ") last pdf " << pdf->GetName() << " is not of type RooAbsPdf, fatal error" << endl ;
       assert(0) ;
     }
     _pdfList.add(*pdf) ;  
@@ -265,8 +262,6 @@ RooAddPdf::RooAddPdf(const char *name, const char *title, const RooArgList& inPd
     _haveLastCoef=kTRUE ;
   }
 
-  delete pdfIter ;
-  delete coefIter  ;
 
   _coefCache = new Double_t[_pdfList.getSize()] ;
   _coefErrCount = _errorCount ;
@@ -296,11 +291,10 @@ RooAddPdf::RooAddPdf(const char *name, const char *title, const RooArgList& inPd
   _recursive(kFALSE)
 { 
   // Constructor with N PDFs 
-  TIterator* pdfIter = inPdfList.createIterator() ;
-  RooAbsPdf* pdf ;
-  while((pdf = (RooAbsPdf*) pdfIter->Next())) {
-    
-    if (!dynamic_cast<RooAbsReal*>(pdf)) {
+  for (const auto pdfArg : inPdfList) {
+    auto pdf = static_cast<const RooAbsPdf*>(pdfArg);
+
+    if (!dynamic_cast<const RooAbsReal*>(pdf)) {
       coutE(InputArguments) << "RooAddPdf::RooAddPdf(" << GetName() << ") pdf " << pdf->GetName() << " is not of type RooAbsPdf, ignored" << endl ;
       continue ;
     }
@@ -310,8 +304,6 @@ RooAddPdf::RooAddPdf(const char *name, const char *title, const RooArgList& inPd
     }
     _pdfList.add(*pdf) ;    
   }
-
-  delete pdfIter ;
 
   _coefCache = new Double_t[_pdfList.getSize()] ;
   _coefErrCount = _errorCount ;
@@ -833,6 +825,53 @@ Double_t RooAddPdf::evaluate() const
   }
 
   return value ;
+}
+
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+/// Compute addition of PDFs in batches.
+
+void RooAddPdf::evaluateBatch(RooSpan<double> output,
+      const std::vector<RooSpan<const double>>& inputs,
+      const RooArgSet& inputVars) const {
+  const RooArgSet* nset = _normSet;
+  const int n = output.size();
+
+  if (nset==0 || nset->getSize()==0) {
+    if (_refCoefNorm.getSize()!=0) {
+      nset = &_refCoefNorm ;
+    }
+  }
+
+  CacheElem* cache = getProjCache(nset);
+  updateCoefficients(*cache,nset);
+
+  for (auto& val : output) {
+    val = 0.;
+  }
+
+
+  //TODO thread safe?
+  static std::vector<double> pdfVal;
+  pdfVal.resize(output.size());
+
+  for (unsigned int pdfNo = 0; pdfNo < _pdfList.size(); ++pdfNo) {
+    const auto& pdf = static_cast<RooAbsPdf&>(_pdfList[pdfNo]);
+    pdf.getValBatch(RooSpan<double>(pdfVal.data(), n), inputs, inputVars, nset);
+
+    const double coef = _coefCache[pdfNo] / (cache->_needSupNorm ?
+        static_cast<RooAbsReal*>(cache->_suppNormList.at(pdfNo))->getVal() :
+        1.);
+
+    if (pdf.isSelectedComp()) {
+      #pragma omp simd
+      for (int i = 0; i < n; ++i) {
+        output[i] += pdfVal[i] * coef;
+      }
+    }
+  }
 }
 
 
