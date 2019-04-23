@@ -336,23 +336,19 @@ Double_t RooAbsPdf::getValV(const RooArgSet* nset) const
 
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Compute batch of values for data in inputBatch, and normalise by integrating over
-/// the observables in `nset`. If 'nset' is `nullptr`, unnormalized values
+/// Compute batch of values for given range, and normalise by integrating over
+/// the observables in `nset`. If `nset` is `nullptr`, unnormalized values
 /// are returned. All elements of `nset` must be lvalues.
 ///
-/// \param[out] outputs Write results into the range indicated by this span.
-/// \param[in] inputBatch Spans with the input data.
-/// \param[in] inputVars  Variables that the spans in `inputBatch` represent.
+/// \param[in] begin Begin of the batch.
+/// \param[in] end   End of the batch (not included).
 /// \param[in] normSet    If not nullptr, normalise results by integrating over
 /// the variables in this set. The normalisation is only computed once, and applied
 /// to the full batch.
 ///
-void RooAbsPdf::getValBatch(RooSpan<double> outputs,
-    const std::vector<RooSpan<const double>>& inputBatch,
-    const RooArgSet& inputVars,
+RooSpan<const double> RooAbsPdf::getValBatch(std::size_t begin, std::size_t end,
     const RooArgSet* normSet) const
 {
-
   // Special handling of case without normalization set (used in numeric integration of pdfs)
   if (!normSet) {
     R__ASSERT(false); //TODO implement
@@ -364,7 +360,7 @@ void RooAbsPdf::getValBatch(RooSpan<double> outputs,
 
     if (error) {
 //       raiseEvalError() ;
-      return;
+      return RooSpan<const double>();
     }
 
     //TODO FIXME
@@ -378,27 +374,34 @@ void RooAbsPdf::getValBatch(RooSpan<double> outputs,
     nsetChanged = syncNormalization(normSet) ;
   }
 
-  evaluateBatch(outputs, inputBatch, inputVars);
-  bool error = traceEvalBatch(outputs) ; // Error checking and printing
+  //TODO wait if batch is computing
+  if (_batchData.status(begin, end) == BatchHelpers::BatchData::kDirtyOrUnknown
+      || nsetChanged || _norm->isValueDirty()) {
+    _batchData.setStatus(begin, end, BatchHelpers::BatchData::kWriting);
+
+    auto outputs = evaluateBatch(begin, end);
+    bool error = traceEvalBatch(outputs) ; // Error checking and printing
 
 
-  // Evaluate denominator
-  const double normDenom = _norm->getVal();
-  if (normDenom == 1.)
-    return;
+    // Evaluate denominator
+    const double normDenom = _norm->getVal();
+    if (normDenom <= 0.) {
+      error = true;
+      logEvalError(Form("p.d.f normalization integral is zero or negative."
+          "\n\tInt(%s) = %f", GetName(), normDenom));
+    }
 
-  if (normDenom <= 0.) {
-    error = true;
-    logEvalError(Form("p.d.f normalization integral is zero or negative."
-        "\n\tInt(%s) = %f", GetName(), normDenom));
-    return;
+    if (normDenom != 1. && normDenom > 0.) {
+      const double normVal = 1./normDenom;
+      for (double& val : outputs) {
+        val *= normVal;
+      }
+    }
+
+    _batchData.setStatus(begin, end, BatchHelpers::BatchData::kReady);
   }
 
-  const double normVal = 1./normDenom;
-  for (double& val : outputs) {
-    val *= normVal;
-  }
-
+  return _batchData.makeBatch(begin, end);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -558,14 +561,14 @@ const RooAbsReal* RooAbsPdf::getNormObj(const RooArgSet* nset, const RooArgSet* 
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Verify that the normalization integral cached with this PDF
-/// is valid for given set of normalization observables
+/// is valid for given set of normalization observables.
 ///
 /// If not, the cached normalization integral (if any) is deleted
-/// and a new integral is constructed for use with 'nset'
-/// Elements in 'nset' can be discrete and real, but must be lvalues
+/// and a new integral is constructed for use with 'nset'.
+/// Elements in 'nset' can be discrete and real, but must be lvalues.
 ///
 /// For functions that declare to be self-normalized by overloading the
-/// selfNormalized() function, a unit normalization is always constructed
+/// selfNormalized() function, a unit normalization is always constructed.
 
 Bool_t RooAbsPdf::syncNormalization(const RooArgSet* nset, Bool_t adjustProxies) const
 {
@@ -770,15 +773,18 @@ Double_t RooAbsPdf::getLogVal(const RooArgSet* nset) const
 
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Compute the log-likelihoods for all events in the input batch.
-/// The arguments are passed over to getValBatch(), and outputs will be written to
-/// `outputs`.
-void RooAbsPdf::getLogValBatch(RooSpan<double> outputs,
-    const std::vector<RooSpan<const double>>& inputBatch,
-    const RooArgSet& inputVars,
+/// Compute the log-likelihoods for all events in the requested batch.
+/// The arguments are passed over to getValBatch().
+/// \param[in] batchIndex Index of the batch to computed.
+/// \param[in] batchSize  Size of the batch. Last batch might be smaller.
+/// \return    Returns a batch of doubles that contains the log probabilities.
+RooSpan<double> RooAbsPdf::getLogValBatch(std::size_t batchIndex, std::size_t batchSize,
     const RooArgSet* normSet) const
 {
-  getValBatch(outputs, inputBatch, inputVars, normSet);
+  auto pdfValues = getValBatch(batchIndex, batchSize, normSet);
+
+  //TODO avoid allocate&destroy?
+  std::vector<double> outputs(pdfValues.size());
 
   /* TODO
   if (fabs(prob)>1e6) {
@@ -806,14 +812,15 @@ void RooAbsPdf::getLogValBatch(RooSpan<double> outputs,
   }
   */
 
-  for (auto& item : outputs) {
+  for (unsigned int i = 0; i < batchSize; ++i) {
 #ifdef USE_VDT
-    item = vdt::fast_log(item);
+    outputs[i] = vdt::fast_log(pdfValues[i]);
 #else
-    item = log(item);
+    outputs[i] = log(pdfValues[i]);
 #endif
   }
 
+  return RooSpan<double>(std::move(outputs));
 }
 
 ////////////////////////////////////////////////////////////////////////////////
