@@ -241,7 +241,16 @@ void RooNLLVar::applyWeightSquared(Bool_t flag)
   }
 }
 
+class BatchInterfaceAccessor {
+  public:
+    static void allocateBatchStorage(RooAbsReal* theReal, std::size_t nEvent, std::size_t batchSize) {
+      theReal->allocateBatchStorage(nEvent, batchSize);
+    }
 
+    static void markBatchesStale(RooAbsReal* theReal) {
+      theReal->markBatchesStale();
+    }
+};
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Calculate and return likelihood on subset of data.
@@ -288,29 +297,29 @@ Double_t RooNLLVar::evaluatePartition(std::size_t firstEvent, std::size_t lastEv
 
       if (mu<=0 && N>0) {
 
-	// Catch error condition: data present where zero events are predicted
-	logEvalError(Form("Observed %f events in bin %lu with zero event yield",N,i)) ;
+        // Catch error condition: data present where zero events are predicted
+        logEvalError(Form("Observed %f events in bin %lu with zero event yield",N,i)) ;
 
       } else if (fabs(mu)<1e-10 && fabs(N)<1e-10) {
 
-	// Special handling of this case since log(Poisson(0,0)=0 but can't be calculated with usual log-formula
-	// since log(mu)=0. No update of result is required since term=0.
+        // Special handling of this case since log(Poisson(0,0)=0 but can't be calculated with usual log-formula
+        // since log(mu)=0. No update of result is required since term=0.
 
       } else {
 
-	Double_t term = -1*(-mu + N*log(mu) - TMath::LnGamma(N+1)) ;
+        Double_t term = -1*(-mu + N*log(mu) - TMath::LnGamma(N+1)) ;
 
-	// Kahan summation of sumWeight
-	Double_t y = eventWeight - sumWeightCarry;
-	Double_t t = sumWeight + y;
-	sumWeightCarry = (t - sumWeight) - y;
-	sumWeight = t;
+        // Kahan summation of sumWeight
+        Double_t y = eventWeight - sumWeightCarry;
+        Double_t t = sumWeight + y;
+        sumWeightCarry = (t - sumWeight) - y;
+        sumWeight = t;
 
-	// Kahan summation of result
-	y = term - carry;
-	t = result + y;
-	carry = (t - result) - y;
-	result = t;
+        // Kahan summation of result
+        y = term - carry;
+        t = result + y;
+        carry = (t - result) - y;
+        result = t;
       }
     }
 
@@ -325,11 +334,14 @@ Double_t RooNLLVar::evaluatePartition(std::size_t firstEvent, std::size_t lastEv
       //TODO eliminate the copying if _weightSq: Write lambda that squares on the fly?
       std::vector<double> eventWeights(eventWeightBatch.begin(), eventWeightBatch.end());
 
-      static std::vector<double> results;
-      results.resize(lastEvent - firstEvent, 0.);
-      auto& vars = *_dataClone->get();
-      pdfClone->getLogValBatch(RooSpan<double>(results.begin(), results.end()),
-          dataBatches, vars, _normSet);
+      //TODO do properly. Not here, but in base.
+      //TODO don't redo for every partition, anyway
+      std::size_t batchSize = _nEvents / ((_nEvents % _numSets == 0) ?
+          _numSets :
+          (_numSets-1));
+      BatchInterfaceAccessor::allocateBatchStorage(pdfClone, _nEvents, batchSize);
+
+      auto results = pdfClone->getLogValBatch(firstEvent, lastEvent, _normSet);
 
       if (_weightSq) {
         for (auto& weight : eventWeights) {

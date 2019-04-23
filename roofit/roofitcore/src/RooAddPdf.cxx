@@ -839,11 +839,11 @@ Double_t RooAddPdf::evaluate() const
 ////////////////////////////////////////////////////////////////////////////////
 /// Compute addition of PDFs in batches.
 
-void RooAddPdf::evaluateBatch(RooSpan<double> output,
-      const std::vector<RooSpan<const double>>& inputs,
-      const RooArgSet& inputVars) const {
+RooSpan<double> RooAddPdf::evaluateBatch(std::size_t batchIndex, std::size_t batchSize) const {
   const RooArgSet* nset = _normSet;
-  const int n = output.size();
+
+  auto output = _batchData.makeWritableBatch(batchIndex, batchSize);
+  const std::size_t n = output.size();
 
   if (nset==0 || nset->getSize()==0) {
     if (_refCoefNorm.getSize()!=0) {
@@ -854,18 +854,10 @@ void RooAddPdf::evaluateBatch(RooSpan<double> output,
   CacheElem* cache = getProjCache(nset);
   updateCoefficients(*cache,nset);
 
-  for (auto& val : output) {
-    val = 0.;
-  }
-
-
-  //TODO thread safe?
-  static std::vector<double> pdfVal;
-  pdfVal.resize(output.size());
-
   for (unsigned int pdfNo = 0; pdfNo < _pdfList.size(); ++pdfNo) {
     const auto& pdf = static_cast<RooAbsPdf&>(_pdfList[pdfNo]);
-    pdf.getValBatch(RooSpan<double>(pdfVal.data(), n), inputs, inputVars, nset);
+    auto pdfOutputs = pdf.getValBatch(batchIndex, batchSize, nset);
+    assert(pdfOutputs.size() == output.size());
 
     const double coef = _coefCache[pdfNo] / (cache->_needSupNorm ?
         static_cast<RooAbsReal*>(cache->_suppNormList.at(pdfNo))->getVal() :
@@ -873,11 +865,13 @@ void RooAddPdf::evaluateBatch(RooSpan<double> output,
 
     if (pdf.isSelectedComp()) {
       #pragma omp simd
-      for (int i = 0; i < n; ++i) {
-        output[i] += pdfVal[i] * coef;
+      for (std::size_t i = 0; i < n; ++i) {
+        output[i] += pdfOutputs[i] * coef;
       }
     }
   }
+
+  return output;
 }
 
 
