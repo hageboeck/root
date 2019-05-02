@@ -28,7 +28,6 @@ set(TestSource
     testIntegrationMultiDim.cxx
     testAnalyticalIntegrals.cxx
     testTStatistic.cxx
-    testKahan.cxx
     fit/testFit.cxx
     fit/testGraphFit.cxx
     fit/SparseDataComparer.cxx
@@ -84,6 +83,8 @@ ROOT_ADD_GTEST(VectorizedTMathUnit testVectorizedTMath.cxx
 
 ROOT_ADD_GTEST(testRootFinder testRootFinder.cxx  LIBRARIES ${Libraries} )
 
+ROOT_ADD_GTEST(testKahan testKahan.cxx
+      LIBRARIES Core MathCore)
 
 
 if(ROOT_clad_FOUND)
