@@ -24,8 +24,8 @@ IF(CMAKE_BUILD_TYPE MATCHES "Debug|RelWithDebInfo")
        DESTINATION ${CMAKE_BINARY_DIR}/lib
        FILES_MATCHING PATTERN "*-gdb.py")
 
-  file(GLOB PRETTY_PRINTERS "gdbPrinters/*-gdb.py")
-  install(FILES ${PRETTY_PRINTERS}
+  install(DIRECTORY "gdbPrinters/"
           DESTINATION lib
-          CONFIGURATIONS Debug RelWithDebInfo)
+          CONFIGURATIONS Debug RelWithDebInfo
+          FILES_MATCHING PATTERN "*-gdb.py")
 ENDIF()
