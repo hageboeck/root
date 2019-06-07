@@ -70,9 +70,9 @@ RooMinimizerFcn::RooMinimizerFcn(RooAbsReal *funct, RooMinimizer* context,
   _constParamList->setName("constParamList");
 
   // Remove all non-RooRealVar parameters from list (MINUIT cannot handle them)
-  TIterator* pIter = _floatParamList->createIterator();
-  RooAbsArg* arg;
-  while ((arg=(RooAbsArg*)pIter->Next())) {
+  // Going in reverse relieves us from having to juggle i after a removal
+  for (int i = _floatParamList->size()-1; i >= 0; --i) {
+    const auto arg = _floatParamList->at(i);
     if (!arg->IsA()->InheritsFrom(RooAbsRealLValue::Class())) {
       oocoutW(_context,Minimization) << "RooMinimizerFcn::RooMinimizerFcn: removing parameter " 
 				     << arg->GetName()
@@ -80,7 +80,6 @@ RooMinimizerFcn::RooMinimizerFcn(RooAbsReal *funct, RooMinimizer* context,
       _floatParamList->remove(*arg);
     }
   }
-  delete pIter;
 
   _nDim = _floatParamList->getSize();
 

@@ -117,6 +117,9 @@ RooRealIntegral::RooRealIntegral(const char *name, const char *title,
   _params(0),
   _cacheNum(kFALSE)
 {
+  if (name == std::string("gamma_stat_ZjetsCR_bin_0_constraint_Int")) {
+    std::cout << "Creating integral " << name << std::endl;
+  }
   //   A) Check that all dependents are lvalues 
   //
   //   B) Check if list of dependents can be re-expressed in        
@@ -421,6 +424,12 @@ RooRealIntegral::RooRealIntegral(const char *name, const char *title,
   _mode = ((RooAbsReal&)_function.arg()).getAnalyticalIntegralWN(anIntOKDepList,*anaSet,_funcNormSet,RooNameReg::str(_rangeName)) ;    
   _anaList.removeAll() ;
   _anaList.add(*anaSet);    
+  if (name == std::string("gamma_stat_ZjetsCR_bin_0_constraint_Int")) {
+    std::cout << "Creating integral " << name
+        << ". AnaSet=" << _anaList
+        << ". DepList=" << depList << endl;
+    ;
+  }
   delete anaSet;
 
   // Avoid confusion -- if mode is zero no analytical integral is defined regardless of contents of _anaListx
@@ -925,7 +934,7 @@ Double_t RooRealIntegral::evaluate() const
     case PassThrough: ccoutD(Tracing) << "PassThrough" ; break ;
     }
 
-    ccxcoutD(Tracing) << "raw*fact = " << retVal << endl ;
+    ccxcoutD(Tracing) << " raw*fact = " << retVal << endl ;
   }
   
   RooAbsReal::_globalSelectComp = tmp ;

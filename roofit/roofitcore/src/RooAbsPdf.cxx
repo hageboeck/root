@@ -312,8 +312,27 @@ Double_t RooAbsPdf::getValV(const RooArgSet* nset) const
     Bool_t error = traceEvalPdf(rawVal) ; // Error checking and printing
 
     // Evaluate denominator
-    Double_t normVal(_norm->getVal()) ;
+    const double normVal = _norm->getVal();
     
+    //gamma_stat_ZjetsCR_bin_0_constraint
+    if (GetName() == std::string("gamma_stat_ZjetsCR_bin_0_constraint")) {
+      std::cout << "In constraint term " << GetName()
+          << "\n\trawVal=" << rawVal
+          << "\n\tnormVal=" << normVal
+          << "\n\tnormSet=" << nset << " " << nset->GetName() << endl;
+      _norm->setValueDirty();
+      const double forceNorm = _norm->getVal();
+      std::cout << "\tnormForced=" << forceNorm << endl;
+      nset->Print("");
+      _norm->Print("t");
+
+      cout << "For some reason, integrating the first time yields a different result than"
+          << " integration a second time. The integrand set seems to be growing."<< endl;
+
+      _norm->setValueDirty();
+      _norm->getVal();
+    }
+
     if (normVal<=0.) {
       error=kTRUE ;
       logEvalError("p.d.f normalization integral is zero or negative") ;  
@@ -414,7 +433,7 @@ RooSpan<const double> RooAbsPdf::getValBatch(std::size_t begin, std::size_t end,
 
 Double_t RooAbsPdf::analyticalIntegralWN(Int_t code, const RooArgSet* normSet, const char* rangeName) const
 {
-  cxcoutD(Eval) << "RooAbsPdf::analyticalIntegralWN(" << GetName() << ") code = " << code << " normset = " << (normSet?*normSet:RooArgSet()) << endl ;
+  cxcoutD(Integration) << "RooAbsPdf::analyticalIntegralWN(" << GetName() << ") code = " << code << " normset = " << (normSet?*normSet:RooArgSet()) << endl ;
 
 
   if (code==0) return getVal(normSet) ;

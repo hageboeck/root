@@ -201,6 +201,10 @@ Double_t RooRealBinding::operator()(const Double_t xvector[]) const
   _ncall++ ;
   loadValues(xvector);
   //cout << getName() << "(x=" << xvector[0] << ")=" << _func->getVal(_nset) << " (nset = " << (_nset? *_nset:RooArgSet()) << ")" << endl ;
+
+  if (_func->GetName() == std::string("gamma_stat_ZjetsCR_bin_0_constraint")) {
+    std::cout << "Evaluating the func" << std::endl;
+  }
   return _xvecValid ? _func->getVal(_nset) : 0. ;
 }
 

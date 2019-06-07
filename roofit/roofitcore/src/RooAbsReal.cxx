@@ -4929,14 +4929,19 @@ Double_t RooAbsReal::getVal(const RooArgSet* normalisationSet) const {
         FormatPdfTree() << *this);
   }
 
+
+
   const double ret = (_fast && !_inhibitDirty) ? _value : fullEval;
 
   if (fabs( ret != 0. ? (ret - fullEval)/ret : ret - fullEval) > 1.E-14) {
     gSystem->StackTrace();
     FormatPdfTree formatter;
     formatter << "--> (Scalar computation wrong here:)\n"
-            << GetName() << " " << this << " _fast=" << tmpFast << " _value=" << tmp << " ret=" << ret
-            << " actual=" << fullEval << " new _value=" << _value << "] ";
+            << Class()->GetName() << " " << GetName() << " " << this << " _fast=" << tmpFast
+            << "\n\tcached _value= " << std::setprecision(15) << tmp
+            << "\n\tactual       = " << fullEval
+            << "\n\treturning    = " << ret
+            << "\n\tnew _value   = " << _value << "] ";
     formatter << "\nServers:";
     for (const auto server : _serverList) {
       formatter << "\n  ";
