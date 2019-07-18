@@ -335,21 +335,37 @@ Double_t RooAbsPdf::getValV(const RooArgSet* nset) const
   return _value ;
 }
 
+#ifdef _OPENMP
+  #include <omp.h>
+#else
+namespace {
+  unsigned int omp_get_max_threads() {
+    return 1;
+  }
+}
+#endif
+
+namespace {
 ////////////////////////////////////////////////////////////////////////////////
 /// Check for infinity or NaN.
 /// \param[in] inputs Array to check
 /// \return True if either infinity or NaN were found.
-namespace {
 template<class T>
-bool checkInfNaN(const T& inputs)
+bool checkNegativeOrNaN(const T& inputs)
 {
   // check for a math error or negative value
   bool nan = false;
   bool neg = false;
 
-  for (double val : inputs) { //CHECK_VECTORISE
-    nan |= std::isnan(val);
-    neg |= val < 0;
+  const std::size_t n = inputs.size();
+
+  #pragma omp parallel for schedule(static) default(none) shared(inputs) reduction(|:nan, neg)
+  for (std::size_t j = 0; j < n; j += 8) {
+    for (std::size_t i = j; i < std::min(j+8, n); ++i) { //CHECK_VECTORISE
+      const double val = inputs[i];
+      nan |= std::isnan(val);
+      neg |= val < 0;
+    }
   }
 
   return nan || neg;
@@ -409,7 +425,7 @@ RooSpan<const double> RooAbsPdf::getValBatch(std::size_t begin, std::size_t maxS
     maxSize = outputs.size();
     _normSet = tmp;
 
-    if (checkInfNaN(outputs)) {
+    if (checkNegativeOrNaN(outputs)) {
       fixOutputsAndLogErrors(outputs, begin);
     }
 
@@ -446,6 +462,8 @@ RooSpan<const double> RooAbsPdf::getValBatch(std::size_t begin, std::size_t maxS
 
     if (normVal != 1. && normVal > 0.) {
       const double invNorm = 1./normVal;
+
+      #pragma omp parallel for default(none) shared(outputs)
       for (double& val : outputs) { //CHECK_VECTORISE
         val *= invNorm;
       }
@@ -821,12 +839,22 @@ RooSpan<double> RooAbsPdf::getLogValBatch(std::size_t begin, std::size_t batchSi
   }
   */
 
-  for (unsigned int i = 0; i < pdfValues.size(); ++i) { //CHECK_VECTORISE
+  const std::size_t n = pdfValues.size();
+  const unsigned int nChunks = omp_get_max_threads();
+  const std::size_t stride = n/nChunks;
+
+  #pragma omp parallel for default(none) shared(outputs, pdfValues)
+  for (unsigned int j = 0; j < nChunks; ++j) {
+    const std::size_t iBegin = stride * j;
+    const std::size_t iEnd = (j == nChunks-1) ? n : stride * (j+1);
+
+    for (std::size_t i = iBegin; i < iEnd; ++i) { //CHECK_VECTORISE
 #ifdef USE_VDT
-    outputs[i] = vdt::fast_log(pdfValues[i]);
+      outputs[i] = vdt::fast_log(pdfValues[i]);
 #else
-    outputs[i] = log(pdfValues[i]);
+      outputs[i] = log(pdfValues[i]);
 #endif
+    }
   }
 
   return RooSpan<double>(std::move(outputs));

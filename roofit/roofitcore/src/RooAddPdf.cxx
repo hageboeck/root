@@ -61,14 +61,11 @@ of each \f$ c_i \f$.
 
 */
 
+#include "RooAddPdf.h"
 
 #include "RooFit.h"
 #include "RooMsgService.h"
 
-#include "TIterator.h"
-#include "TIterator.h"
-#include "TList.h"
-#include "RooAddPdf.h"
 #include "RooDataSet.h"
 #include "RooRealProxy.h"
 #include "RooPlot.h"
@@ -210,7 +207,8 @@ RooAddPdf::RooAddPdf(const char *name, const char *title, const RooArgList& inPd
       assert(0) ;
     }
     if (!dynamic_cast<RooAbsReal*>(coef)) {
-      coutE(InputArguments) << "RooAddPdf::RooAddPdf(" << GetName() << ") coefficient " << coef->GetName() << " is not of type RooAbsReal, ignored" << endl ;
+      coutE(InputArguments) << "RooAddPdf::RooAddPdf(" << GetName() << ") coefficient "
+          << (coef ? coef->GetName() : "") << " is not of type RooAbsReal, ignored" << endl ;
       continue ;
     }
     if (!dynamic_cast<RooAbsReal*>(pdf)) {
@@ -569,19 +567,16 @@ RooAddPdf::CacheElem* RooAddPdf::getProjCache(const RooArgSet* nset, const RooAr
 
       // ----------
       RooArgSet* tmpObs = thePdf->getObservables(_refCoefNorm) ;
-      RooAbsArg* obsArg ;
-      TIterator* iter = tmpObs->createIterator() ;
       Bool_t allIdent = kTRUE ;
-      while((obsArg=(RooAbsArg*)iter->Next())) {
-	RooRealVar* rvarg = dynamic_cast<RooRealVar*>(obsArg) ;
-	if (rvarg) {
-	  if (rvarg->getMin(RooNameReg::str(_refCoefRangeName))!=rvarg->getMin() ||
-	      rvarg->getMax(RooNameReg::str(_refCoefRangeName))!=rvarg->getMax()) {
-	    allIdent=kFALSE ;
-	  }
-	}
+      for (const auto obsArg : *tmpObs) {
+        RooRealVar* rvarg = dynamic_cast<RooRealVar*>(obsArg) ;
+        if (rvarg) {
+          if (rvarg->getMin(RooNameReg::str(_refCoefRangeName))!=rvarg->getMin() ||
+              rvarg->getMax(RooNameReg::str(_refCoefRangeName))!=rvarg->getMax()) {
+            allIdent=kFALSE ;
+          }
+        }
       }
-      delete iter ;
       delete tmpObs ;
       // -------------
 
@@ -836,7 +831,15 @@ Double_t RooAddPdf::evaluate() const
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Compute addition of PDFs in batches.
-
+#ifdef _OPENMP
+  #include <omp.h>
+#else
+namespace {
+  unsigned int omp_get_max_threads() {
+    return 1;
+  }
+}
+#endif
 RooSpan<double> RooAddPdf::evaluateBatch(std::size_t begin, std::size_t batchSize) const {
   auto normAndCache = getNormAndCache();
   const RooArgSet* nset = normAndCache.first;
@@ -857,9 +860,11 @@ RooSpan<double> RooAddPdf::evaluateBatch(std::size_t begin, std::size_t batchSiz
         1.);
 
     if (pdf.isSelectedComp()) {
-      #pragma omp simd
-      for (std::size_t i = 0; i < n; ++i) { //CHECK_VECTORISE
-        output[i] += pdfOutputs[i] * coef;
+      #pragma omp parallel for schedule(static) default(none) shared(output, pdfOutputs)
+      for (std::size_t j = 0; j < n; j += 8) {
+        for (std::size_t i = j; i < std::min(j+8, n); ++i) { //CHECK_VECTORISE
+          output[i] += pdfOutputs[i] * coef;
+        }
       }
     }
   }

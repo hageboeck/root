@@ -447,6 +447,15 @@ Double_t RooNLLVar::evaluatePartition(std::size_t firstEvent, std::size_t lastEv
   return result ;
 }
 
+#ifdef _OPENMP
+  #include <omp.h>
+#else
+namespace {
+  unsigned int omp_get_max_threads() {
+    return 1;
+  }
+}
+#endif
 
 std::tuple<double, double, double> RooNLLVar::computeBatched(std::size_t stepSize, std::size_t firstEvent, std::size_t lastEvent) const
 {
@@ -495,16 +504,28 @@ std::tuple<double, double, double> RooNLLVar::computeBatched(std::size_t stepSiz
 
   //Sum the probabilities
   ROOT::Math::KahanSum<double, 4u> kahanProb;
-  if (eventWeights.size() == 1) {
-    const double weight = retrieveWeight(0);
-    for (std::size_t i = 0; i < results.size(); ++i) {
-      kahanProb.AddIndexed(-weight * results[i], i);
-    }
-  } else {
-    for (std::size_t i = 0; i < results.size(); ++i) {
-      kahanProb.AddIndexed(-retrieveWeight(i) * results[i], i);
+
+  const std::size_t n = results.size();
+  const unsigned int nChunks = omp_get_max_threads();
+  const std::size_t stride = n/nChunks;
+  #pragma omp parallel for default(none) shared(results, retrieveWeight) reduction(+:kahanProb)
+  for (unsigned int j = 0; j < nChunks; ++j) {
+    const std::size_t iBegin = stride * j;
+    const std::size_t iEnd = (j == nChunks-1) ? n : stride * (j+1);
+
+
+    if (eventWeights.size() == 1) {
+      const double weight = retrieveWeight(0);
+      for (std::size_t i = iBegin; i < iEnd; ++i) { //CHECK_VECTORISE
+        kahanProb.AddIndexed(-weight * results[i], i);
+      }
+    } else {
+      for (std::size_t i = iBegin; i < iEnd; ++i) { //CHECK_VECTORISE
+        kahanProb.AddIndexed(-retrieveWeight(i) * results[i], i);
+      }
     }
   }
+  //TODO check that reduction works as desired.
 
 
 //  std::cout << "Sum probabilities=" << kahanProb.Sum()

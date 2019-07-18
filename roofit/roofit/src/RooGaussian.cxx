@@ -72,6 +72,15 @@ Double_t RooGaussian::evaluate() const
   return exp(-0.5*arg*arg/(sig*sig));
 }
 
+#ifdef _OPENMP
+  #include <omp.h>
+#else
+namespace {
+  unsigned int omp_get_max_threads() {
+    return 1;
+  }
+}
+#endif
 
 namespace {
 
@@ -81,19 +90,26 @@ namespace {
 ///overlap, results will likely be garbage.
 template<class Tx, class TMean, class TSig>
 void compute(RooSpan<double> output, Tx x, TMean mean, TSig sigma) {
-  const int n = output.size();
+  const std::size_t n = output.size();
 
-  #pragma omp simd
-  for (int i = 0; i < n; ++i) {
-    const double arg = x[i] - mean[i];
-    const double halfBySigmaSq = -0.5 / (sigma[i] * sigma[i]);
+  const unsigned int nChunks = omp_get_max_threads();
+  const std::size_t stride = n/nChunks;
+  #pragma omp parallel for default(none) shared(output, x, mean, sigma)
+  for (unsigned int j = 0; j < nChunks; ++j) {
+    const std::size_t iBegin = stride * j;
+    const std::size_t iEnd = (j == nChunks-1) ? n : stride * (j+1);
+    for (std::size_t i = iBegin; i < iEnd; ++i) { //CHECK_VECTORISE
+      const double arg = x[i] - mean[i];
+      const double halfBySigmaSq = -0.5 / (sigma[i] * sigma[i]);
 
 #ifdef USE_VDT
-    output[i] = vdt::fast_exp(arg*arg * halfBySigmaSq);
+      output[i] = vdt::fast_exp(arg*arg * halfBySigmaSq);
 #else
-    output[i] = exp(arg*arg * halfBySigmaSq);
+      output[i] = exp(arg*arg * halfBySigmaSq);
 #endif
+    }
   }
+
 }
 
 }

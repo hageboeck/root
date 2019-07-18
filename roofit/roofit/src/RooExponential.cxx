@@ -93,20 +93,31 @@ Double_t RooExponential::analyticalIntegral(Int_t code, const char* rangeName) c
       / constant;
 }
 
+#ifdef _OPENMP
+  #include <omp.h>
+#else
+namespace {
+  unsigned int omp_get_max_threads() {
+    return 1;
+  }
+}
+#endif
 
 namespace {
 
 template<class Tx, class Tc>
 void compute(RooSpan<double> output, Tx x, Tc c) {
-  const int n = output.size();
+  const std::size_t n = output.size();
 
-  #pragma omp simd
-  for (int i = 0; i < n; ++i) { //CHECK_VECTORISE
+  #pragma omp parallel for schedule(static) default(none) shared(output, x, c)
+  for (std::size_t j = 0; j < n; j += 8) {
+    for (std::size_t i = j; i < std::min(j+8, n); ++i) { //CHECK_VECTORISE
 #ifdef USE_VDT
-    output[i] = vdt::fast_exp(x[i]*c[i]);
+      output[i] = vdt::fast_exp(x[i]*c[i]);
 #else
-    output[i] = exp(x[i]*c[i]);
+      output[i] = exp(x[i]*c[i]);
 #endif
+    }
   }
 }
 
