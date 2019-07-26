@@ -112,8 +112,6 @@ RooSpan<double> RooLandau::evaluateBatch(std::size_t begin, std::size_t batchSiz
   return output;
 }
 
-
-
 ////////////////////////////////////////////////////////////////////////////////
 
 Int_t RooLandau::getGenerator(const RooArgSet& directVars, RooArgSet &generateVars, Bool_t /*staticInitOK*/) const
