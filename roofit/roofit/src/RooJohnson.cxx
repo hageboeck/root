@@ -57,7 +57,7 @@ ClassImp(RooJohnson);
 /// \param title Title for plotting
 /// \param mass The variable of the PDF. Often this is a mass.
 /// \param mu Location parameter of the Gaussian component.
-/// \param lambda Width parameter of the Gaussian component.
+/// \param lambda Width parameter (>0) of the Gaussian component.
 /// \param gamma Shape parameter that distorts distribution to left/right.
 /// \param delta Shape parameter (>0) that determines strength of Gaussian-like component.
 /// \param massThreshold Set PDF to zero below this threshold.
@@ -73,7 +73,14 @@ RooJohnson::RooJohnson(const char *name, const char *title,
   _delta("delta", "Scale of transformation", this, delta),
   _massThreshold(massThreshold)
 {
-
+  for (auto parameter : std::initializer_list<const RooAbsReal*>{&lambda, &delta}) {
+    auto par = dynamic_cast<const RooAbsRealLValue*>(parameter);
+    if (par && par->getMin() <= 0.) {
+      coutE(Eval) << "The parameter '" << par->GetName() << "' with range [" << par->getMin("") << ", "
+          << par->getMax() << "] of the RooJohnson '" << GetName() << "' can be zero or negative."
+          " Advise to limit its range." << std::endl;
+    }
+  }
 }
 
 
