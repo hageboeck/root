@@ -132,32 +132,43 @@ namespace cling {
     if (actionResult == AR_Success && T) {
       std::string expression;
       std::string FuncName = llvm::sys::path::stem(file);
+      int prevOptLevel = m_Interpreter.getDefaultOptLevel();
+      m_Interpreter.setDefaultOptLevel(T->getCompilationOpts().OptLevel);
+      
       if (!FuncName.empty()) {
         FuncName = normalizeDotXFuncName(FuncName);
         if (T->containsNamedDecl(FuncName)) {
           expression = FuncName + args.str();
           // Give the user some context in case we have a problem invoking
           expression += " /* invoking function corresponding to '.x' */";
-
-          // Above transaction might have set a different OptLevel; use that.
-          int prevOptLevel = m_Interpreter.getDefaultOptLevel();
-          m_Interpreter.setDefaultOptLevel(T->getCompilationOpts().OptLevel);
+          
           if (m_Interpreter.echo(expression, result) != Interpreter::kSuccess)
             actionResult = AR_Failure;
-          m_Interpreter.setDefaultOptLevel(prevOptLevel);
         }
-      } else
-        FuncName = file; // Not great, but pass the diagnostics below something
-
-      if (expression.empty()) {
+      }
+      
+      if ((expression.empty() || actionResult == AR_Failure) && T->containsNamedDecl("main")) {
+        std::cout << "Falling back to main" << std::endl;  
+        
+        expression = "main" + args.str();
+          
+        if (m_Interpreter.echo(expression, result) != Interpreter::kSuccess)
+          actionResult = AR_Failure;
+      }
+      
+      m_Interpreter.setDefaultOptLevel(prevOptLevel);
+      
+      if (actionResult == AR_Failure) {
         using namespace clang;
         DiagnosticsEngine& Diags = m_Interpreter.getDiagnostics();
         unsigned diagID
           = Diags.getCustomDiagID (DiagnosticsEngine::Level::Warning,
-                                   "cannot find function '%0()'; falling back to .L");
+                                   "cannot find function '%0()'; falling back to `.L`."
+                                   "\nNote: From the command line or with `.x`, ROOT tries to execute a function with the same name as the macro."
+                                   "\nRename either function or macro or add a function `main` as a fallback.");
         //FIXME: Figure out how to pass in proper source locations, which we can
         // use with -verify.
-        Diags.Report(SourceLocation(), diagID) << FuncName;
+        Diags.Report(SourceLocation(), diagID) << file;
         return AR_Success;
       }
     }
