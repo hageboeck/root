@@ -26,7 +26,6 @@ RooArgusBG is a RooAbsPdf implementation describing the ARGUS background shape.
 */
 
 #include "RooArgusBG.h"
-#include "RooFit.h"
 #include "RooRealVar.h"
 #include "RooRealConstant.h"
 #include "RooMath.h"
