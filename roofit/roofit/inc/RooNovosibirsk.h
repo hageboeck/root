@@ -45,10 +45,12 @@ public:
 
 protected:
   RooRealProxy x;
-  RooRealProxy width;
   RooRealProxy peak;
+  RooRealProxy width;
   RooRealProxy tail;
   Double_t evaluate() const;
+  RooSpan<double> evaluateBatch(std::size_t begin, std::size_t batchSize) const;
+
 
 private:
   ClassDef(RooNovosibirsk,1) // Novosibirsk PDF
