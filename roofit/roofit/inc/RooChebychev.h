@@ -27,7 +27,7 @@ public:
 
   RooChebychev() ;
   RooChebychev(const char *name, const char *title,
-               RooAbsReal& _x, const RooArgList& _coefList) ;
+               RooAbsReal& _x, const RooArgList& _coefList, bool listIncludesC0 = false);
 
   RooChebychev(const RooChebychev& other, const char* name = 0);
   virtual TObject* clone(const char* newname) const { return new RooChebychev(*this, newname); }
@@ -44,11 +44,12 @@ private:
   RooRealProxy _x;
   RooListProxy _coefList ;
   mutable TNamed* _refRangeName ; 
+  bool _coefListIncludesC0{false};
 
   Double_t evaluate() const;
   Double_t evalAnaInt(const Double_t a, const Double_t b) const;
 
-  ClassDef(RooChebychev,2) // Chebychev polynomial PDF
+  ClassDef(RooChebychev,3) // Chebychev polynomial PDF
 };
 
 #endif

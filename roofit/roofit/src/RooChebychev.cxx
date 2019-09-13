@@ -16,11 +16,24 @@
 /** \class RooChebychev
    \ingroup Roofit
 
-Chebychev polynomial p.d.f. of the first kind.
+Sum of the Chebychev polynomials of the first kind [Wikipedia](https://en.wikipedia.org/wiki/Chebyshev_polynomials).
 
-The coefficient that goes with \f$ T_0(x)=1 \f$ (i.e. the constant polynomial) is
+This PDF evaluates to
+\f[
+  PDF(x | c_i ) = \mathcal{N} \sum_i c_i \cdot T_i(x)
+\f]
+\f$ \mathcal{N} \f$ is a normalisation constant, and the user supplies the coefficients \f$ c_i \f$.
+
+The coefficient of \f$ c_0 \cdot T_0(x)=1 \f$ (i.e. the constant polynomial) is
 implicitly assumed to be 1, and the list of coefficients supplied by callers
-starts with the coefficient that goes with \f$ T_1(x)=x \f$ (i.e. the linear term).
+starts with \f$ c_1 \cdot T_1(x)=x \f$ (*i.e.*, the linear term).
+
+Using the argument `listIncludesC0` of
+RooChebychev(const char*,const char*,RooAbsReal&,const RooArgList&,bool), the offset can be changed by the user.
+
+Depending on the value range of \f$ x \f$, the coefficients have to be
+much smaller than one, to keep the function positive, as all polynomials
+may vary between [-1, 1].
 **/
 
 #include "RooChebychev.h"
@@ -112,14 +125,22 @@ RooChebychev::RooChebychev() : _refRangeName(0)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Constructor
+/// Construct a sum of Chebychev polynomials of the first kind.
+/// \param[in] name  Name of this object.
+/// \param[in] title Title (for plotting).
+/// \param[in] x x variable of the polynomials.
+/// \param[in] coefList The coefficients \f$ c_i \f$ of the different polynomials. Starts with \f$ c_1 \f$.
+/// \param[in] listIncludesC0 Instead of assuming that the constant offset \f$ c_0 * T_0 \f$ is 1, interpret the first
+/// coefficient in `coefList` as the offset.
+///
 
 RooChebychev::RooChebychev(const char* name, const char* title,
-                           RooAbsReal& x, const RooArgList& coefList):
+                           RooAbsReal& x, const RooArgList& coefList, bool listIncludesC0):
   RooAbsPdf(name, title),
   _x("x", "Dependent", this, x),
   _coefList("coefficients","List of coefficients",this),
-  _refRangeName(0)
+  _refRangeName(nullptr),
+  _coefListIncludesC0(listIncludesC0)
 {
   for (const auto coef : coefList) {
     if (!dynamic_cast<RooAbsReal*>(coef)) {
@@ -138,7 +159,8 @@ RooChebychev::RooChebychev(const RooChebychev& other, const char* name) :
   RooAbsPdf(other, name),
   _x("x", this, other._x),
   _coefList("coefList",this,other._coefList),
-  _refRangeName(other._refRangeName)
+  _refRangeName(other._refRangeName),
+  _coefListIncludesC0(other._coefListIncludesC0)
 {
 }
 
@@ -169,11 +191,14 @@ Double_t RooChebychev::evaluate() const
   using size_type = typename RooListProxy::Storage_t::size_type;
   const size_type iend = _coefList.size();
   double sum = 1.;
+  if (_coefListIncludesC0) {
+    sum = static_cast<const RooAbsReal&>(_coefList[0]).getVal();
+  }
   if (iend > 0) {
      ChebychevIterator<double, Kind::First> chit(x);
      ++chit;
-     for (size_type i = 0; iend != i; ++i, ++chit) {
-        auto c = static_cast<const RooAbsReal &>(_coefList[i]).getVal();
+     for (size_type i = _coefListIncludesC0; iend != i; ++i, ++chit) {
+        const double c = static_cast<const RooAbsReal &>(_coefList[i]).getVal();
         //sum = fast_fma(*chit, c, sum);
         sum += *chit*c;
      }
@@ -183,13 +208,14 @@ Double_t RooChebychev::evaluate() const
 
 ////////////////////////////////////////////////////////////////////////////////
 
-namespace ChebychevEvaluate {
+namespace {
 //Author: Emmanouil Michalainas, CERN 12 AUGUST 2019  
 
-void compute(  size_t batchSize, double xmax, double xmin,
+void compute(  const size_t batchSize, const double xmax, const double xmin,
                double * __restrict output,
                const double * __restrict const xData,
-               const RooListProxy& _coefList)
+               const RooListProxy& _coefList,
+               const std::size_t firstCoeff)
 {
   constexpr size_t block = 128;
   const size_t nCoef = _coefList.size();
@@ -199,13 +225,13 @@ void compute(  size_t batchSize, double xmax, double xmin,
     size_t stop = (i+block >= batchSize) ? batchSize-i : block;
     
     // set a0-->prev[j][0] and a1-->prev[j][1]
-    // and x tranfsformed to range[-1..1]-->X[j]
+    // and x transformed to range[-1..1]-->X[j]
     for (size_t j=0; j<stop; j++) {
-      prev[j][0] = output[i+j] = 1.0;
+      prev[j][0] = 1.;
       prev[j][1] = X[j] = (xData[i+j] -0.5*(xmax + xmin)) / (0.5*(xmax - xmin));
     }
     
-    for (size_t k=0; k<nCoef; k++) {
+    for (size_t k=firstCoeff; k<nCoef; k++) {
       const double coef = static_cast<const RooAbsReal &>(_coefList[k]).getVal();
       for (size_t j=0; j<stop; j++) {
         output[i+j] += prev[j][1]*coef;
@@ -218,22 +244,24 @@ void compute(  size_t batchSize, double xmax, double xmin,
     }
   }
 }
-};
+}
 
 
 RooSpan<double> RooChebychev::evaluateBatch(std::size_t begin, std::size_t batchSize) const {
   auto xData = _x.getValBatch(begin, batchSize);
-  batchSize = xData.size();
-  auto output = _batchData.makeWritableBatchUnInit(begin, batchSize);
-
   if (xData.empty()) {
-        throw std::logic_error("Requested a batch computation, but no batch data available.");
+    return {};
   }
-  else {
-    const Double_t xmax = _x.max(_refRangeName?_refRangeName->GetName() : nullptr);
-    const Double_t xmin = _x.min(_refRangeName?_refRangeName->GetName() : nullptr);
-    ChebychevEvaluate::compute(batchSize, xmax, xmin, output.data(), xData.data(), _coefList);
-  }
+  batchSize = xData.size();
+
+  // Offset the sum by 1 or by what the user requested.
+  auto output = _batchData.makeWritableBatchInit(begin, batchSize,
+      _coefListIncludesC0 ? static_cast<const RooAbsReal&>(_coefList[0]).getVal() : 1.);
+
+  const Double_t xmax = _x.max(_refRangeName?_refRangeName->GetName() : nullptr);
+  const Double_t xmin = _x.min(_refRangeName?_refRangeName->GetName() : nullptr);
+  compute(batchSize, xmax, xmin, output.data(), xData.data(), _coefList, _coefListIncludesC0);
+
   return output;
 }
 ////////////////////////////////////////////////////////////////////////////////
@@ -266,33 +294,34 @@ Double_t RooChebychev::analyticalIntegral(Int_t code, const char* rangeName) con
 
 Double_t RooChebychev::evalAnaInt(const Double_t a, const Double_t b) const
 {
-   // coefficient for integral(T_0(x)) is 1 (implicit), integrate by hand
-   // T_0(x) and T_1(x), and use for n > 1: integral(T_n(x) dx) =
-   // (T_n+1(x) / (n + 1) - T_n-1(x) / (n - 1)) / 2
-   double sum = b - a; // integrate T_0(x) by hand
+  // coefficient for integral(T_0(x)) is 1 (implicit) or explicitly given, integrate by hand
+  const double T0 = (_coefListIncludesC0 ? static_cast<const RooAbsReal&>(_coefList[0]).getVal() : 1.);
+  double sum = (b - a) * T0;
+  
+//  std::cout << "Integral " << 0 << " " << sum << std::endl;
 
-   using size_type = typename RooListProxy::Storage_t::size_type;
-   const size_type iend = _coefList.size();
-   if (iend > 0) {
-      {
-         // integrate T_1(x) by hand...
-         const double c = static_cast<const RooAbsReal &>(_coefList[0]).getVal();
-         sum = fast_fma(0.5 * (b + a) * (b - a), c, sum);
-      }
-      if (1 < iend) {
-         ChebychevIterator<double, Kind::First> bit(b), ait(a);
-         ++bit, ++ait;
-         double nminus1 = 1.;
-         for (size_type i = 1; iend != i; ++i) {
-            // integrate using recursion relation
-            const double c = static_cast<const RooAbsReal &>(_coefList[i]).getVal();
-            const double term2 = (*bit - *ait) / nminus1;
-            ++bit, ++ait, ++nminus1;
-            const double term1 = (bit.lookahead() - ait.lookahead()) / (nminus1 + 1.);
-            const double intTn = 0.5 * (term1 - term2);
-            sum = fast_fma(intTn, c, sum);
-         }
-      }
+  // for n > 1, use integral(T_n(x) dx) =
+  // (T_n+1(x) / (n + 1) - T_n-1(x) / (n - 1)) / 2
+  ChebychevIterator<double, Kind::First> bit(b), ait(a);
+  for (std::size_t n = 1; n < _coefList.size(); ++n) {
+    const double c_n = static_cast<const RooAbsReal&>(_coefList[n + (_coefListIncludesC0 ? 0 : -1)]).getVal();
+
+    if (n == 1) {
+      sum = fast_fma(0.5 * (b + a) * (b - a), c_n, sum);
+      ++bit, ++ait;
+    }
+    else {
+      // integrate using recursion relation
+      const double term2 = (*bit - *ait) / (n - 1.);
+      ++bit, ++ait;
+      const double term1 = (bit.lookahead() - ait.lookahead()) / (n + 1.);
+      const double intTn = 0.5 * (term1 - term2);
+      sum = fast_fma(intTn, c_n, sum);
+    }
+
+//    std::cout << "Integral " << n << " " << "coef[" << n + (_coefListIncludesC0 ? 0 : -1) << "]="
+//        << c_n << " sum=" << sum << std::endl;
   }
+
   return sum;
 }
