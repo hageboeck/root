@@ -200,10 +200,10 @@ RooSpan<double> RooJohnson::evaluateBatch(std::size_t begin, std::size_t maxSize
 int RooJohnson::getAnalyticalIntegral(RooArgSet& allVars, RooArgSet& analVars, const char* /*rangeName*/) const
 {
   if (matchArgs(allVars, analVars, _mass)) return kMass;
-  if (matchArgs(allVars, analVars, _mu)) return kMean;
-  if (matchArgs(allVars, analVars, _lambda)) return kLambda;
-  if (matchArgs(allVars, analVars, _gamma)) return kGamma;
-  if (matchArgs(allVars, analVars, _delta)) return kDelta;
+//  if (matchArgs(allVars, analVars, _mu)) return kMean;
+//  if (matchArgs(allVars, analVars, _lambda)) return kLambda;
+//  if (matchArgs(allVars, analVars, _gamma)) return kGamma;
+//  if (matchArgs(allVars, analVars, _delta)) return kDelta;
   //TODO write integral for others
   return 0;
 }
@@ -212,10 +212,8 @@ int RooJohnson::getAnalyticalIntegral(RooArgSet& allVars, RooArgSet& analVars, c
 
 double RooJohnson::analyticalIntegral(Int_t code, const char* rangeName) const
 {
-  //The normalisation constant is left out in evaluate().
-  //Therefore, the integral is scaled up by that amount to make RooFit normalise
-  //correctly.
-  const double globalNorm = 1.;
+  // Scaler in case evaluate() returns unnormalised values
+  constexpr double globalNorm = 1.;
 //  const double globalNorm = sqrt(TMath::TwoPi());
 
   //Here everything is scaled and shifted such that we only need to compute CDF(Gauss):
@@ -228,8 +226,8 @@ double RooJohnson::analyticalIntegral(Int_t code, const char* rangeName) const
       argMin = (_mass.min(rangeName)-_mu)/_lambda;
       argMax = (_mass.max(rangeName)-_mu)/_lambda;
     } else if (code == kMean) {
-      argMin = (_mass-_mu.min(rangeName))/_lambda;
-      argMax = (_mass-_mu.max(rangeName))/_lambda;
+      argMin = -1.*(_mass-_mu.min(rangeName))/_lambda;
+      argMax = -1.*(_mass-_mu.max(rangeName))/_lambda;
     } else {
       assert(code == kLambda);
       argMin = (_mass-_mu)/_lambda.min(rangeName);

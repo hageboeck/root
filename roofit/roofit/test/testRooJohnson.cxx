@@ -114,67 +114,74 @@ TEST(RooJohnson, Integral)
   johnsonNumInt.setIntegratorConfig(intConfig);
   johnsonNumInt.forceNumInt(true);
 
-  auto integral = johnson.createIntegral(mass);
-  auto integralRanged = johnson.createIntegral(mass, "integrationRange");
-  auto numInt   = johnsonNumInt.createIntegral(mass);
-  auto numIntRanged = johnsonNumInt.createIntegral(mass, "integrationRange");
-  mass.setRange("integrationRange", -200, 200);
+  for (auto intVarP : {&mass, &mu}) {
+    RooRealVar& intVar = *intVarP;
+    std::stringstream str;
+    str << "Integrating " << intVar.GetName();
+    SCOPED_TRACE(str.str());
+
+    auto integral = johnson.createIntegral(intVar);
+    auto integralRanged = johnson.createIntegral(intVar, "integrationRange");
+    auto numInt   = johnsonNumInt.createIntegral(intVar);
+    auto numIntRanged = johnsonNumInt.createIntegral(intVar, "integrationRange");
+    intVar.setRange("integrationRange", -200, 200);
 
 
-  for (double theSig : {5., 10., 20., 50.}) { //Numerical integration poor for narrow peaks
-    for (double theMu : {-170., -100., 0., 30., 100., 150., 180.}) {
-      for (double theGam : {-10., -1., 0., 1., 2., 10.}) {
-        for (double theDelta : {1., 2., 10.}) {
-          mu = theMu;
-          sigma = theSig;
-          gamma = theGam;
-          delta = theDelta;
+    for (double theSig : {5., 10., 20., 50.}) { //Numerical integration poor for narrow peaks
+      for (double theMu : {-170., -100., 0., 30., 100., 150., 180.}) {
+        for (double theGam : {-10., -1., 0., 1., 2., 10.}) {
+          for (double theDelta : {1., 2., 10.}) {
+            mu = theMu;
+            sigma = theSig;
+            gamma = theGam;
+            delta = theDelta;
 
-          const double expDelta = exp(pow(theDelta, -2.));
-          const double variance = theSig*theSig/2.
-              * (expDelta - 1.)
-              * (expDelta * cosh(2.*theGam / theDelta) + 1.);
+            const double expDelta = exp(pow(theDelta, -2.));
+            const double variance = theSig*theSig/2.
+                * (expDelta - 1.)
+                * (expDelta * cosh(2.*theGam / theDelta) + 1.);
 
-          const double median = theMu + theSig * sinh(-1. * theGam / theDelta);
+            const double median = theMu + theSig * sinh(-1. * theGam / theDelta);
 
-          if (-100. < median && median < 100. && variance < 50.) {//central and peaked
-            EXPECT_GT(integral->getVal(), 0.95) << "Central and peaked for "
-            << theMu << " " << theSig << " " << theGam << " " << theDelta;
-
-            if (variance > 10.) {
-              EXPECT_GT(numInt->getVal(), 0.95) << "Central and peaked for "
+            if (-100. < median && median < 100. && variance < 50.) {//central and peaked
+              EXPECT_GT(integral->getVal(), 0.95) << "Central and peaked for "
                   << theMu << " " << theSig << " " << theGam << " " << theDelta;
+
+              if (variance > 10.) {
+                EXPECT_GT(numInt->getVal(), 0.95) << "Central and peaked for "
+                    << theMu << " " << theSig << " " << theGam << " " << theDelta;
+              }
             }
-          }
 
-          auto result = simpleIntegration(mass, johnson);
-          mass.setRange("integrationRange", result[1], result[2]);
+            auto result = simpleIntegration(intVar, johnson);
+            intVar.setRange("integrationRange", result[1], result[2]);
 
-          constexpr double accSumVsNum = 3.;
-          EXPECT_NEAR(numIntRanged->getVal(), result[0], accSumVsNum/100.*result[0])
-          << "Simple sum vs numerical integration within " << accSumVsNum << "%.";
+            constexpr double accSumVsNum = 3.;
+            EXPECT_NEAR(numIntRanged->getVal(), result[0], accSumVsNum/100.*result[0])
+            << "Simple sum vs numerical integration within " << accSumVsNum << "%.";
 
-          constexpr double accAnaVsNumCore = 1.;
-          EXPECT_NEAR(integralRanged->getVal(), numIntRanged->getVal(),
-              accAnaVsNumCore/100.*numIntRanged->getVal())
-              << "Analytical vs numerical integral (core region)"
-              << " within " << accAnaVsNumCore << "%. With "
-              << theMu << " " << theSig << " " << theGam << " " << theDelta;
-
-          if (integral->getVal() > 1.E-9 && variance > 10.) { //Numerical integral cannot do this
-            constexpr double accAnaVsNum = 3.;
-            EXPECT_NEAR(integral->getVal(), numInt->getVal(),
-                accAnaVsNum/100.*numIntRanged->getVal())
-            << "Analytical vs numerical integral (full range) variance=" << variance
-            << " within " << accAnaVsNum << "%. With "
+            constexpr double accAnaVsNumCore = 1.;
+            EXPECT_NEAR(integralRanged->getVal(), numIntRanged->getVal(),
+                accAnaVsNumCore/100.*numIntRanged->getVal())
+            << "Analytical vs numerical integral (core region)"
+            << " within " << accAnaVsNumCore << "%. With "
             << theMu << " " << theSig << " " << theGam << " " << theDelta;
-          }
 
-//          auto frame = mass.frame();
-//          johnson.plotOn(frame, RooFit::LineColor(kBlue));
-//          TCanvas canv;
-//          frame->Draw();
-//          canv.SaveAs(Form("/tmp/Johnson_%f_%f_%f_%f.png", theMu, theSig, theGam, theDelta));
+            if (integral->getVal() > 1.E-9 && variance > 10.) { //Numerical integral cannot do this
+              constexpr double accAnaVsNum = 3.;
+              EXPECT_NEAR(integral->getVal(), numInt->getVal(),
+                  accAnaVsNum/100.*numIntRanged->getVal())
+              << "Analytical vs numerical integral (full range) variance=" << variance
+              << " within " << accAnaVsNum << "%. With "
+              << theMu << " " << theSig << " " << theGam << " " << theDelta;
+            }
+
+            //          auto frame = mass.frame();
+            //          johnson.plotOn(frame, RooFit::LineColor(kBlue));
+            //          TCanvas canv;
+            //          frame->Draw();
+            //          canv.SaveAs(Form("/tmp/Johnson_%f_%f_%f_%f.png", theMu, theSig, theGam, theDelta));
+          }
         }
       }
     }
