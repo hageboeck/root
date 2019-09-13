@@ -11,8 +11,12 @@
 # If loaded successfully, typing `info pretty-printer` at the gdb prompt should list the
 # printers registered at the end of this file.
 
+from __future__ import print_function
 import gdb
+import sys
 
+def eprint(*args, **kwargs):
+    print(*args, file=sys.stderr, **kwargs)
 
 class TObjectPrinter(object):
    "Print TObjects"
@@ -58,12 +62,38 @@ class TStringPrinter(object):
 
 
 
+class TObjArrayPrinter(object):
+   "Print TObjArray"
+
+   def __init__(self, val):
+      self.val = val
+      self.last = int(self.val['fLast'])
+      self.first = int(self.val['fLowerBound'])
+      
+   def noElm(self):
+      if self.last <= 0:
+         return 0
+      return self.last - self.first
+      
+   def display_hint(self):
+      return 'array'
+      
+   def children(self):
+      begin = self.val['fCont']
+      for i in range(self.first, self.last):
+         yield str(i), fCont[i]
+      
+
+   def to_string(self):
+      return str('TObjArray with ') + str(self.noElm()) + ' elements'
+
 
 def build_pretty_printer():
    pp = gdb.printing.RegexpCollectionPrettyPrinter("libCore")
    pp.add_printer('TObject', '^TObject$', TObjectPrinter)
    pp.add_printer('TNamed', '^TNamed$', TNamedPrinter)
-   pp.add_printer('TString', '^TString$', TStringPrinter)  
+   pp.add_printer('TString', '^TString$', TStringPrinter)
+   pp.add_printer('TObjArray', '^TObjArray$', TObjArrayPrinter)
    
    return pp
 

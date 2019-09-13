@@ -12,7 +12,7 @@
 # printers registered at the end of this file.
 
 import gdb
-
+import sys
 
 class RooCollectionPrinter(object):
    "Print a RooAbsCollection"
@@ -75,21 +75,45 @@ class RooAbsArgPrinter(object):
 
    def __init__(self, val):
       self.val = val
+      self.blacklist = ['_ioEvoList', '_ioReadStack',
+      'fgIsA', 'fnv1a32start', 'fnv1a64start', 'RooPrintable']
       
    def children(self):
-      for name,item in self.val.fields():
-         yield name, item
+      for field in self.val.type.fields():
+         if field.name != None and field.name in self.blacklist:
+            continue
+         try:
+            if field.is_base_class:
+               yield '<'+field.name+'>', self.val.cast(field.type)
+            else:
+               yield field.name, self.val[field.name]
+         except gdb.error as e:
+            print('Got error for' + field.name + str(e))
 
    def to_string(self):
-      ret += str(self.val.address) + " " + str(self.val.dynamic_type)
-      itemName = self.val['fName']
-      ret += " = { <fName> = {" + str(itemName) + "} }"
+      ret = str(self.val.address) + " " + str(self.val.dynamic_type)
+      itemName = str(self.val['fName']).strip('"')
+      ret += " '" + str(itemName) + "'"
       return ret
 
    def display_hint(self):
-      return 'RooAbsArg printer'
+      return 'string'
 
-
+class RooRefArrayPrinter(object):
+   "Print a RooRefArray"
+   
+   def __init__(self, val):
+      self.val = val
+      
+   def to_string(self):
+      return "RooRefArray"
+   
+   def children(self):
+      for field in self.val.type.fields():
+         if field.is_base_class:
+            yield '<'+field.name+'>', self.val.cast(field.type)
+            
+            
       
 class RooSTLRefCountListPrinter(object):
    "Print ref count lists"
@@ -104,7 +128,6 @@ class RooSTLRefCountListPrinter(object):
       for (name,val), (name2,val2) in zip(viz.children(), vizRC.children()):
          ret += str(val['fName']) + ": " + str(val2) + ", "
       return ret + "}"
-      
 
 
 class NonePrinter(object):
@@ -128,6 +151,8 @@ def build_pretty_printer():
    pp.add_printer('Collections', '^Roo(AbsCollection|ArgList|ArgSet)$', RooCollectionPrinter)
    pp.add_printer('RooSTLRefCountList', '^RooSTLRefCountList.*$', RooSTLRefCountListPrinter)
    pp.add_printer('RooPrintable', '^RooPrintable$', NonePrinter)
+   pp.add_printer('RooAbsArg', '^RooAbsArg', RooAbsArgPrinter)
+   pp.add_printer('RooRefArray', '^RooRefArray', RooRefArrayPrinter)
 
    return pp
 
