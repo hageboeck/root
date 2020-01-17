@@ -183,7 +183,8 @@ protected:
   Int_t       _arrSize ; //  Size of the weight array
   std::vector<Int_t> _idxMult ; // Multiplier jump table for index calculation
 
-  Double_t*       _wgt ; //[_arrSize] Weight array
+//  Double_t*       _wgt ; //[_arrSize] Weight array
+  std::vector<double> _wgtVec;
   Double_t*     _errLo ; //[_arrSize] Low-side error on weight array
   Double_t*     _errHi ; //[_arrSize] High-side error on weight array
   Double_t*     _sumw2 ; //[_arrSize] Sum of weights^2
@@ -212,7 +213,9 @@ protected:
 private:
   void _adjustBinning(RooRealVar &theirVar, const TAxis &axis, RooRealVar *ourVar, Int_t *offset);
 
-  ClassDef(RooDataHist,4) // Binned data set
+  double* _wgt;//!
+
+  ClassDef(RooDataHist,5) // Binned data set
 };
 
 #endif

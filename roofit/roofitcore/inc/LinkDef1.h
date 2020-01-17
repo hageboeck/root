@@ -78,7 +78,7 @@
 #pragma link C++ class RooConvIntegrandBinding+ ;
 #pragma link C++ class RooCurve+ ;
 #pragma link C++ class RooCustomizer+ ;
-#pragma link C++ class RooDataHist- ;
+#pragma link C++ class RooDataHist+ ;
 #pragma link C++ class RooDataProjBinding+ ;
 #pragma link C++ class RooDataSet- ;
 #pragma link C++ class RooDirItem+ ;

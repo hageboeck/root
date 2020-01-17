@@ -50,7 +50,7 @@ or RooStringVar objects, thus data can be binned in real and/or discrete dimensi
 #include "RooTrace.h"
 #include "RooTreeData.h"
 #include "RooHelpers.h"
-
+#include "RooFormulaVar.h"
 using namespace std ;
 
 ClassImp(RooDataHist); 
@@ -1999,79 +1999,5 @@ void RooDataHist::printMultiline(ostream& os, Int_t content, Bool_t verbose, TSt
   }
 }
 
-
-
-////////////////////////////////////////////////////////////////////////////////
-/// Stream an object of class RooDataHist.
-
-void RooDataHist::Streamer(TBuffer &R__b)
-{
-   if (R__b.IsReading()) {
-
-     UInt_t R__s, R__c;
-     Version_t R__v = R__b.ReadVersion(&R__s, &R__c);
-     
-      if (R__v>2) {
-
-	R__b.ReadClassBuffer(RooDataHist::Class(),this,R__v,R__s,R__c);
-	initialize(0,kFALSE) ;
-
-      } else {	
-
-	// Legacy dataset conversion happens here. Legacy RooDataHist inherits from RooTreeData
-	// which in turn inherits from RooAbsData. Manually stream RooTreeData contents on 
-	// file here and convert it into a RooTreeDataStore which is installed in the 
-	// new-style RooAbsData base class
-	
-	// --- This is the contents of the streamer code of RooTreeData version 2 ---
-	UInt_t R__s1, R__c1;
-	Version_t R__v1 = R__b.ReadVersion(&R__s1, &R__c1); if (R__v1) { }
-	
-	RooAbsData::Streamer(R__b);
-	TTree* X_tree(0) ; R__b >> X_tree;
-	RooArgSet X_truth ; X_truth.Streamer(R__b);
-	TString X_blindString ; X_blindString.Streamer(R__b);
-	R__b.CheckByteCount(R__s1, R__c1, RooTreeData::Class());
-	// --- End of RooTreeData-v1 streamer
-	
-	// Construct RooTreeDataStore from X_tree and complete initialization of new-style RooAbsData
-	_dstore = new RooTreeDataStore(X_tree,_vars) ;
-	_dstore->SetName(GetName()) ;
-	_dstore->SetTitle(GetTitle()) ;
-	_dstore->checkInit() ;       
-	
-	RooDirItem::Streamer(R__b);
-	R__b >> _arrSize;
-	delete [] _wgt;
-	_wgt = new Double_t[_arrSize];
-	R__b.ReadFastArray(_wgt,_arrSize);
-	delete [] _errLo;
-	_errLo = new Double_t[_arrSize];
-	R__b.ReadFastArray(_errLo,_arrSize);
-	delete [] _errHi;
-	_errHi = new Double_t[_arrSize];
-	R__b.ReadFastArray(_errHi,_arrSize);
-	delete [] _sumw2;
-	_sumw2 = new Double_t[_arrSize];
-	R__b.ReadFastArray(_sumw2,_arrSize);
-	delete [] _binv;
-	_binv = new Double_t[_arrSize];
-	R__b.ReadFastArray(_binv,_arrSize);
-	_realVars.Streamer(R__b);
-	R__b >> _curWeight;
-	R__b >> _curWgtErrLo;
-	R__b >> _curWgtErrHi;
-	R__b >> _curSumW2;
-	R__b >> _curVolume;
-	R__b >> _curIndex;
-	R__b.CheckByteCount(R__s, R__c, RooDataHist::IsA());
-
-      }
-      
-   } else {
-
-      R__b.WriteClassBuffer(RooDataHist::Class(),this);
-   }
-}
 
 
