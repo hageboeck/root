@@ -16,11 +16,9 @@
 #ifndef ROO_SIMULTANEOUS
 #define ROO_SIMULTANEOUS
 
-//#include "THashList.h"
-#include "TList.h"
 #include "RooAbsPdf.h"
 #include "RooCategoryProxy.h"
-#include "RooRealProxy.h"
+#include "RooTemplateProxy.h"
 #include "RooSetProxy.h"
 #include "RooAICRegistry.h"
 #include "RooObjCacheManager.h"
@@ -77,7 +75,7 @@ public:
 			  Double_t rangeLo=0, Double_t rangeHi=0, RooCurve::WingMode wmode=RooCurve::Extended) const;
   
   RooAbsPdf* getPdf(const char* catName) const ;
-  const RooAbsCategoryLValue& indexCat() const { return (RooAbsCategoryLValue&) _indexCat.arg() ; }
+  const RooAbsCategoryLValue& indexCat() const { return *_indexCat; }
 
 
   virtual RooDataSet* generateSimGlobal(const RooArgSet& whatVars, Int_t nEvents) ;
@@ -87,12 +85,13 @@ public:
   
 protected:
 
-  void initialize(RooAbsCategoryLValue& inIndexCat, std::map<std::string,RooAbsPdf*> pdfMap) ;
-
   virtual void selectNormalization(const RooArgSet* depSet=0, Bool_t force=kFALSE) ;
   virtual void selectNormalizationRange(const char* rangeName=0, Bool_t force=kFALSE) ;
-  mutable RooSetProxy _plotCoefNormSet ;
-  const TNamed* _plotCoefNormRange ;
+  std::map<int, RooTemplateProxy<RooAbsPdf>>::const_iterator findPdfInProxyMap(const std::string& categoryName) const;
+  std::map<int, RooTemplateProxy<RooAbsPdf>>::const_iterator findPdfInProxyMap(int index) const;
+
+private:
+  void initialize(RooAbsCategoryLValue& inIndexCat, std::map<std::string,RooAbsPdf*> pdfMap);
 
   class CacheElem : public RooAbsCacheElement {
   public:
@@ -100,8 +99,6 @@ protected:
     RooArgList containedArgs(Action) { return RooArgList(_partIntList) ; }
     RooArgList _partIntList ;
   } ;
-  mutable RooObjCacheManager _partIntMgr ; // Component normalization manager
-
 
   friend class RooSimGenContext ;
   friend class RooSimSplitGenContext ;
@@ -109,12 +106,17 @@ protected:
 					   Bool_t verbose=kFALSE, Bool_t autoBinned=kTRUE, const char* binnedTag="") const ;
   virtual RooAbsGenContext* genContext(const RooArgSet &vars, const RooDataSet *prototype=0, 
 	                               const RooArgSet* auxProto=0, Bool_t verbose= kFALSE) const ;
- 
-  RooCategoryProxy _indexCat ; // Index category
-  TList    _pdfProxyList ;     // List of PDF proxies (named after applicable category state)
-  Int_t    _numPdf ;           // Number of registered PDFs
 
-  ClassDef(RooSimultaneous,2)  // Simultaneous operator p.d.f, functions like C++  'switch()' on input p.d.fs operating on index category5A
+  void rebuildIndexMap();
+
+protected:
+  mutable RooSetProxy _plotCoefNormSet ;
+  const TNamed* _plotCoefNormRange ;
+  mutable RooObjCacheManager _partIntMgr ; // Component normalization manager
+  RooTemplateProxy<RooAbsCategoryLValue> _indexCat; // Index category
+  std::map<int, RooTemplateProxy<RooAbsPdf>> _pdfProxyMap; // List of PDF proxies (indexed by category states)
+
+  ClassDef(RooSimultaneous,3)  // Simultaneous operator p.d.f, functions like C++  'switch()' on input p.d.fs operating on index category
 };
 
 #endif

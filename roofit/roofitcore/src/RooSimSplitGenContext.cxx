@@ -69,7 +69,6 @@ RooSimSplitGenContext::RooSimSplitGenContext(const RooSimultaneous &model, const
       oocoutE(_pdf,Generation) << "RooSimSplitGenContext::ctor(" << GetName() << ") ERROR: This context must"
 			       << " generate the index category" << endl ;
       _isValid = kFALSE ;
-      _numPdf = 0 ;
       // coverity[UNINIT_CTOR]
       return ;
     }
@@ -91,7 +90,6 @@ RooSimSplitGenContext::RooSimSplitGenContext(const RooSimultaneous &model, const
       oocoutE(_pdf,Generation) << "RooSimSplitGenContext::ctor(" << GetName() << ") ERROR: This context must"
 			       << " generate all components of a derived index category" << endl ;
       _isValid = kFALSE ;
-      _numPdf = 0 ;
       // coverity[UNINIT_CTOR]
       return ;
     }
@@ -103,43 +101,38 @@ RooSimSplitGenContext::RooSimSplitGenContext(const RooSimultaneous &model, const
     oocoutE(_pdf,Generation) << "RooSimSplitGenContext::RooSimSplitGenContext(" << GetName() << "): All components of the simultaneous PDF "
 			     << "must be extended PDFs. Otherwise, it is impossible to calculate the number of events to be generated per component." << endl ;
     _isValid = kFALSE ;
-    _numPdf = 0 ;
     // coverity[UNINIT_CTOR]
     return ;
   }
 
   // Initialize fraction threshold array (used only in extended mode)
-  _numPdf = model._pdfProxyList.GetSize() ;
-  _fracThresh = new Double_t[_numPdf+1] ;
+  _fracThresh = new Double_t[_pdf->_pdfProxyMap.size()+1] ;
   _fracThresh[0] = 0 ;
   
   // Generate index category and all registered PDFS
-  _proxyIter = model._pdfProxyList.MakeIterator() ;
   _allVarsPdf.add(allPdfVars) ;
-  RooRealProxy* proxy ;
-  RooAbsPdf* pdf ;
   Int_t i(1) ;
-  while((proxy=(RooRealProxy*)_proxyIter->Next())) {
-    pdf=(RooAbsPdf*)proxy->absArg() ;
+  for (const auto& proxyIter : _pdf->_pdfProxyMap) {
+    const auto& pdf = proxyIter.second.arg();
 
     // Create generator context for this PDF
-    RooArgSet* compVars = pdf->getObservables(pdfVars) ;
-    RooAbsGenContext* cx = pdf->autoGenContext(*compVars,0,0,verbose,autoBinned,binnedTag) ;
+    RooArgSet* compVars = pdf.getObservables(pdfVars) ;
+    RooAbsGenContext* cx = pdf.autoGenContext(*compVars,0,0,verbose,autoBinned,binnedTag) ;
     delete compVars ;
 
-    const auto state = idxCat->lookupIndex(proxy->name());
+    const auto state = idxCat->lookupIndex(proxyIter.second.name());
 
-    cx->SetName(proxy->name()) ;
+    cx->SetName(proxyIter.second.name()) ;
     _gcList.push_back(cx) ;
     _gcIndex.push_back(state);
     
     // Fill fraction threshold array
-    _fracThresh[i] = _fracThresh[i-1] + pdf->expectedEvents(&allPdfVars) ;
+    _fracThresh[i] = _fracThresh[i-1] + pdf.expectedEvents(&allPdfVars) ;
     i++ ;
   }   
 
-  for(i=0 ; i<_numPdf ; i++) {
-    _fracThresh[i] /= _fracThresh[_numPdf] ;
+  for (unsigned int j=0 ; j < _pdf->_pdfProxyMap.size() ; j++) {
+    _fracThresh[j] /= _fracThresh[_pdf->_pdfProxyMap.size()] ;
   }
     
   // Clone the index category
@@ -164,7 +157,6 @@ RooSimSplitGenContext::~RooSimSplitGenContext()
   for (vector<RooAbsGenContext*>::iterator iter = _gcList.begin() ; iter!=_gcList.end() ; ++iter) {
     delete (*iter) ;
   }
-  delete _proxyIter ;
 }
 
 
@@ -233,43 +225,39 @@ RooDataSet* RooSimSplitGenContext::generate(Double_t nEvents, Bool_t skipInit, B
   }
 
   // Generate lookup table from expected event counts
-  vector<Double_t> nGen(_numPdf) ;
+  vector<Double_t> nGen(_pdf->_pdfProxyMap.size()) ;
   if (extendedMode ) {
-    _proxyIter->Reset() ;
-    RooRealProxy* proxy ;
     Int_t i(0) ;
-    while((proxy=(RooRealProxy*)_proxyIter->Next())) {
-      RooAbsPdf* pdf=(RooAbsPdf*)proxy->absArg() ;
+    for (const auto& proxyIter : _pdf->_pdfProxyMap) {
+      const auto& pdf = proxyIter.second.arg();
       //nGen[i] = Int_t(pdf->expectedEvents(&_allVarsPdf)+0.5) ;
-      nGen[i] = pdf->expectedEvents(&_allVarsPdf) ;
+      nGen[i] = pdf.expectedEvents(&_allVarsPdf) ;
       i++ ;
     }     
     
   } else {
-    _proxyIter->Reset() ;
-    RooRealProxy* proxy ;
     Int_t i(1) ;
     _fracThresh[0] = 0 ;
-    while((proxy=(RooRealProxy*)_proxyIter->Next())) {
-      RooAbsPdf* pdf=(RooAbsPdf*)proxy->absArg() ;
-      _fracThresh[i] = _fracThresh[i-1] + pdf->expectedEvents(&_allVarsPdf) ;
+    for (const auto& proxyIter : _pdf->_pdfProxyMap) {
+      const auto& pdf = proxyIter.second.arg();
+      _fracThresh[i] = _fracThresh[i-1] + pdf.expectedEvents(&_allVarsPdf) ;
       i++ ;
-    }     
-    for(i=0 ; i<_numPdf ; i++) {
-      _fracThresh[i] /= _fracThresh[_numPdf] ;
+    }
+
+    for (unsigned int j=0 ; j < _pdf->_pdfProxyMap.size() ; j++) {
+      _fracThresh[j] /= _fracThresh[_pdf->_pdfProxyMap.size()] ;
     }
     
     // Determine from that total number of events to be generated for each component
     Double_t nGenSoFar(0) ;
     while (nGenSoFar<nEvents) {
       Double_t rand = RooRandom::uniform() ;
-      i=0 ;
-      for (i=0 ; i<_numPdf ; i++) {
-	if (rand>_fracThresh[i] && rand<_fracThresh[i+1]) {
-	  nGen[i]++ ;
-	  nGenSoFar++ ;
-	  break ;
-	}
+      for (unsigned int j=0; j < _pdf->_pdfProxyMap.size(); j++) {
+        if (rand>_fracThresh[j] && rand<_fracThresh[j+1]) {
+          nGen[j]++ ;
+          nGenSoFar++ ;
+          break ;
+        }
       }
     }
   }
@@ -277,15 +265,12 @@ RooDataSet* RooSimSplitGenContext::generate(Double_t nEvents, Bool_t skipInit, B
     
 
   // Now loop over states
-  _proxyIter->Reset() ;
   map<string,RooAbsData*> dataMap ;
   Int_t icomp(0) ;
-  RooRealProxy* proxy ;
-  while((proxy=(RooRealProxy*)_proxyIter->Next())) {            
-
+  for (const auto& proxyIter : _pdf->_pdfProxyMap) {
     // Calculate number of events to generate for this state    
     if (_gcList[icomp]) {
-      dataMap[proxy->GetName()] = _gcList[icomp]->generate(nGen[icomp],skipInit,extendedMode) ;
+      dataMap[proxyIter.second.GetName()] = _gcList[icomp]->generate(nGen[icomp],skipInit,extendedMode) ;
     }
     
     icomp++ ;

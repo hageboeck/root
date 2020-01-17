@@ -77,7 +77,6 @@ RooSimGenContext::RooSimGenContext(const RooSimultaneous &model, const RooArgSet
       oocoutE(_pdf,Generation) << "RooSimGenContext::ctor(" << GetName() << ") ERROR: This context must"
 			       << " generate the index category" << endl ;
       _isValid = kFALSE ;
-      _numPdf = 0 ;
       _haveIdxProto = kFALSE ;
       return ;
     }
@@ -99,7 +98,6 @@ RooSimGenContext::RooSimGenContext(const RooSimultaneous &model, const RooArgSet
       oocoutE(_pdf,Generation) << "RooSimGenContext::ctor(" << GetName() << ") ERROR: This context must"
 			       << " generate all components of a derived index category" << endl ;
       _isValid = kFALSE ;
-      _numPdf = 0 ;
       _haveIdxProto = kFALSE ;
       return ;
     }
@@ -113,41 +111,36 @@ RooSimGenContext::RooSimGenContext(const RooSimultaneous &model, const RooArgSet
     oocoutE(_pdf,Generation) << "RooSimGenContext::ctor(" << GetName() << ") ERROR: Need either extended mode"
 			     << " or prototype data to calculate number of events per category" << endl ;
     _isValid = kFALSE ;
-    _numPdf = 0 ;
     return ;
   }
 
   // Initialize fraction threshold array (used only in extended mode)
-  _numPdf = model._pdfProxyList.GetSize() ;
-  _fracThresh = new Double_t[_numPdf+1] ;
+  _fracThresh = new Double_t[_pdf->_pdfProxyMap.size()+1] ;
   _fracThresh[0] = 0 ;
   
   // Generate index category and all registered PDFS
-  _proxyIter = model._pdfProxyList.MakeIterator() ;
   _allVarsPdf.add(allPdfVars) ;
-  RooRealProxy* proxy ;
-  RooAbsPdf* pdf ;
   Int_t i(1) ;
-  while((proxy=(RooRealProxy*)_proxyIter->Next())) {
-    pdf=(RooAbsPdf*)proxy->absArg() ;
+  for (const auto& proxyIter : _pdf->_pdfProxyMap) {
+    const auto& pdf = proxyIter.second.arg();
 
     // Create generator context for this PDF
-    RooAbsGenContext* cx = pdf->genContext(pdfVars,prototype,auxProto,verbose) ;
+    RooAbsGenContext* cx = pdf.genContext(pdfVars,prototype,auxProto,verbose) ;
 
     // Name the context after the associated state and add to list
-    cx->SetName(proxy->name()) ;
+    cx->SetName(proxyIter.second.name()) ;
     _gcList.push_back(cx) ;
-    _gcIndex.push_back(idxCat->lookupIndex(proxy->name()));
+    _gcIndex.push_back(idxCat->lookupIndex(proxyIter.second.name()));
 
     // Fill fraction threshold array
-    _fracThresh[i] = _fracThresh[i-1] + (_haveIdxProto?0:pdf->expectedEvents(&allPdfVars)) ;
+    _fracThresh[i] = _fracThresh[i-1] + (_haveIdxProto ? 0 : pdf.expectedEvents(&allPdfVars)) ;
     i++ ;
   }   
     
   // Normalize fraction threshold array
   if (!_haveIdxProto) {
-    for(i=0 ; i<_numPdf ; i++) 
-      _fracThresh[i] /= _fracThresh[_numPdf] ;
+    for(unsigned int j=0; j < _pdf->_pdfProxyMap.size(); j++)
+      _fracThresh[j] /= _fracThresh[_pdf->_pdfProxyMap.size()] ;
   }
   
 
@@ -173,7 +166,6 @@ RooSimGenContext::~RooSimGenContext()
   for (vector<RooAbsGenContext*>::iterator iter = _gcList.begin() ; iter!=_gcList.end() ; ++iter) {
     delete (*iter) ;
   }
-  delete _proxyIter ;
   if (_protoData) delete _protoData ;
 }
 
@@ -279,8 +271,7 @@ void RooSimGenContext::generateEvent(RooArgSet &theEvent, Int_t remaining)
 
     // Throw a random number and select PDF from fraction threshold table
     Double_t rand = RooRandom::uniform() ;
-    Int_t i=0 ;
-    for (i=0 ; i<_numPdf ; i++) {
+    for (unsigned int i=0 ; i < _pdf->_pdfProxyMap.size(); i++) {
       if (rand>_fracThresh[i] && rand<_fracThresh[i+1]) {
         RooAbsGenContext* gen=_gcList[i] ;
         gen->generateEvent(theEvent,remaining) ;
@@ -303,22 +294,19 @@ void RooSimGenContext::updateFractions()
   if (_haveIdxProto) return ;
 
   // Generate index category and all registered PDFS
-  RooRealProxy* proxy ;
-  RooAbsPdf* pdf ;
   Int_t i(1) ;
-  _proxyIter->Reset() ;
-  while((proxy=(RooRealProxy*)_proxyIter->Next())) {
-    pdf=(RooAbsPdf*)proxy->absArg() ;
+  for (const auto& proxyIter : _pdf->_pdfProxyMap) {
+    const auto& pdf = proxyIter.second.arg();
     
     // Fill fraction threshold array
-    _fracThresh[i] = _fracThresh[i-1] + (_haveIdxProto?0:pdf->expectedEvents(&_allVarsPdf)) ;
+    _fracThresh[i] = _fracThresh[i-1] + (_haveIdxProto ? 0 : pdf.expectedEvents(&_allVarsPdf)) ;
     i++ ;
   }   
     
   // Normalize fraction threshold array
   if (!_haveIdxProto) {
-    for(i=0 ; i<_numPdf ; i++) 
-      _fracThresh[i] /= _fracThresh[_numPdf] ;
+    for (unsigned int j=0; j < _pdf->_pdfProxyMap.size(); j++)
+      _fracThresh[j] /= _fracThresh[_pdf->_pdfProxyMap.size()] ;
   }
   
 }

@@ -81,21 +81,19 @@ ClassImp(RooSimultaneous);
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Constructor with index category. PDFs associated with indexCat
-/// states can be added after construction with the addPdf() function.
+/// states can be added using addPdf().
 /// 
 /// RooSimultaneous can function without having a PDF associated
 /// with every single state. The normalization in such cases is taken
-/// from the number of registered PDFs, but getVal() will assert if
-/// when called for an unregistered index state.
-
+/// from the number of registered PDFs, but getVal() will return 0. if
+/// a category without an associated PDF is selected.
 RooSimultaneous::RooSimultaneous(const char *name, const char *title, 
 				 RooAbsCategoryLValue& inIndexCat) : 
   RooAbsPdf(name,title), 
   _plotCoefNormSet("!plotCoefNormSet","plotCoefNormSet",this,kFALSE,kFALSE),
   _plotCoefNormRange(0),
   _partIntMgr(this,10),
-  _indexCat("indexCat","Index category",this,inIndexCat),
-  _numPdf(0)
+  _indexCat("indexCat", "Index category", this, inIndexCat, true, true)
 {
 }
 
@@ -117,8 +115,7 @@ RooSimultaneous::RooSimultaneous(const char *name, const char *title,
   _plotCoefNormSet("!plotCoefNormSet","plotCoefNormSet",this,kFALSE,kFALSE),
   _plotCoefNormRange(0),
   _partIntMgr(this,10),
-  _indexCat("indexCat","Index category",this,inIndexCat),
-  _numPdf(0)
+  _indexCat("indexCat", "Index category", this, inIndexCat, true, true)
 {
   if (inPdfList.size() != inIndexCat.size()) {
     coutE(InputArguments) << "RooSimultaneous::ctor(" << GetName() 
@@ -146,8 +143,7 @@ RooSimultaneous::RooSimultaneous(const char *name, const char *title,
   _plotCoefNormSet("!plotCoefNormSet","plotCoefNormSet",this,kFALSE,kFALSE),
   _plotCoefNormRange(0),
   _partIntMgr(this,10),
-  _indexCat("indexCat","Index category",this,inIndexCat),
-  _numPdf(0)
+  _indexCat("indexCat", "Index category", this, inIndexCat, true, true)
 {
   initialize(inIndexCat,pdfMap) ;
 }
@@ -169,25 +165,21 @@ namespace RooSimultaneousAux {
 void RooSimultaneous::initialize(RooAbsCategoryLValue& inIndexCat, std::map<std::string,RooAbsPdf*> pdfMap) 
 {
   // First see if there are any RooSimultaneous input components
-  Bool_t simComps(kFALSE) ;
-  for (map<string,RooAbsPdf*>::iterator iter=pdfMap.begin() ; iter!=pdfMap.end() ; ++iter) {
-    if (dynamic_cast<RooSimultaneous*>(iter->second)) {
-      simComps = kTRUE ;
-      break ;
-    }
-  }
+  bool simComps = std::any_of(pdfMap.begin(), pdfMap.end(), [](const std::pair<std::string,RooAbsPdf*>& pdf){
+    return dynamic_cast<const RooSimultaneous*>(pdf.second) != nullptr;
+  });
 
   // If there are no simultaneous component p.d.f. do simple processing through addPdf()
   if (!simComps) {
-    bool failure = false;
-    for (map<string,RooAbsPdf*>::iterator iter=pdfMap.begin() ; iter!=pdfMap.end() ; ++iter) {
-      failure |= addPdf(*iter->second,iter->first.c_str()) ;
+    for (const auto& iter : pdfMap) {
+      const bool failure = addPdf(*iter.second, iter.first.c_str());
+
+      if (failure) {
+        throw std::invalid_argument(std::string("The PDF ") + iter.second->GetName() + " of the RooSimultaneous "
+        + GetName() + " is invalid.");
+      }
     }
 
-    if (failure) {
-      throw std::invalid_argument(std::string("At least one of the PDFs of the RooSimultaneous ")
-      + GetName() + " is invalid.");
-    }
     return ;
   }
 
@@ -322,16 +314,14 @@ RooSimultaneous::RooSimultaneous(const RooSimultaneous& other, const char* name)
   _plotCoefNormSet("!plotCoefNormSet",this,other._plotCoefNormSet),
   _plotCoefNormRange(other._plotCoefNormRange),
   _partIntMgr(other._partIntMgr,this),
-  _indexCat("indexCat",this,other._indexCat), 
-  _numPdf(other._numPdf)
+  _indexCat("indexCat",this,other._indexCat)
 {
   // Copy proxy list 
-  TIterator* pIter = other._pdfProxyList.MakeIterator() ;
-  RooRealProxy* proxy ;
-  while ((proxy=(RooRealProxy*)pIter->Next())) {
-    _pdfProxyList.Add(new RooRealProxy(proxy->GetName(),this,*proxy)) ;
+  for (const auto& proxyIt : other._pdfProxyMap) {
+    _pdfProxyMap.emplace(std::piecewise_construct,
+        std::forward_as_tuple(proxyIt.first),
+        std::forward_as_tuple(proxyIt.second.GetName(), this, proxyIt.second));
   }
-  delete pIter ;
 }
 
 
@@ -341,7 +331,7 @@ RooSimultaneous::RooSimultaneous(const RooSimultaneous& other, const char* name)
 
 RooSimultaneous::~RooSimultaneous() 
 {
-  _pdfProxyList.Delete() ;
+
 }
 
 
@@ -351,8 +341,8 @@ RooSimultaneous::~RooSimultaneous()
 
 RooAbsPdf* RooSimultaneous::getPdf(const char* catName) const 
 {
-  RooRealProxy* proxy = (RooRealProxy*) _pdfProxyList.FindObject(catName) ;
-  return proxy ? ((RooAbsPdf*)proxy->absArg()) : 0 ;
+  auto proxyIt = findPdfInProxyMap(catName);
+  return proxyIt != _pdfProxyMap.end() ? const_cast<RooAbsPdf*>(&(proxyIt->second.arg())) : nullptr;
 }
 
 
@@ -381,29 +371,33 @@ Bool_t RooSimultaneous::addPdf(const RooAbsPdf& pdf, const char* catLabel)
   }
 
   // Each index state can only have one PDF associated with it
-  if (_pdfProxyList.FindObject(catLabel)) {
+  if (findPdfInProxyMap(catLabel) != _pdfProxyMap.end()) {
     coutE(InputArguments) << "RooSimultaneous::addPdf(" << GetName() << "): index state '"
 			  << catLabel << "' has already an associated PDF." << endl ;
     return kTRUE ;
   }
 
-  const RooSimultaneous* simPdf = dynamic_cast<const RooSimultaneous*>(&pdf) ;
-  if (simPdf) {
+  if (dynamic_cast<const RooSimultaneous*>(&pdf)) {
 
     coutE(InputArguments) << "RooSimultaneous::addPdf(" << GetName() 
 			  << ") ERROR: you cannot add a RooSimultaneous component to a RooSimultaneous using addPdf()." 
 			  << " Use the constructor with RooArgList if input p.d.f.s or the map<string,RooAbsPdf&> instead." << endl ;
     return kTRUE ;
 
-  } else {
-
-    // Create a proxy named after the associated index state
-    TObject* proxy = new RooRealProxy(catLabel,catLabel,this,(RooAbsPdf&)pdf) ;
-    _pdfProxyList.Add(proxy) ;
-    _numPdf += 1 ;
+  } else if (!_indexCat->hasLabel(catLabel)) {
+    coutE(InputArguments) << "RooSimultaneous::addPdf(" << GetName() << "): index label '"
+        << catLabel << "' is not a valid label of the category object." << endl;
+    return true;
   }
 
-  return kFALSE ;
+  // Create a proxy associated with the index state
+  const auto cat = _indexCat->lookupIndex(catLabel);
+
+  _pdfProxyMap.emplace(std::piecewise_construct,
+      std::forward_as_tuple(cat),
+      std::forward_as_tuple(catLabel, catLabel, this, const_cast<RooAbsPdf&>(pdf)));
+
+  return false;
 }
 
 
@@ -418,29 +412,21 @@ RooAbsPdf::ExtendMode RooSimultaneous::extendMode() const
   Bool_t allCanExtend(kTRUE) ;
   Bool_t anyMustExtend(kFALSE) ;
 
-  for (Int_t i=0 ; i<_numPdf ; i++) {
-    RooRealProxy* proxy = (RooRealProxy*) _pdfProxyList.FindObject(_indexCat.label()) ;
-    if (proxy) {
-//       cout << " now processing pdf " << pdf->GetName() << endl ;
-      RooAbsPdf* pdf = (RooAbsPdf*) proxy->absArg() ;
-      if (!pdf->canBeExtended()) {
-// 	cout << "RooSim::extendedMode(" << GetName() << ") component " << pdf->GetName() << " cannot be extended" << endl ;
-	allCanExtend=kFALSE ;
-      }
-      if (pdf->mustBeExtended()) {
-	anyMustExtend=kTRUE;
-      }
+  for (const auto& proxyIt : _pdfProxyMap) {
+    const auto& pdf = proxyIt.second.arg();
+    if (!pdf.canBeExtended()) {
+      allCanExtend=kFALSE ;
+    }
+    if (pdf.mustBeExtended()) {
+      anyMustExtend=kTRUE;
     }
   }
   if (anyMustExtend) {
-//     cout << "RooSim::extendedMode(" << GetName() << ") returning MustBeExtended" << endl ;
     return MustBeExtended ;
   }
   if (allCanExtend) {
-//     cout << "RooSim::extendedMode(" << GetName() << ") returning CanBeExtended" << endl ;
     return CanBeExtended ;
   }
-//   cout << "RooSim::extendedMode(" << GetName() << ") returning CanNotBeExtended" << endl ;
   return CanNotBeExtended ; 
 }
 
@@ -448,69 +434,61 @@ RooAbsPdf::ExtendMode RooSimultaneous::extendMode() const
 
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Return the current value: 
-/// the value of the PDF associated with the current index category state
-
-Double_t RooSimultaneous::evaluate() const
-{  
-  // Retrieve the proxy by index name
-  RooRealProxy* proxy = (RooRealProxy*) _pdfProxyList.FindObject(_indexCat.label()) ;
+/// Return the value of the PDF associated with the current index category state.
+Double_t RooSimultaneous::evaluate() const {
+  // Retrieve the proxy by index state
+  auto proxyIt = findPdfInProxyMap(_indexCat);
   
-  //assert(proxy!=0) ;
-  if (proxy==0) return 0 ;
+  if (proxyIt == _pdfProxyMap.end()) return 0 ;
 
   // Calculate relative weighting factor for sim-pdfs of all extendable components
   Double_t catFrac(1) ;
   if (canBeExtended()) {
-    Double_t nEvtCat = ((RooAbsPdf*)(proxy->absArg()))->expectedEvents(_normSet) ; 
+    Double_t nEvtCat = proxyIt->second.arg().expectedEvents(_normSet) ;
     
     Double_t nEvtTot(0) ;
-    TIterator* iter = _pdfProxyList.MakeIterator() ;
-    RooRealProxy* proxy2 ;
-    while((proxy2=(RooRealProxy*)iter->Next())) {      
-      nEvtTot += ((RooAbsPdf*)(proxy2->absArg()))->expectedEvents(_normSet) ;
+    for (const auto& proxyIt2 : _pdfProxyMap) {
+      nEvtTot += proxyIt2.second->expectedEvents(_normSet) ;
     }
-    delete iter ;
+
     catFrac=nEvtCat/nEvtTot ;
   }
 
   // Return the selected PDF value, normalized by the number of index states  
-  return ((RooAbsPdf*)(proxy->absArg()))->getVal(_normSet)*catFrac ; 
+  return proxyIt->second.arg().getVal(_normSet)*catFrac ;
 }
 
 
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Return the number of expected events: If the index is in nset,
-/// then return the sum of the expected events of all components,
-/// otherwise return the number of expected events of the PDF
-/// associated with the current index category state
-
+/// Return the number of expected events.
+///
+/// If the category object is in `nset`,
+/// then return the sum of the expected events of all components.
+/// Otherwise, return the number of expected events of the PDF
+/// associated with the current index category state.
 Double_t RooSimultaneous::expectedEvents(const RooArgSet* nset) const 
 {
   if (nset->contains(_indexCat.arg())) {
 
     Double_t sum(0) ;
 
-    TIterator* iter = _pdfProxyList.MakeIterator() ;
-    RooRealProxy* proxy ;
-    while((proxy=(RooRealProxy*)iter->Next())) {      
-      sum += ((RooAbsPdf*)(proxy->absArg()))->expectedEvents(nset) ;
+    for (const auto& proxyIt : _pdfProxyMap) {
+      sum += proxyIt.second->expectedEvents(nset) ;
     }
-    delete iter ;
 
     return sum ;
     
   } else {
 
     // Retrieve the proxy by index name
-    RooRealProxy* proxy = (RooRealProxy*) _pdfProxyList.FindObject(_indexCat.label()) ;
-    
-    //assert(proxy!=0) ;
-    if (proxy==0) return 0 ;
+    const auto proxyIt = findPdfInProxyMap(_indexCat);
+
+    if (proxyIt == _pdfProxyMap.end())
+      return 0.;
 
     // Return the selected PDF value, normalized by the number of index states
-    return ((RooAbsPdf*)(proxy->absArg()))->expectedEvents(nset); 
+    return proxyIt->second.arg().expectedEvents(nset);
   }
 }
 
@@ -539,13 +517,10 @@ Int_t RooSimultaneous::getAnalyticalIntegralWN(RooArgSet& allVars, RooArgSet& an
   cache = new CacheElem ;
 
   // Create the partial integral set for this request
-  TIterator* iter = _pdfProxyList.MakeIterator() ;
-  RooRealProxy* proxy ;
-  while((proxy=(RooRealProxy*)iter->Next())) {
-    RooAbsReal* pdfInt = proxy->arg().createIntegral(analVars,normSet,0,rangeName) ;
+  for (const auto& proxyIt : _pdfProxyMap) {
+    RooAbsReal* pdfInt = proxyIt.second.arg().createIntegral(analVars,normSet,0,rangeName) ;
     cache->_partIntList.addOwned(*pdfInt) ;
   }
-  delete iter ;
 
   // Store the partial integral list and return the assigned code ;
   code = _partIntMgr.setObj(normSet,&analVars,cache,RooNameReg::ptr(rangeName)) ;
@@ -568,8 +543,10 @@ Double_t RooSimultaneous::analyticalIntegralWN(Int_t code, const RooArgSet* norm
   // Partial integration scenarios, rangeName already encoded in 'code'
   CacheElem* cache = (CacheElem*) _partIntMgr.getObjByIndex(code-1) ;
 
-  RooRealProxy* proxy = (RooRealProxy*) _pdfProxyList.FindObject(_indexCat.label()) ;
-  Int_t idx = _pdfProxyList.IndexOf(proxy) ;
+  auto proxyIt = findPdfInProxyMap(_indexCat);
+  assert(proxyIt != _pdfProxyMap.end());
+
+  Int_t idx = std::distance(_pdfProxyMap.begin(), proxyIt);
   return ((RooAbsReal*)cache->_partIntList.at(idx))->getVal(normSet) ;
 }
 
@@ -797,13 +774,10 @@ RooPlot* RooSimultaneous::plotOn(RooPlot *frame, RooLinkedList& cmdList) const
   // Make a new expression that is the weighted sum of requested components
   RooArgList pdfCompList ;
   RooArgList wgtCompList ;
-//RooAbsPdf* pdf ;
-  RooRealProxy* proxy ;
-  TIterator* pIter = _pdfProxyList.MakeIterator() ;
   Double_t sumWeight(0) ;
-  while((proxy=(RooRealProxy*)pIter->Next())) {
+  for (const auto& proxyIt : _pdfProxyMap) {
 
-    idxCatClone->setLabel(proxy->name()) ;
+    idxCatClone->setLabel(proxyIt.second.name()) ;
 
     // Determine if this component is the current slice (if we slice)
     Bool_t skip(kFALSE) ;
@@ -818,12 +792,12 @@ RooPlot* RooSimultaneous::plotOn(RooPlot *frame, RooLinkedList& cmdList) const
     if (skip) continue ;
  
     // Instantiate a RRV holding this pdfs weight fraction
-    RooRealVar *wgtVar = new RooRealVar(proxy->name(),"coef",wTable->getFrac(proxy->name())) ;
+    RooRealVar *wgtVar = new RooRealVar(proxyIt.second.name(),"coef",wTable->getFrac(proxyIt.second.name())) ;
     wgtCompList.addOwned(*wgtVar) ;
-    sumWeight += wTable->getFrac(proxy->name()) ;
+    sumWeight += wTable->getFrac(proxyIt.second.name()) ;
 
     // Add the PDF to list list
-    pdfCompList.add(proxy->arg()) ;
+    pdfCompList.add(proxyIt.second.arg()) ;
   }
 
   TString plotVarName(GetName()) ;
@@ -1045,14 +1019,14 @@ RooAbsGenContext* RooSimultaneous::genContext(const RooArgSet &vars, const RooDa
   } 
 
   // Not generating index cat: return context for pdf associated with present index state
-  RooRealProxy* proxy = (RooRealProxy*) _pdfProxyList.FindObject(_indexCat.arg().getCurrentLabel()) ;
-  if (!proxy) {
+  const auto proxyIt = findPdfInProxyMap(_indexCat);
+  if (proxyIt == _pdfProxyMap.end()) {
     coutE(InputArguments) << "RooSimultaneous::genContext(" << GetName() 
 			  << ") ERROR: no PDF associated with current state (" 
 			  << _indexCat.arg().GetName() << "=" << _indexCat.arg().getCurrentLabel() << ")" << endl ; 
     return 0 ;
   }
-  return ((RooAbsPdf*)proxy->absArg())->genContext(vars,prototype,auxProto,verbose) ;
+  return proxyIt->second.arg().genContext(vars,prototype,auxProto,verbose) ;
 }
 
 
@@ -1123,10 +1097,49 @@ RooDataSet* RooSimultaneous::generateSimGlobal(const RooArgSet& whatVars, Int_t 
 }
 
 
+////////////////////////////////////////////////////////////////////////////////
+/// Search _pdfProxyList for a proxy with index number `index`.
+std::map<int, RooTemplateProxy<RooAbsPdf>>::const_iterator RooSimultaneous::findPdfInProxyMap(int index) const {
+  auto proxyIt = _pdfProxyMap.find(index);
+  if (isShapeDirty() || proxyIt == _pdfProxyMap.end()) {
+    const_cast<RooSimultaneous*>(this)->rebuildIndexMap();
+    proxyIt = _pdfProxyMap.find(_indexCat);
+  }
+  return proxyIt;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+/// Search _pdfProxyList for a proxy with name `categoryName`. Proxy name and category
+/// name are assumed to be in sync.
+std::map<int, RooTemplateProxy<RooAbsPdf>>::const_iterator RooSimultaneous::findPdfInProxyMap(const std::string& categoryName) const {
+  for (auto it = _pdfProxyMap.cbegin(); it != _pdfProxyMap.cend(); ++it) {
+    if (it->second.GetName() == categoryName) {
+      return it;
+    }
+  }
+
+  return _pdfProxyMap.cend();
+}
 
 
+////////////////////////////////////////////////////////////////////////////////
+/// Rebuild the mapping of state numbers to category proxies. This can be necessary
+/// if the category changes its "shape", i.e. the naming/numbering of category states.
+void RooSimultaneous::rebuildIndexMap() {
+  std::map<int, RooTemplateProxy<RooAbsPdf>> tmpMap;
+  for (const auto& idxAndProxy : _pdfProxyMap) {
+    const auto& oldProxy = idxAndProxy.second;
+    if (!_indexCat->hasLabel(oldProxy.GetName())) {
+      throw std::runtime_error("RooSimultaneous: Category object is out of sync with PDFs.");
+    }
+    const int index = _indexCat->lookupIndex(oldProxy.GetName());
 
+    tmpMap.emplace(std::piecewise_construct,
+        std::forward_as_tuple(index),
+        std::forward_as_tuple(oldProxy.GetName(), this, oldProxy));
+  }
+  _pdfProxyMap.swap(tmpMap);
 
-
-
+  clearShapeDirty();
+}
 

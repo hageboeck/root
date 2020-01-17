@@ -233,6 +233,14 @@
 #pragma link C++ class RooTrace+ ;
 #pragma link C++ class RooUniformBinning+ ;
 #pragma link C++ class RooSimultaneous+ ;
+#pragma read sourceClass="RooSimultaneous" targetClass="RooSimultaneous" version="[1-2]" \
+  source="TList _pdfProxyList; " target="_pdfProxyMap" \
+  code="{ newObj->setShapeDirty(); /*We don't know the index numbers the PDFs belong to. We only have names. Set shape dirty to force recomputation.*/ \
+          int index = std::numeric_limits<int>::min(); \
+          for (const auto obj : onfile._pdfProxyList) { \
+            auto& realProxy = static_cast<RooRealProxy&>(*obj); \
+            _pdfProxyMap.emplace(std::make_pair(index++, RooTemplateProxy<RooAbsPdf>(realProxy.GetName(), newObj, realProxy))); \
+          }}";
 #pragma link C++ class RooRealSumPdf+ ;
 #pragma link C++ class RooRealSumFunc + ;
 #pragma link C++ class RooResolutionModel+ ;

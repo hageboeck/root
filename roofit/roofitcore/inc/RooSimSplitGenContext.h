@@ -53,11 +53,9 @@ protected:
   std::vector<RooAbsGenContext*> _gcList ; // List of component generator contexts
   std::vector<int>               _gcIndex ; // Index value corresponding to component
   TString _idxCatName ;           // Name of index category
-  Int_t _numPdf ;                 // Number of generated PDFs
   Double_t* _fracThresh ; // fraction thresholds
 
   RooArgSet _allVarsPdf ; // All pdf variables
-  TIterator* _proxyIter ; // Iterator over pdf proxies
 
   ClassDef(RooSimSplitGenContext,0) // Context for efficiently generating a dataset from a RooSimultaneous PDF
 };
