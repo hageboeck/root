@@ -700,6 +700,8 @@ std::string RooCustomizer::CustIFace::create(RooFactoryWSTool& ft, const char* t
     throw string(Form("RooCustomizer::CustIFace::create() ERROR: input RooAbsArg %s does not exist",args[0].c_str())) ;
   }
 
+  std::string factory_tag = "EDIT:" + std::string(instanceName) + '(' + args[0];
+
   // If name of new object is same as original, execute in sterile mode (i.e no suffixes attached), and rename original nodes in workspace upon import
   if (args[0]==instanceName) {
     instanceName=0 ;
@@ -709,46 +711,36 @@ std::string RooCustomizer::CustIFace::create(RooFactoryWSTool& ft, const char* t
   RooCustomizer cust(*arg,instanceName) ;
   
   for (unsigned int i=1 ; i<args.size() ; i++) {
-    char buf[1024] ;
-    strlcpy(buf,args[i].c_str(),1024) ;
-    char* sep = strchr(buf,'=') ;
-    if (!sep) {
-      throw string(Form("RooCustomizer::CustIFace::create() ERROR: unknown argument: %s, expect form orig=subst",args[i].c_str())) ;
+    factory_tag += ',' + args[i];
+    auto tokens = RooHelpers::tokenise(args[i], "=");
+    if (tokens.size() != 2) {
+      throw std::invalid_argument(Form("RooCustomizer::CustIFace::create() ERROR: unknown argument: %s, expect form orig=subst",args[i].c_str())) ;
     }
-    *sep = 0 ;    
-    RooAbsArg* orig = ft.ws().arg(buf) ;
+    const std::string& buf = tokens[0];
+    const std::string& sep = tokens[1];
+
+    RooAbsArg* orig = ft.ws().arg(buf.c_str()) ;
     RooAbsArg* subst(0) ;
-    if (string(sep+1).find("$REMOVE")==0) {
+    if (sep.find("$REMOVE")==0) {
 
       // Create a removal dummy ;
       subst = &RooRealConstant::removalDummy() ;
 
       // If removal instructed was annotated with target node, encode these in removal dummy
-      char* sep2 = strchr(sep+1,'(') ;
-      if (sep2) {
-	char buf2[1024] ;
-	strlcpy(buf2,sep2+1,1024) ;
-	char* saveptr ;
-	char* tok = R__STRTOK_R(buf2,",)",&saveptr) ;
-	while(tok) {
-	  //cout << "$REMOVE is restricted to " << tok << endl ;
-	  subst->setAttribute(Form("REMOVE_FROM_%s",tok)) ;
-	  tok = R__STRTOK_R(0,",)",&saveptr) ;
-	}
+      auto sep2 = sep.find('(');
+      if (sep2 != std::string::npos) {
+        for (const std::string& tok : RooHelpers::tokenise(sep.substr(sep2), ",)")) {
+          subst->setAttribute(Form("REMOVE_FROM_%s", tok.c_str())) ;
+        }
       } else {
-	// Otherwise mark as universal removal node
-	subst->setAttribute("REMOVE_ALL") ;
+        // Otherwise mark as universal removal node
+        subst->setAttribute("REMOVE_ALL") ;
       }
 
     } else {
-      subst = ft.ws().arg(sep+1) ;
+      subst = ft.ws().arg(sep.c_str()) ;
     }
-//     if (!orig) {
-//       throw string(Form("RooCustomizer::CustIFace::create() ERROR: $Replace() input RooAbsArg %s does not exist",buf)) ;
-//     }
-//     if (!subst) {
-//       throw string(Form("RooCustomizer::CustIFace::create() ERROR: $Replace() replacement RooAbsArg %s does not exist",sep+1)) ;
-//     }
+
     if (orig && subst) {
       cust.replaceArg(*orig,*subst) ;
     } else {
@@ -756,12 +748,18 @@ std::string RooCustomizer::CustIFace::create(RooFactoryWSTool& ft, const char* t
     }
   }
 
+  factory_tag += ')';
+
   // Build the desired edited object
   RooAbsArg* targ = cust.build(kFALSE)  ;
   if (!targ) {
-    throw string(Form("RooCustomizer::CustIFace::create() ERROR in customizer build, object %snot created",instanceName)) ;
+    throw string(Form("RooCustomizer::CustIFace::create() ERROR in customizer build, object %s not created",instanceName)) ;
   }
 
+  for (const auto obj : cust.cloneBranchList()) {
+    // Set info that newly created objects come from EDIT::
+    obj->setStringAttribute("factory_tag", factory_tag.c_str());
+  }
   // Import the object into the workspace
   if (instanceName) {
     // Set the desired name of the top level node

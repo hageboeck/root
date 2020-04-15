@@ -59,6 +59,7 @@ It interprets all expressions for RooWorkspace::factory(const char*).
 #include "RooConstVar.h"
 #include "RooDerivative.h"
 #include "RooStringVar.h"
+#include "RooHelpers.h"
 #include "TROOT.h"
 
 using namespace RooFit ;
@@ -587,53 +588,47 @@ RooProdPdf* RooFactoryWSTool::prod(const char *objName, const char* pdfList)
   // Separate conditional and non-conditional p.d.f terms
   RooLinkedList cmdList ;
   string regPdfList="{" ;
-  char buf[BUFFER_SIZE] ;
-  strlcpy(buf,pdfList,BUFFER_SIZE) ;
-  char* save ;
-  char* tok = R__STRTOK_R(buf,",",&save) ;
-  while(tok) {
-    char *sep = strchr(tok,'|') ;
-    if (sep) {
+  for (std::string& tok : RooHelpers::tokenise(pdfList, ",")) {
+    std::vector<std::string> subtok = RooHelpers::tokenise(tok, "|");
+    if (subtok.size() > 1) {
       // Conditional term
-      *sep=0 ;
-      sep++ ;
+      std::string sep = subtok[1];
 
       // |x is conditional on x, |~x is conditional on all but x
-      Bool_t invCond(kFALSE) ;
-      if (*sep=='~') {
-	invCond=kTRUE ;
-	sep++ ;
+      const bool invCond = sep[0] == '~';
+      if (invCond) {
+        sep.erase(sep.begin());
       }
-      
+
       try {
- 	cmdList.Add(Conditional(asSET(tok),asSET(sep),!invCond).Clone()) ;
+        cmdList.Add(Conditional(asSET(subtok[0].c_str()), asSET(sep.c_str()), !invCond).Clone()) ;
       } catch (const string &err) {
-	coutE(ObjectHandling) << "RooFactoryWSTool::prod(" << objName << ") ERROR creating RooProdPdf Conditional argument: " << err << endl ;
-	logError() ;
-	return 0 ;
+        coutE(ObjectHandling) << "RooFactoryWSTool::prod(" << objName << ") ERROR creating RooProdPdf Conditional argument: " << err << endl ;
+        logError() ;
+        return 0 ;
       }
-      
+
     } else {
       // Regular term
       if (regPdfList.size()>1) {
-	regPdfList += "," ;
+        regPdfList += "," ;
       }
       regPdfList += tok ;
     }
-    tok = R__STRTOK_R(0,",",&save) ;
   }
   regPdfList += "}" ;
-  
+
   RooProdPdf* pdf = 0 ;
   try {
-    pdf = new RooProdPdf(objName,objName,asSET(regPdfList.c_str()),cmdList) ;
+    RooArgSet pdfs = asSET(regPdfList.c_str());
+    pdf = new RooProdPdf(objName,objName, pdfs,cmdList) ;
   } catch (const string &err) {
     coutE(ObjectHandling) << "RooFactoryWSTool::prod(" << objName << ") ERROR creating RooProdPdf input set of regular p.d.f.s: " << err << endl ;
     logError() ;
     pdf = 0 ;
   }
   cmdList.Delete() ;
-  
+
   if (pdf) {
     pdf->setStringAttribute("factory_tag",Form("PROD::%s(%s)",objName,pdfList)) ;
     if (_ws->import(*pdf,Silence())) logError() ;
@@ -1404,8 +1399,6 @@ string RooFactoryWSTool::processCreateArg(string& func, vector<string>& args)
   }
 
   // Look up if func is a special
-  for (map<string,IFace*>::iterator ii=hooks().begin() ; ii!=hooks().end() ; ++ii) {
-  }
   if (hooks().find(className) != hooks().end()) {
     IFace* iface = hooks()[className] ;
     return iface->create(*this, className,instName,pargv) ;
