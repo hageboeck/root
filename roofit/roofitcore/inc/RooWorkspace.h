@@ -54,15 +54,30 @@ public:
   Bool_t importClassCode(const char* pat="*", Bool_t doReplace=kFALSE) ;
   Bool_t importClassCode(TClass* theClass, Bool_t doReplace=kFALSE) ;
 
+
   // Import functions for dataset, functions, generic objects
-  Bool_t import(const RooAbsArg& arg, 
-		const RooCmdArg& arg1=RooCmdArg(),const RooCmdArg& arg2=RooCmdArg(),const RooCmdArg& arg3=RooCmdArg(),
-		const RooCmdArg& arg4=RooCmdArg(),const RooCmdArg& arg5=RooCmdArg(),const RooCmdArg& arg6=RooCmdArg(),
-		const RooCmdArg& arg7=RooCmdArg(),const RooCmdArg& arg8=RooCmdArg(),const RooCmdArg& arg9=RooCmdArg()) ;
-  Bool_t import(const RooArgSet& args, 
-		const RooCmdArg& arg1=RooCmdArg(),const RooCmdArg& arg2=RooCmdArg(),const RooCmdArg& arg3=RooCmdArg(),
-		const RooCmdArg& arg4=RooCmdArg(),const RooCmdArg& arg5=RooCmdArg(),const RooCmdArg& arg6=RooCmdArg(),
-		const RooCmdArg& arg7=RooCmdArg(),const RooCmdArg& arg8=RooCmdArg(),const RooCmdArg& arg9=RooCmdArg()) ;
+  /// Import one object with an arbitrary number of switches.
+  /// \param[in] arg On object to be imported.
+  /// \param[in] switches Optional switches.
+  /// \copydoc import(const RooAbsArg&, const std::vector<const RooCmdArg*>&)
+  template<typename... Args>
+  bool import(const RooAbsArg& arg, const Args&... switches) {
+    return import(arg, std::vector<RooCmdArg>{switches...});
+  }
+  bool import(const RooAbsArg& arg, const std::vector<RooCmdArg>& switches = {});
+
+  /// Import multiple objects from a set.
+  /// \param[in] args Import all objects in this set.
+  /// \param[in] switches Switches to configure importing.
+  /// \copydoc import(const RooAbsArg&, const std::vector<const RooCmdArg*>&)
+  template<typename... Args>
+  bool import(const RooArgSet& args, Args... switches) {
+    bool result = false;
+    std::for_each(args.begin(), args.end(), [&](const RooAbsArg* arg) {
+      result |= import(*arg, switches...);
+    });
+    return result;
+  }
   Bool_t import(RooAbsData& data, 
 		const RooCmdArg& arg1=RooCmdArg(),const RooCmdArg& arg2=RooCmdArg(),const RooCmdArg& arg3=RooCmdArg(),
 		const RooCmdArg& arg4=RooCmdArg(),const RooCmdArg& arg5=RooCmdArg(),const RooCmdArg& arg6=RooCmdArg(),

@@ -63,6 +63,21 @@ public:
                  const RooCmdArg& arg5=RooCmdArg::none(), const RooCmdArg& arg6=RooCmdArg::none(), 
                  const RooCmdArg& arg7=RooCmdArg::none(), const RooCmdArg& arg8=RooCmdArg::none()) ;
   Bool_t process(const RooLinkedList& argList) ;
+  template<typename It_t>
+  bool process(It_t begin, It_t end) {
+    bool result = false;
+    std::for_each(begin, end, [&result,this](const typename It_t::value_type& arg){
+      result |= this->process(arg);
+    });
+    return result;
+  }
+  template<typename T>
+  bool process(const T& container) {
+    return process(container.begin(), container.end());
+  }
+  bool process(const RooCmdArg* const arg) {
+    return process(*arg);
+  }
 
   Int_t getInt(const char* name, Int_t defaultValue=0) ;
   Double_t getDouble(const char* name, Double_t defaultValue=0) ;

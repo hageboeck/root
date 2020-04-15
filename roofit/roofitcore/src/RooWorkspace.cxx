@@ -312,26 +312,6 @@ Bool_t RooWorkspace::import(const char* fileSpec,
 
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Import multiple RooAbsArg objects into workspace. For details on arguments see documentation
-/// of import() method for single RooAbsArg
-/// \note From python, use `Import()`, since `import` is a reserved keyword.
-Bool_t RooWorkspace::import(const RooArgSet& args,
-			    const RooCmdArg& arg1, const RooCmdArg& arg2, const RooCmdArg& arg3,
-			    const RooCmdArg& arg4, const RooCmdArg& arg5, const RooCmdArg& arg6,
-			    const RooCmdArg& arg7, const RooCmdArg& arg8, const RooCmdArg& arg9)
-{
-  unique_ptr<TIterator> iter(args.createIterator()) ;
-  RooAbsArg* oneArg ;
-  Bool_t ret(kFALSE) ;
-  while((oneArg=(RooAbsArg*)iter->Next())) {
-    ret |= import(*oneArg,arg1,arg2,arg3,arg4,arg5,arg6,arg7,arg8,arg9) ;
-  }
-  return ret ;
-}
-
-
-
-////////////////////////////////////////////////////////////////////////////////
 ///  Import a RooAbsArg object, e.g. function, p.d.f or variable into the workspace. This import function clones the input argument and will
 ///  own the clone. If a composite object is offered for import, e.g. a p.d.f with parameters and observables, the
 ///  complete tree of objects is imported. If any of the _variables_ of a composite object (parameters/observables) are already
@@ -341,14 +321,14 @@ Bool_t RooWorkspace::import(const RooArgSet& args,
 ///
 ///  <table>
 ///  <tr><th> Accepted arguments
-///  <tr><td> `RenameConflictNodes(const char* suffix)`   <td>  Add suffix to branch node name if name conflicts with existing node in workspace
-///  <tr><td> `RenameAllNodes(const char* suffix)`    <td>  Add suffix to all branch node names including top level node.
+///  <tr><td> `RenameConflictNodes(const char* suffix)`   <td>  Add suffix to names **of objects existing in the workspace** in case of conflicts.
+///  <tr><td> `RenameAllNodes(const char* suffix)`    <td>  Add suffix to all **incoming** branch node names including top level node.
 ///  <tr><td> `RenameAllVariables(const char* suffix)`    <td>  Add suffix to all variables of objects being imported.
 ///  <tr><td> `RenameAllVariablesExcept(const char* suffix, const char* exceptionList)`   <td>  Add suffix to all variables names, except ones listed
 ///  <tr><td> `RenameVariable(const char* inputName, const char* outputName)` <td>  Rename a single variable as specified upon import.
-///  <tr><td> `RecycleConflictNodes()`    <td>  If any of the function objects to be imported already exist in the name space, connect the
+///  <tr><td> `RecycleConflictNodes()`    <td>  If any of the function objects to be imported already exist in the workspace, connect the
 ///                            imported expression to the already existing nodes.
-///                            \attention Use with care! If function definitions do not match, this alters the definition of your function upon import
+///                            \attention Use with care! If function definitions do not match, this alters the definition of your function upon import.
 ///
 ///  <tr><td> `Silence()` <td>  Do not issue any info message
 ///  </table>
@@ -357,22 +337,8 @@ Bool_t RooWorkspace::import(const RooArgSet& args,
 ///  as often as necessary to rename multiple variables. Alternatively, a single RenameVariable argument can be given with
 ///  two comma separated lists.
 /// \note From python, use `Import()`, since `import` is a reserved keyword.
-Bool_t RooWorkspace::import(const RooAbsArg& inArg,
-			    const RooCmdArg& arg1, const RooCmdArg& arg2, const RooCmdArg& arg3,
-			    const RooCmdArg& arg4, const RooCmdArg& arg5, const RooCmdArg& arg6,
-			    const RooCmdArg& arg7, const RooCmdArg& arg8, const RooCmdArg& arg9)
+Bool_t RooWorkspace::import(const RooAbsArg& inArg, const std::vector<RooCmdArg>& switches)
 {
-  RooLinkedList args ;
-  args.Add((TObject*)&arg1) ;
-  args.Add((TObject*)&arg2) ;
-  args.Add((TObject*)&arg3) ;
-  args.Add((TObject*)&arg4) ;
-  args.Add((TObject*)&arg5) ;
-  args.Add((TObject*)&arg6) ;
-  args.Add((TObject*)&arg7) ;
-  args.Add((TObject*)&arg8) ;
-  args.Add((TObject*)&arg9) ;
-
   // Select the pdf-specific commands
   RooCmdConfig pc(Form("RooWorkspace::import(%s)",GetName())) ;
 
@@ -393,7 +359,7 @@ Bool_t RooWorkspace::import(const RooAbsArg& inArg,
   pc.defineMutex("RenameVariable","RenameAllVariables") ;
 
   // Process and check varargs
-  pc.process(args) ;
+  pc.process(switches) ;
   if (!pc.ok(kTRUE)) {
     return kTRUE ;
   }
