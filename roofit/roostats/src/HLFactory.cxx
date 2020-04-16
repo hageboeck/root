@@ -636,7 +636,7 @@ int HLFactory::fParseLine(TString& line){
             Info("fParseLine","Importing %s from %s under the name of %s",
                  obj_name.Data(), rootfile_name.Data(), o_name.Data());
           TObject* the_obj=ifile->Get(obj_name);
-          fWs->import(*the_obj,o_name);
+          fWs->importGenericObject(*the_obj,o_name);
           }
         delete ifile;
         return 0;

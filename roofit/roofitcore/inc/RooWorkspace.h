@@ -36,6 +36,7 @@ class RooAbsReal ;
 class RooAbsCategory ;
 class RooFactoryWSTool ;
 class RooAbsStudy ;
+class RooWorkspaceHandle;
 
 #include "TNamed.h"
 #include "TDirectoryFile.h"
@@ -86,8 +87,9 @@ public:
 		const RooCmdArg& arg1=RooCmdArg(),const RooCmdArg& arg2=RooCmdArg(),const RooCmdArg& arg3=RooCmdArg(),
 		const RooCmdArg& arg4=RooCmdArg(),const RooCmdArg& arg5=RooCmdArg(),const RooCmdArg& arg6=RooCmdArg(),
 		const RooCmdArg& arg7=RooCmdArg(),const RooCmdArg& arg8=RooCmdArg(),const RooCmdArg& arg9=RooCmdArg()) ;
-  Bool_t import(TObject& object, Bool_t replaceExisting=kFALSE) ;
-  Bool_t import(TObject& object, const char* aliasName, Bool_t replaceExisting=kFALSE) ;
+  bool import(const RooWorkspaceHandle& mc, bool replaceExisting = false);
+  Bool_t importGenericObject(const TObject& object, Bool_t replaceExisting=kFALSE);
+  Bool_t importGenericObject(const TObject& object, const char* aliasName, Bool_t replaceExisting=kFALSE);
 
   // Transaction management interface for multi-step import operations
   Bool_t startTransaction() ;

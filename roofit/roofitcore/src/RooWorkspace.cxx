@@ -1967,15 +1967,35 @@ Bool_t RooWorkspace::makeDir()
 }
 
 
+////////////////////////////////////////////////////////////////////////////////
+/// Import a clone of a RooStats::ModelConfig into the workspace. It can later be
+/// retrieved by name using obj(). The object is cloned, so the original can be
+/// destroyed after importing it.
+/// \note It is assumed that the object being passed inherits from TObject.
+// This is true for ModelConfigs, for which this overload is intended. ModelConfigs, however, are
+// part of RooStats, which would create a circular dependency. Providing a TObject&
+// overload doesn't work because it creates too many ambiguities.
+// Therefore, the workspace handle interface has to be used to pass the object.
+// Every ModelConfig inherits this interface.
+///
+/// \param[in] modelConfig Object to be imported.
+/// \param[in] replaceExisting Replace existing objects with identical names.
+/// \return true in case of error.
+bool RooWorkspace::import(const RooWorkspaceHandle& modelConfig, bool replaceExisting) {
+  return importGenericObject(dynamic_cast<const TObject&>(modelConfig), replaceExisting);
+}
+
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Import a clone of a generic TObject into workspace generic object container. Imported
-/// object can be retrieved by name through the obj() method. The object is cloned upon
-/// importation and the input argument does not need to live beyond the import call
+/// Import a clone of a generic TObject into this workspace. The imported
+/// object can be retrieved by name using obj(). The object is cloned, so
+/// the original can be destroyed after importing it.
+/// \note Saving non-roofit objects directly in the TFile is more efficient.
 ///
-/// Returns kTRUE if an error has occurred.
-
-Bool_t RooWorkspace::import(TObject& object, Bool_t replaceExisting)
+/// \param[in] object Object to be imported.
+/// \param[in] replaceExisting Replace existing objects with identical names.
+/// \return true in case of error.
+Bool_t RooWorkspace::importGenericObject(const TObject& object, Bool_t replaceExisting)
 {
   // First check if object with given name already exists
   TObject* oldObj = _genObjects.FindObject(object.GetName()) ;
@@ -2006,17 +2026,18 @@ Bool_t RooWorkspace::import(TObject& object, Bool_t replaceExisting)
 
 
 
-
 ////////////////////////////////////////////////////////////////////////////////
-/// Import a clone of a generic TObject into workspace generic object container.
-/// The imported object will be stored under the given alias name rather than its
-/// own name. Imported object can be retrieved its alias name through the obj() method.
-/// The object is cloned upon importation and the input argument does not need to live beyond the import call
+/// Import a clone of a generic TObject into this workspace. The imported
+/// object can be retrieved by name using obj(). The object is cloned, so
+/// the original can be destroyed after importing it.
 /// This method is mostly useful for importing objects that do not have a settable name such as TMatrix
+/// \note Saving non-roofit objects directly in the TFile is more efficient.
 ///
-/// Returns kTRUE if an error has occurred.
-
-Bool_t RooWorkspace::import(TObject& object, const char* aliasName, Bool_t replaceExisting)
+/// \param[in] object Object to be imported.
+/// \param[in] aliasName Set a name that this object should retrievable with. This also works for objects that don't have names.
+/// \param[in] replaceExisting Replace existing objects with identical names.
+/// \return true in case of error.
+Bool_t RooWorkspace::importGenericObject(const TObject& object, const char* aliasName, Bool_t replaceExisting)
 {
   // First check if object with given name already exists
   TObject* oldObj = _genObjects.FindObject(object.GetName()) ;
