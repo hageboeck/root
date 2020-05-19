@@ -65,6 +65,7 @@ public:
 
   // Function evaluation
   virtual Double_t evaluate() const ;
+  RooSpan<double> evaluateBatch(BatchHelpers::RunContext& evalData, const RooArgSet* normSet) const;
 
   protected:
   // Post-processing of server redirection

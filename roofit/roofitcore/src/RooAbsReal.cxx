@@ -318,6 +318,15 @@ RooSpan<const double> RooAbsReal::getValBatch(std::size_t begin, std::size_t max
 }
 
 
+RooSpan<const double> RooAbsReal::getValBatch(BatchHelpers::RunContext& evalData,
+    const RooArgSet* normSet) const {
+  if (std::all_of(evalData.spans.begin(), evalData.spans.end(),
+      [](const decltype(evalData.spans)::value_type& item){ return item.second.empty(); }))
+    return {};
+
+  return evaluateBatch(evalData, normSet ? normSet : _lastNSet);
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 Int_t RooAbsReal::numEvalErrorItems()
@@ -4921,7 +4930,9 @@ RooSpan<double> RooAbsReal::evaluateBatch(std::size_t begin, std::size_t maxSize
   return output;
 }
 
-
+RooSpan<double> RooAbsReal::evaluateBatch(BatchHelpers::RunContext& evalData, const RooArgSet* normSet) const {
+  throw std::logic_error("Not implemented.");
+}
 
 
 #include "TSystem.h"

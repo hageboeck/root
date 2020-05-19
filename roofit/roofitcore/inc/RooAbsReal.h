@@ -108,6 +108,7 @@ public:
   virtual Double_t getValV(const RooArgSet* normalisationSet = nullptr) const ;
 
   virtual RooSpan<const double> getValBatch(std::size_t begin, std::size_t maxSize, const RooArgSet* normSet = nullptr) const;
+  virtual RooSpan<const double> getValBatch(BatchHelpers::RunContext& evalData, const RooArgSet* normSet = nullptr) const;
 
   Double_t getPropagatedError(const RooFitResult &fr, const RooArgSet &nset = RooArgSet()) const;
 
@@ -406,6 +407,7 @@ protected:
   /// Evaluate this PDF / function / constant. Needs to be overridden by all derived classes.
   virtual Double_t evaluate() const = 0;
   virtual RooSpan<double> evaluateBatch(std::size_t begin, std::size_t maxSize) const;
+  virtual RooSpan<double> evaluateBatch(BatchHelpers::RunContext& evalData, const RooArgSet* normSet) const;
 
   //---------- Interface to access batch data ---------------------------
   //

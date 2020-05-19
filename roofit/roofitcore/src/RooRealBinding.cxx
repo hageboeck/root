@@ -135,11 +135,12 @@ void RooRealBinding::saveXVec() const
   _funcSave = _func->_value ;
 
   // Save components
-  list<RooAbsReal*>::iterator ci = _compList.begin() ;
-  list<Double_t>::iterator si = _compSave.begin() ;
-  while(ci!=_compList.end()) {
+  auto ci = _compList.begin() ;
+  auto si = _compSave.begin() ;
+  while(ci != _compList.end()) {
     *si = (*ci)->_value ;
-    ++si ; ++ci ;
+    ++si;
+    ++ci;
   }
   
   for (UInt_t i=0 ; i<getDimension() ; i++) {
@@ -159,11 +160,12 @@ void RooRealBinding::restoreXVec() const
   _func->_value = _funcSave ;
 
   // Restore components
-  list<RooAbsReal*>::iterator ci = _compList.begin() ;
-  list<Double_t>::iterator si = _compSave.begin() ;
-  while (ci!=_compList.end()) {
+  auto ci = _compList.begin() ;
+  auto si = _compSave.begin() ;
+  while (ci != _compList.end()) {
     (*ci)->_value = *si ;
-    ++ci ; ++si ;
+    ++ci;
+    ++si;
   }
 
   for (UInt_t i=0 ; i<getDimension() ; i++) {
@@ -202,6 +204,28 @@ Double_t RooRealBinding::operator()(const Double_t xvector[]) const
   loadValues(xvector);
   //cout << getName() << "(x=" << xvector[0] << ")=" << _func->getVal(_nset) << " (nset = " << (_nset? *_nset:RooArgSet()) << ")" << endl ;
   return _xvecValid ? _func->getVal(_nset) : 0. ;
+}
+
+
+RooSpan<const double> RooRealBinding::getValBatch(std::vector<RooSpan<const double>> coordinates) const {
+  assert(isValid());
+  _ncall += coordinates.front().size();
+
+  BatchHelpers::RunContext evalData;
+  for (unsigned int dim=0; dim < coordinates.size(); ++dim) {
+    const RooSpan<const double>& values = coordinates[dim];
+    RooAbsRealLValue& var = *_vars[dim];
+    evalData.spans[&var] = values;
+  }
+
+  auto results = _func->getValBatch(evalData, _nset);
+
+  // Take ownership of data away from evalData struct
+  std::vector<double> newResults;
+  newResults.swap(evalData.payloadData[_func]);
+  assert(results.data() == newResults.data());
+
+  return {std::move(newResults)};
 }
 
 

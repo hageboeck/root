@@ -16,10 +16,43 @@
 
 #include "BatchData.h"
 
+#include "RooArgProxy.h"
+#include "RooAbsReal.h"
+
 #include <ostream>
 #include <iomanip>
+#include <vector>
 
 namespace BatchHelpers {
+
+RooSpan<const double> RunContext::getBatch(const RooArgProxy& proxy) const {
+  auto item = spans.find(static_cast<const RooAbsReal*>(proxy.absArg()));
+  if (item != spans.end())
+    return item->second;
+
+  return {};
+}
+
+RooSpan<double> RunContext::makeBatch(const RooAbsReal* provider, std::size_t size) {
+  auto item = payloadData.find(provider);
+  if (item == payloadData.end() || item->second.size() != size) {
+    std::vector<double>& data = payloadData[provider];
+    data.resize(size);
+    spans[provider] = RooSpan<const double>(data);
+    return {data};
+  }
+
+  return {item->second};
+}
+
+double RunContext::getConstValue(const RooAbsReal* object) const {
+  auto item = constValues.find(object);
+  if (item == constValues.end())
+    return std::numeric_limits<double>::quiet_NaN();
+
+#pragma message("Probably obsolete.")
+  return item->second;
+}
 
 ///////////////////////////////////////////////////////////////////////////
 /// Return the status of the batch starting at `begin`.
@@ -161,7 +194,6 @@ void BatchData::attachForeignStorage(const std::vector<double>& vec) {
   clear();
 
   _foreignData = &vec;
-  _ownedBatches.clear();
 }
 
 

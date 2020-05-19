@@ -151,6 +151,11 @@ Double_t RooFormulaVar::evaluate() const
 }
 
 
+RooSpan<double> RooFormulaVar::evaluateBatch(BatchHelpers::RunContext& inputData, const RooArgSet* normSet) const {
+  return formula().evaluateBatch(this, inputData, normSet);
+}
+
+
 ////////////////////////////////////////////////////////////////////////////////
 /// Propagate server change information to embedded RooFormula object
 

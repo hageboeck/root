@@ -57,6 +57,14 @@ public:
   RooSpan<const double> getValBatch(std::size_t begin, std::size_t batchSize, const RooArgSet* = nullptr) const final {
     return _batchData.getBatch(begin, batchSize);
   }
+  RooSpan<const double> getValBatch(BatchHelpers::RunContext& inputData, const RooArgSet*) const final {
+    auto item = inputData.spans.find(this);
+    if (item != inputData.spans.end()) {
+      return item->second;
+    }
+
+    return {};
+  }
 
   virtual void setVal(Double_t value);
   inline Double_t getError() const { return _error>=0?_error:0. ; }

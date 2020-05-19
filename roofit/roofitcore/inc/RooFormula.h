@@ -20,6 +20,8 @@
 #include "RooArgList.h"
 #include "RooArgSet.h"
 #include "TFormula.h"
+#include "RooSpan.h"
+#include "BatchData.h"
 
 #include <memory>
 #include <vector>
@@ -53,6 +55,7 @@ public:
   Bool_t ok() { return _tFormula != nullptr; }
   /// Evalute all parameters/observables, and then evaluate formula.
   Double_t eval(const RooArgSet* nset=0) const;
+  RooSpan<double> evaluateBatch(const RooAbsReal* dataOwner, BatchHelpers::RunContext& inputData, const RooArgSet* nset = nullptr) const;
 
   /// DEBUG: Dump state information
   void dump() const;

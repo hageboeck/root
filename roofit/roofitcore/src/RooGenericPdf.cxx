@@ -126,6 +126,9 @@ Double_t RooGenericPdf::evaluate() const
 }
 
 
+RooSpan<double> RooGenericPdf::evaluateBatch(BatchHelpers::RunContext& inputData, const RooArgSet* normSet) const {
+  return formula().evaluateBatch(this, inputData, normSet);
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Change formula expression to given expression
