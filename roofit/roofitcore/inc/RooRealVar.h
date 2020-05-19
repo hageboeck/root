@@ -165,7 +165,7 @@ public:
   Double_t _asymErrLo ; // Low side of asymmetric error associated with current value
   Double_t _asymErrHi ; // High side of asymmetric error associated with current value
   std::unique_ptr<RooAbsBinning> _binning;
-  RooLinkedList _altNonSharedBinning ; // Non-shareable alternative binnings
+  std::unordered_map<std::string,std::unique_ptr<RooAbsBinning>> _altNonSharedBinning ; //! Non-shareable alternative binnings
 
   std::shared_ptr<RooRealVarSharedProperties> sharedProp() const;
   void installSharedProp(std::shared_ptr<RooRealVarSharedProperties>&& prop);
