@@ -57,6 +57,12 @@ public:
   RooSpan<const double> getValBatch(std::size_t begin, std::size_t batchSize, const RooArgSet* = nullptr) const final {
     return _batchData.getBatch(begin, batchSize);
   }
+
+  ////////////////////////////////////////////////////////////////////////////////
+  /// Return batch of data for this variable.
+  /// \param inputData If data for this variable are registered, return that. Otherwise, return current value.
+  /// \param normSet Not used.
+  /// \return Span with event data.
   RooSpan<const double> getValBatch(BatchHelpers::RunContext& inputData, const RooArgSet*) const final {
     auto item = inputData.spans.find(this);
     if (item != inputData.spans.end()) {
