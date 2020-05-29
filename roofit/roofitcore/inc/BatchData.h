@@ -27,18 +27,22 @@
 class RooArgSet;
 class RooAbsReal;
 class RooArgProxy;
+class RooAbsArg;
 
 namespace BatchHelpers {
 
 struct RunContext {
   /// Check if there is a span of data corresponding to the variable in this proxy
-  RooSpan<const double> getBatch(const RooArgProxy& proxy) const;
+  RooSpan<const double> getBatch(const RooAbsArg* arg) const;
+  RooSpan<const double> getBatchOrStartComputing(const RooArgProxy& proxy, const RooArgSet* normSet);
   RooSpan<double> makeBatch(const RooAbsReal* provider, std::size_t size);
   double getConstValue(const RooAbsReal* object) const;
+  void invalidateResults() {
+    spans.clear();
+  }
 
   std::map<const RooAbsReal*, RooSpan<const double>> spans;
-  std::map<const RooAbsReal*, std::vector<double>> payloadData;
-  std::map<const RooAbsReal*, double> constValues;
+  std::map<const RooAbsReal*, std::vector<double>> ownedMemory;
 };
 
 /// A class to store batches of data points that can be accessed via RooSpan.

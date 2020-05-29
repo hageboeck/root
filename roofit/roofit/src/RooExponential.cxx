@@ -105,28 +105,21 @@ void compute(size_t n, double* __restrict output, Tx x, Tc c) {
 /// \param[in] batchIndex Index of the batch to be computed.
 /// \param[in] batchSize Size of each batch. The last batch may be smaller.
 /// \return A span with the computed values.
-
-RooSpan<double> RooExponential::evaluateBatch(std::size_t begin, std::size_t batchSize) const {
+RooSpan<double> RooExponential::evaluateBatch(BatchHelpers::RunContext& evalData, const RooArgSet* normSet) const {
   using namespace BatchHelpers;
-  auto xData = x.getValBatch(begin, batchSize);
-  auto cData = c.getValBatch(begin, batchSize);
-  const bool batchX = !xData.empty();
-  const bool batchC = !cData.empty();
+  auto xData = evalData.getBatchOrStartComputing(x, normSet);
+  auto cData = evalData.getBatchOrStartComputing(c, normSet);
 
-  if (!batchX && !batchC) {
-    return {};
-  }
-  batchSize = BatchHelpers::findSmallestBatch({ xData, cData });
-  auto output = _batchData.makeWritableBatchUnInit(begin, batchSize);
+  const auto batchSize = BatchHelpers::findSmallestBatch({ xData, cData });
+  auto output = evalData.makeBatch(this, batchSize);
 
-  if (batchX && !batchC ) {
-    compute(batchSize, output.data(), xData, BracketAdapter<double>(c));
+  if (xData.size() > 1 && cData.size() == 1) {
+    compute(batchSize, output.data(), xData, BracketAdapter<double>(cData[0]));
   }
-  else if (!batchX && batchC ) {
-    compute(batchSize, output.data(), BracketAdapter<double>(x), cData);
-  }
-  else if (batchX && batchC ) {
-    compute(batchSize, output.data(), xData, cData);
+  else {
+    compute(batchSize, output.data(),
+        BracketAdapterWithMask(xData[0], xData),
+        BracketAdapterWithMask(cData[0], cData));
   }
   return output;
 }

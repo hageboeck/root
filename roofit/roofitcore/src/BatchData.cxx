@@ -25,34 +25,34 @@
 
 namespace BatchHelpers {
 
-RooSpan<const double> RunContext::getBatch(const RooArgProxy& proxy) const {
-  auto item = spans.find(static_cast<const RooAbsReal*>(proxy.absArg()));
+RooSpan<const double> RunContext::getBatch(const RooAbsArg* arg) const {
+  auto item = spans.find(static_cast<const RooAbsReal*>(arg));
   if (item != spans.end())
     return item->second;
 
   return {};
 }
 
+RooSpan<const double> RunContext::getBatchOrStartComputing(const RooArgProxy& proxy, const RooArgSet* normSet) {
+  auto existingBatch = getBatch(proxy.absArg());
+  if (!existingBatch.empty())
+    return existingBatch;
+
+  auto result = static_cast<const RooAbsReal*>(proxy.absArg())->getValBatch(*this, normSet);
+  assert(!result.empty());
+
+  return result;
+}
+
+
 RooSpan<double> RunContext::makeBatch(const RooAbsReal* provider, std::size_t size) {
-  auto item = payloadData.find(provider);
-  if (item == payloadData.end() || item->second.size() != size) {
-    std::vector<double>& data = payloadData[provider];
-    data.resize(size);
-    spans[provider] = RooSpan<const double>(data);
-    return {data};
-  }
+  std::vector<double>& data = ownedMemory[provider];
+  data.resize(size);
+  spans[provider] = RooSpan<const double>(data);
 
-  return {item->second};
+  return {data};
 }
 
-double RunContext::getConstValue(const RooAbsReal* object) const {
-  auto item = constValues.find(object);
-  if (item == constValues.end())
-    return std::numeric_limits<double>::quiet_NaN();
-
-#pragma message("Probably obsolete.")
-  return item->second;
-}
 
 ///////////////////////////////////////////////////////////////////////////
 /// Return the status of the batch starting at `begin`.

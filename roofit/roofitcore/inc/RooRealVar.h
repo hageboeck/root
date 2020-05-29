@@ -63,7 +63,7 @@ public:
       return item->second;
     }
 
-    return {};
+    return {&_value, 1};
   }
 
   virtual void setVal(Double_t value);

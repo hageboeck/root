@@ -83,6 +83,7 @@
 #include "RooVectorDataStore.h"
 #include "RooCachedReal.h"
 #include "RooHelpers.h"
+#include "BatchHelpers.h"
 
 #include "Compression.h"
 #include "Math/IFunction.h"
@@ -318,8 +319,23 @@ RooSpan<const double> RooAbsReal::getValBatch(std::size_t begin, std::size_t max
 }
 
 
+////////////////////////////////////////////////////////////////////////////////
+/// Return value of object for all entries in the batch.
+///
+/// - If `evalData` already contains values for this object, those values are returned immediately.
+/// - Otherwise, evaluateBatch() is called to start a computation.
+///
+/// \param[in] evalData Input data to use for evaluation.
+/// \param[in] normSet Variables to normalise over.
+/// \return RooSpan with results of evaluation.
 RooSpan<const double> RooAbsReal::getValBatch(BatchHelpers::RunContext& evalData,
     const RooArgSet* normSet) const {
+  // Are our values already in the evalData?
+  auto ourBatch = evalData.getBatch(this);
+  if (!ourBatch.empty())
+    return ourBatch;
+
+  // In case there's no data anywhere, we cannot compute
   if (std::all_of(evalData.spans.begin(), evalData.spans.end(),
       [](const decltype(evalData.spans)::value_type& item){ return item.second.empty(); }))
     return {};
@@ -4884,10 +4900,8 @@ RooSpan<double> RooAbsReal::evaluateBatch(std::size_t begin, std::size_t maxSize
   RooArgSet allLeafs;
   leafNodeServerList(&allLeafs);
 
-  if (RooMsgService::instance().isActive(this, RooFit::Optimization, RooFit::INFO)) {
-    coutI(Optimization) << "The class " << IsA()->GetName() << " does not have the faster batch evaluation interface."
-          << " Consider requesting this feature on ROOT's JIRA tracker." << std::endl;
-  }
+  coutI(Optimization) << "The class " << IsA()->GetName() << " does not have the faster batch evaluation interface."
+      << " For built-in PDFs, consider requesting this feature on ROOT's website. Otherwise, override RooAbsReal::evaluateBatch()." << std::endl;
 
 
   // TODO Make faster by using batch computation results also on intermediate nodes?
@@ -4930,8 +4944,64 @@ RooSpan<double> RooAbsReal::evaluateBatch(std::size_t begin, std::size_t maxSize
   return output;
 }
 
+
+////////////////////////////////////////////////////////////////////////////////
+/// Evaluate function for a batch of input data points. If not overridden by
+/// derived classes, this will call the slow, single-valued evaluate() in a loop.
+/// \param[in]  evalData Data to be used for evaluation.
+/// \param[in]  normSet Optional normalisation information.
+/// \return     Span pointing to the results. The memory is held by the object, on which this
+/// function is called.
 RooSpan<double> RooAbsReal::evaluateBatch(BatchHelpers::RunContext& evalData, const RooArgSet* normSet) const {
-  throw std::logic_error("Not implemented.");
+  coutI(Optimization) << "The class " << IsA()->GetName() << " does not have the faster batch evaluation interface."
+      << " For built-in PDFs, consider requesting this feature on ROOT's website. Otherwise, override RooAbsReal::evaluateBatch()." << std::endl;
+
+  // Save old state, and make all server accept our new values
+  std::vector<RooSpan<const double>> inputData;
+  std::vector<double> oldValues;
+  std::vector<OperMode> oldOperModes;
+  for (auto server : _serverList) {
+    oldOperModes.push_back(server->operMode());
+
+    if (server->InheritsFrom(RooAbsReal::Class())) {
+      auto realServer = static_cast<RooAbsReal*>(server);
+      oldValues.push_back(realServer->getVal(normSet));
+      realServer->setOperMode(AClean);
+      inputData.push_back(realServer->getValBatch(evalData, normSet));
+    }
+    else {
+      inputData.emplace_back();
+      oldValues.emplace_back();
+    }
+  }
+
+  // Start computation, side-loading our values into the caches of our servers
+  const auto maxSize = BatchHelpers::findSmallestBatch(inputData);
+  auto output = evalData.makeBatch(this, maxSize);
+
+  for (std::size_t evtNo=0; evtNo < maxSize; ++evtNo) {
+    // Write all input data into the _value caches of our servers
+    for (unsigned int j=0; j < _serverList.size(); ++j) {
+      RooAbsReal* server = static_cast<RooAbsReal*>(_serverList[j]);
+      const RooSpan<const double>& data = inputData[j];
+      if (evtNo < data.size()) {
+        server->writeToCache(data[evtNo]);
+      }
+    }
+
+    output[evtNo] = evaluate();
+  }
+
+  // Restore old state
+  for (unsigned int j = 0; j < _serverList.size(); ++j) {
+    RooAbsArg* server = _serverList[j];
+    if (server->operMode() == AClean) {
+      static_cast<RooAbsReal*>(server)->writeToCache(oldValues[j]);
+      server->setOperMode(oldOperModes[j], false);
+    }
+  }
+
+  return output;
 }
 
 

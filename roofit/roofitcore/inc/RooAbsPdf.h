@@ -201,6 +201,8 @@ public:
 
   RooSpan<const double> getValBatch(std::size_t begin, std::size_t batchSize,
       const RooArgSet* normSet = nullptr) const final;
+  RooSpan<const double> getValBatch(BatchHelpers::RunContext& evalData, const RooArgSet* normSet) const;
+
   RooSpan<const double> getLogValBatch(std::size_t begin, std::size_t batchSize,
       const RooArgSet* normSet = nullptr) const;
 

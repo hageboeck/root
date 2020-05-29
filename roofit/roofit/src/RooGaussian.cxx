@@ -138,34 +138,33 @@ RooSpan<double> RooGaussian::evaluateBatch(std::size_t begin, std::size_t batchS
 }
 
 
-
-RooSpan<double> RooGaussian::evaluateBatch(BatchHelpers::RunContext& evalData, const RooArgSet* /*normSet*/) const {
-  auto xData = evalData.getBatch(x);
-  auto meanData = evalData.getBatch(mean);
-  auto sigmaData = evalData.getBatch(sigma);
-
-  //Now explicitly write down all possible template instantiations of compute() above:
-  const bool batchX = xData.size() > 1;
-  const bool batchMean = meanData.size() > 1;
-  const bool batchSigma = sigmaData.size() > 1;
-
-  if (!(batchX || batchMean || batchSigma)) {
-    return {};
-  }
+////////////////////////////////////////////////////////////////////////////////
+/// Compute \f$ \exp(-0.5 \cdot \frac{(x - \mu)^2}{\sigma^2} \f$ in batches.
+/// The `evalData` will be searched for data for {x, mean, sigma},
+/// and if found, the computation will be batched over their
+/// values. If batch data are not found for one of the proxies, a computation is triggered.
+/// \param[in] evalData Input data for the computations.
+/// \param[in] normSet Optional normalisation set for the computation of {x, mean, sigma}.
+/// \return A span with the computed values.
+RooSpan<double> RooGaussian::evaluateBatch(BatchHelpers::RunContext& evalData, const RooArgSet* normSet) const {
+  auto xData = evalData.getBatchOrStartComputing(x, normSet);
+  auto meanData = evalData.getBatchOrStartComputing(mean, normSet);
+  auto sigmaData = evalData.getBatchOrStartComputing(sigma, normSet);
 
   std::size_t batchLength = BatchHelpers::findSmallestBatch({xData, meanData, sigmaData});
   auto output = evalData.makeBatch(this, batchLength);
 
-  if (batchX && !batchMean && !batchSigma) {
+  if (xData.size() > 1 && meanData.size() == 1 && sigmaData.size() == 1) {
+    // This is the most common use case. Use a very optimised instantiation:
     compute(output, xData,
-        BracketAdapter<double>(meanData.size() == 1 ? meanData[0] : mean),
-        BracketAdapter<double>(sigmaData.size() == 1 ? sigmaData[0] : sigma));
-  }
-  else {
+        BracketAdapter<double>(meanData[0]),
+        BracketAdapter<double>(sigmaData[0]));
+  } else {
+    // Less optimal:
     compute(output,
-        BracketAdapterWithMask(x, xData),
-        BracketAdapterWithMask(mean, meanData),
-        BracketAdapterWithMask(sigma, sigmaData));
+        BracketAdapterWithMask(xData[0], xData),
+        BracketAdapterWithMask(meanData[0], meanData),
+        BracketAdapterWithMask(sigmaData[0], sigmaData));
   }
 
   return output;

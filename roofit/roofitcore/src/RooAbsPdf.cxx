@@ -398,6 +398,55 @@ RooSpan<const double> RooAbsPdf::getValBatch(std::size_t begin, std::size_t maxS
   return ret;
 }
 
+
+////////////////////////////////////////////////////////////////////////////////
+/// Compute batch of values for given input data, and normalise by integrating over
+/// the observables in `nset`. If `nset` is `nullptr`, unnormalized values
+/// are returned. All elements of `nset` must be lvalues.
+///
+/// \param[in] evalData Input data. Data batches in this struct will be used as
+/// function arguments for computations.
+/// \param[in] normSet   If not nullptr, normalise results by integrating over
+/// the variables in this set. The normalisation is only computed once, and applied
+/// to the full batch.
+RooSpan<const double> RooAbsPdf::getValBatch(BatchHelpers::RunContext& evalData, const RooArgSet* normSet) const {
+  // Some PDFs do preprocessing here, e.g. of the norm
+//  getValV(normSet);
+
+  // Did we already compute values in this run?
+  auto ourValues = evalData.getBatch(this);
+  if (!ourValues.empty())
+    return ourValues;
+
+  // Compute raw unnormalised values:
+  auto outputs = evaluateBatch(evalData, normSet);
+
+  if (!normSet) {
+#pragma message("Remove all usages of _normSet for this interface")
+    return outputs;
+  }
+
+  // Evaluate denominator
+  const double normVal = _norm->getVal();
+
+  if (normVal < 0.
+      || (normVal == 0. && std::any_of(outputs.begin(), outputs.end(), [](double val){return val != 0;}))) {
+    logEvalError(Form("p.d.f normalization integral is zero or negative."
+        "\n\tInt(%s) = %f", GetName(), normVal));
+#pragma message("Add NaNPacking here")
+  }
+
+  if (normVal != 1. && normVal > 0.) {
+    const double invNorm = 1./normVal;
+    for (double& val : outputs) { //CHECK_VECTORISE
+      val *= invNorm;
+    }
+  }
+
+  return outputs;
+}
+
+
 ////////////////////////////////////////////////////////////////////////////////
 /// Analytical integral with normalization (see RooAbsReal::analyticalIntegralWN() for further information)
 ///

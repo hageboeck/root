@@ -222,7 +222,7 @@ RooSpan<const double> RooRealBinding::getValBatch(std::vector<RooSpan<const doub
 
   // Take ownership of data away from evalData struct
   std::vector<double> newResults;
-  newResults.swap(evalData.payloadData[_func]);
+  newResults.swap(evalData.ownedMemory[_func]);
   assert(results.data() == newResults.data());
 
   return {std::move(newResults)};

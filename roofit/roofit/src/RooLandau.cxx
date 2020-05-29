@@ -163,51 +163,30 @@ void compute(	size_t batchSize,
 };
 
 ////////////////////////////////////////////////////////////////////////////////
-
 /// Compute \f$ Landau(x,mean,sigma) \f$ in batches.
 /// The local proxies {x, mean, sigma} will be searched for batch input data,
 /// and if found, the computation will be batched over their
 /// values. If batch data are not found for one of the proxies, the proxies value is assumed to
 /// be constant over the batch.
-/// \param[in] batchIndex Index of the batch to be computed.
-/// \param[in] batchSize Size of each batch. The last batch may be smaller.
+/// \param[in] evalData Data to be used for computations.
+/// \param[in] normSet Normalisation set to be used when computing inputs.
 /// \return A span with the computed values.
-
-RooSpan<double> RooLandau::evaluateBatch(std::size_t begin, std::size_t batchSize) const {
+RooSpan<double> RooLandau::evaluateBatch(BatchHelpers::RunContext& evalData, const RooArgSet* normSet) const {
   using namespace BatchHelpers;
-  auto xData = x.getValBatch(begin, batchSize);
-  auto meanData = mean.getValBatch(begin, batchSize);
-  auto sigmaData = sigma.getValBatch(begin, batchSize);
-  const bool batchX = !xData.empty();
-  const bool batchMean = !meanData.empty();
-  const bool batchSigma = !sigmaData.empty();
+  auto xData = evalData.getBatchOrStartComputing(x, normSet);
+  auto meanData = evalData.getBatchOrStartComputing(mean, normSet);
+  auto sigmaData = evalData.getBatchOrStartComputing(sigma, normSet);
 
-  if (!batchX && !batchMean && !batchSigma) {
-    return {};
-  }
-  batchSize = BatchHelpers::findSmallestBatch({ xData, meanData, sigmaData });
-  auto output = _batchData.makeWritableBatchUnInit(begin, batchSize);
+  const auto batchSize = findSmallestBatch({ xData, meanData, sigmaData });
+  auto output = evalData.makeBatch(this, batchSize);
 
-  if (batchX && !batchMean && !batchSigma ) {
+  if (xData.size() > 1 && meanData.size() == 1 && sigmaData.size() == 1) {
     compute(batchSize, output.data(), xData, BracketAdapter<double>(mean), BracketAdapter<double>(sigma));
-  }
-  else if (!batchX && batchMean && !batchSigma ) {
-    compute(batchSize, output.data(), BracketAdapter<double>(x), meanData, BracketAdapter<double>(sigma));
-  }
-  else if (batchX && batchMean && !batchSigma ) {
-    compute(batchSize, output.data(), xData, meanData, BracketAdapter<double>(sigma));
-  }
-  else if (!batchX && !batchMean && batchSigma ) {
-    compute(batchSize, output.data(), BracketAdapter<double>(x), BracketAdapter<double>(mean), sigmaData);
-  }
-  else if (batchX && !batchMean && batchSigma ) {
-    compute(batchSize, output.data(), xData, BracketAdapter<double>(mean), sigmaData);
-  }
-  else if (!batchX && batchMean && batchSigma ) {
-    compute(batchSize, output.data(), BracketAdapter<double>(x), meanData, sigmaData);
-  }
-  else if (batchX && batchMean && batchSigma ) {
-    compute(batchSize, output.data(), xData, meanData, sigmaData);
+  } else {
+    compute(batchSize, output.data(),
+        BracketAdapterWithMask(xData[0], xData),
+        BracketAdapterWithMask(meanData[0], meanData),
+        BracketAdapterWithMask(sigmaData[0], sigmaData));
   }
   return output;
 }
