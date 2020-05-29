@@ -3367,15 +3367,6 @@ Int_t RooAbsPdf::verboseEval()
 
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Dummy implementation
-
-void RooAbsPdf::CacheElem::operModeHook(RooAbsArg::OperMode)
-{
-}
-
-
-
-////////////////////////////////////////////////////////////////////////////////
 /// Destructor of normalization cache element. If this element
 /// provides the 'current' normalization stored in RooAbsPdf::_norm
 /// zero _norm pointer here before object pointed to is deleted here
