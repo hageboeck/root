@@ -389,7 +389,7 @@ RooSpan<double> RooFormula::evaluateBatch(const RooAbsReal* dataOwner, BatchHelp
     }
   }
 
-  const auto nData = BatchHelpers::findSize(inputSpans);
+  const auto nData = BatchHelpers::findSmallestBatch(inputSpans);
   auto output = inputData.makeBatch(dataOwner, nData);
   std::vector<double> pars(_origList.size());
 

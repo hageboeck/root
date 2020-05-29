@@ -153,7 +153,7 @@ RooSpan<double> RooGaussian::evaluateBatch(BatchHelpers::RunContext& evalData, c
     return {};
   }
 
-  std::size_t batchLength = BatchHelpers::findSize({xData, meanData, sigmaData});
+  std::size_t batchLength = BatchHelpers::findSmallestBatch({xData, meanData, sigmaData});
   auto output = evalData.makeBatch(this, batchLength);
 
   if (batchX && !batchMean && !batchSigma) {
