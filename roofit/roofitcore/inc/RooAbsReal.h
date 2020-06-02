@@ -440,6 +440,11 @@ protected:
   friend class RooVectorDataStore ;
   virtual void syncCache(const RooArgSet* set=0) { getVal(set) ; }
   virtual void copyCache(const RooAbsArg* source, Bool_t valueOnly=kFALSE, Bool_t setValDirty=kTRUE) ;
+  /// Replace currently cached value with `value`. This will mark the element as dirty.
+  void writeToCache(double value) {
+    _value = value;
+    setValueDirty();
+  }
   virtual void attachToTree(TTree& t, Int_t bufSize=32000) ;
   virtual void attachToVStore(RooVectorDataStore& vstore) ;
   virtual void setTreeBranchStatus(TTree& t, Bool_t active) ;
