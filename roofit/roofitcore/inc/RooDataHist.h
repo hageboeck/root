@@ -109,7 +109,8 @@ public:
   Double_t weightSquared() const ;
   Double_t weight(const RooArgSet& bin, Int_t intOrder=1, Bool_t correctForBinSize=kFALSE, Bool_t cdfBoundaries=kFALSE, Bool_t oneSafe=kFALSE) ;   
   Double_t binVolume() const { return _curVolume ; }
-  Double_t binVolume(const RooArgSet& bin) ; 
+  Double_t binVolume(const RooArgSet& bin) ;
+
   virtual Bool_t valid() const ;
 
   TIterator* sliceIterator(RooAbsArg& sliceArg, const RooArgSet& otherArgs) ;
@@ -138,6 +139,15 @@ public:
   Int_t getIndex(const RooArgSet& coord, Bool_t fast=kFALSE) ;
 
   void removeSelfFromDir() { removeFromDir(this) ; }
+
+  /// Get all weights. Bins are indexed according to getIndex().
+  RooSpan<const double> weights() const {
+    return {_wgt, static_cast<unsigned long>(_arrSize)};
+  }
+  /// Retrieve all bin volumes. Bins are indexed according getIndex().
+  RooSpan<const double> binVolumes() const {
+    return {_binv, static_cast<unsigned long>(_arrSize)};
+  }
 
 protected:
 
