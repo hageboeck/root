@@ -677,10 +677,11 @@ void RooDataHist::initialize(const char* binningName, Bool_t fillTree)
     if (binningName) {
       RooRealVar* rrv = dynamic_cast<RooRealVar*>(rvarg); 
       if (rrv) {
-        rrv->setBinning(rrv->getBinning(binningName));
+	rrv->setBinning(rrv->getBinning(binningName));
       }
     }
-
+    // coverity[FORWARD_NULL]
+    _lvvars.push_back(dynamic_cast<RooAbsLValue*>(rvarg));    
     // coverity[FORWARD_NULL]
     const RooAbsBinning* binning = dynamic_cast<RooAbsLValue*>(rvarg)->getBinningPtr(0);
     _lvbins.push_back(binning ? binning->clone() : 0);
@@ -802,6 +803,8 @@ RooDataHist::RooDataHist(const RooDataHist& other, const char* newname) :
 
   // Fill array of LValue pointers to variables
   for (const auto rvarg : _vars) {
+    // coverity[FORWARD_NULL]
+    _lvvars.push_back(dynamic_cast<RooAbsLValue*>(rvarg)) ;
     // coverity[FORWARD_NULL]
     const RooAbsBinning* binning = dynamic_cast<RooAbsLValue*>(rvarg)->getBinningPtr(0) ;
     _lvbins.push_back(binning ? binning->clone() : 0) ;    
@@ -977,8 +980,8 @@ Int_t RooDataHist::getIndex(const RooArgSet& coord, Bool_t fast)
 Int_t RooDataHist::calcTreeIndex() const 
 {
   int masterIdx(0);
-  for (unsigned int i=0; i < _vars.size(); ++i) {
-    const auto lvvar = static_cast<RooAbsLValue*>(_vars[i]);
+  for (unsigned int i=0; i < _lvvars.size(); ++i) {
+    const RooAbsLValue*  lvvar = _lvvars[i];
     const RooAbsBinning* binning = _lvbins[i];
     masterIdx += _idxMult[i] * lvvar->getBin(binning);
   }
