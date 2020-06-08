@@ -210,7 +210,7 @@ protected:
 
   mutable std::vector<Double_t>* _pbinv ; //! Partial bin volume array
   mutable RooCacheManager<std::vector<Double_t> > _pbinvCacheMgr ; //! Cache manager for arrays of partial bin volumes
-  std::vector<RooAbsLValue*> _lvvars ; //! List of observables casted as RooAbsLValue
+  std::vector<bool> _isCategory; //! Check if observable is a category
   std::vector<const RooAbsBinning*> _lvbins ; //! List of used binnings associated with lvalues
   mutable std::vector<std::vector<Double_t> > _binbounds; //! list of bin bounds per dimension
 
