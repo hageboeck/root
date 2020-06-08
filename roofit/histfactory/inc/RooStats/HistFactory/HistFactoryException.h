@@ -12,8 +12,8 @@
 #ifndef HISTFACTORY_EXCEPTION
 #define HISTFACTORY_EXCEPTION
 
-#include <iostream>
 #include <exception>
+#include <string>
 
 
 namespace RooStats{
@@ -21,15 +21,19 @@ namespace RooStats{
 
     class hf_exc: public std::exception
     {
+    public:
+      hf_exc(std::string message = "") : _message(message) { }
+
       virtual const char* what() const noexcept
       {
-        return "HistFactory - Exception";
+        return ("HistFactory - Exception " + _message).c_str();
       }
+
+    private:
+      std::string _message;
     };
 
   }
 }
-
-//static hf_exc bad_hf;
 
 #endif
