@@ -949,8 +949,6 @@ RooDataHist::~RooDataHist()
 }
 
 
-
-
 ////////////////////////////////////////////////////////////////////////////////
 /// Calculate bin number of the given coordinates. If only a subset of the internal
 /// coordinates are passed, the missing coordinates are taken at their current value.
@@ -961,31 +959,32 @@ RooDataHist::~RooDataHist()
 Int_t RooDataHist::getIndex(const RooArgSet& coord, Bool_t fast)
 {
   checkInit() ;
+
   if (fast) {
-    _vars.assignFast(coord,kFALSE) ;
-  } else {
-    _vars.assignValueOnly(coord) ;
+    assert(_vars.hasSameLayout(coord));
+    return calcTreeIndex(coord);
   }
-  return calcTreeIndex() ;
+
+  std::unique_ptr<RooArgSet> clonedVars(_vars.snapshot(true));
+  clonedVars->assignValueOnly(coord);
+  return calcTreeIndex(*clonedVars);
 }
 
 
-
-
 ////////////////////////////////////////////////////////////////////////////////
-/// Calculate the index for the weights array corresponding to 
-/// to the bin enclosing the current coordinates of the internal argset
+/// Calculate the bin index for the bin enclosing the coordinates `coords`.
+/// \attention It is silently assumed that `coords` has the same layout as _vars.
+Int_t RooDataHist::calcTreeIndex(const RooArgSet& coords) const {
+  assert(_vars.hasSameLayout(coords));
 
-Int_t RooDataHist::calcTreeIndex() const 
-{
   int masterIdx(0);
-  for (unsigned int i=0; i < _vars.size(); ++i) {
+  for (unsigned int i=0; i < coords.size(); ++i) {
     // Ugly, but multiple inheritance at work:
     const RooAbsLValue* lvvar;
     if (_isCategory[i]) {
-      lvvar = static_cast<RooAbsCategoryLValue*>(_vars[i]);
+      lvvar = static_cast<RooAbsCategoryLValue*>(coords[i]);
     } else {
-      lvvar = static_cast<RooAbsRealLValue*>(_vars[i]);
+      lvvar = static_cast<RooAbsRealLValue*>(coords[i]);
     }
     const RooAbsBinning* binning = _lvbins[i];
     masterIdx += _idxMult[i] * lvvar->getBin(binning);

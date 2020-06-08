@@ -136,7 +136,7 @@ public:
   void SetName(const char *name) ;
   void SetNameTitle(const char *name, const char* title) ;
 
-  Int_t getIndex(const RooArgSet& coord, Bool_t fast=kFALSE) ;
+  Int_t getIndex(const RooArgSet& coord, Bool_t fast = false) const;
 
   void removeSelfFromDir() { removeFromDir(this) ; }
 
@@ -156,7 +156,11 @@ protected:
   friend class RooDataHistSliceIter ;
   friend class RooAbsOptTestStatistic ;
 
-  Int_t calcTreeIndex() const ;
+  /// Compute the bin index of the currently set coordinates in _vars.
+  Int_t calcTreeIndex() const {
+    return calcTreeIndex(_vars);
+  }
+  Int_t calcTreeIndex(const RooArgSet& coords) const;
   void cacheValidEntries() ;
 
   void setAllWeights(Double_t value) ;
