@@ -1941,9 +1941,11 @@ RooLinkedList RooAbsArg::getCloningAncestors() const
 ////////////////////////////////////////////////////////////////////////////////
 /// Create a GraphViz .dot file visualizing the expression tree headed by
 /// this RooAbsArg object. Use the GraphViz tool suite to make e.g. a gif
-/// or ps file from the .dot file
+/// or ps file from the .dot file.
+/// If a node derives from RooAbsReal, its current (unnormalised) value is
+/// printed as well.
 ///
-/// Based on concept developed by Kyle Cranmer
+/// Based on concept developed by Kyle Cranmer.
 
 void RooAbsArg::graphVizTree(const char* fileName, const char* delimiter, bool useTitle, bool useLatex)
 {
@@ -1958,8 +1960,10 @@ void RooAbsArg::graphVizTree(const char* fileName, const char* delimiter, bool u
 ////////////////////////////////////////////////////////////////////////////////
 /// Write the GraphViz representation of the expression tree headed by
 /// this RooAbsArg object to the given ostream.
+/// If a node derives from RooAbsReal, its current (unnormalised) value is
+/// printed as well.
 ///
-/// Based on concept developed by Kyle Cranmer
+/// Based on concept developed by Kyle Cranmer.
 
 void RooAbsArg::graphVizTree(ostream& os, const char* delimiter, bool useTitle, bool useLatex)
 {
@@ -1990,6 +1994,10 @@ void RooAbsArg::graphVizTree(ostream& os, const char* delimiter, bool useTitle, 
 
     string typeFormat = "\\texttt{";
     string nodeType = (useLatex) ? typeFormat+node->IsA()->GetName()+"}" : node->IsA()->GetName();
+
+    if (auto realNode = dynamic_cast<RooAbsReal*>(node)) {
+      nodeLabel += delimiter + std::to_string(realNode->getVal());
+    }
 
     os << "\"" << nodeName << "\" [ color=" << (node->isFundamental()?"blue":"red")
        << ", label=\"" << nodeType << delimiter << nodeLabel << "\"];" << endl ;
