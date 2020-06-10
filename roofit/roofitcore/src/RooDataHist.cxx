@@ -956,9 +956,8 @@ RooDataHist::~RooDataHist()
 /// \param[in] fast If the variables in `coord` and the ones of the data hist have the
 /// same size and layout, see RooAbsCollection::hasSameLayout(), fast can be set to skip
 /// checking that all variables are present in `coord`.
-Int_t RooDataHist::getIndex(const RooArgSet& coord, Bool_t fast)
-{
-  checkInit() ;
+Int_t RooDataHist::getIndex(const RooArgSet& coord, bool fast) const {
+  checkInit();
 
   if (fast) {
     assert(_vars.hasSameLayout(coord));
