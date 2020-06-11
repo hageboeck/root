@@ -75,6 +75,7 @@
 #pragma link C++ class RooArgSet+ ;
 #pragma link C++ class RooBinnedGenContext+ ;
 #pragma link C++ class RooBinning-;
+#pragma link C++ class RooBinWidthFunction+;
 #pragma link C++ class RooBrentRootFinder+ ;
 #pragma link C++ class RooCategory- ;
 #pragma link C++ class RooCategorySharedProperties+ ;
@@ -193,6 +194,7 @@
 #pragma read sourceClass="RooCategoryProxy" targetClass="RooTemplateProxy<RooMultiCategory>";
 #pragma link C++ class RooTemplateProxy<RooAbsCategoryLValue>+;
 #pragma read sourceClass="RooCategoryProxy" targetClass="RooTemplateProxy<RooAbsCategoryLValue>";
+#pragma link C++ class RooTemplateProxy<const RooHistFunc>+;
 #pragma link C++ class RooRealVar- ;
 #pragma link C++ class RooRealVarSharedProperties+ ;
 #pragma read sourceClass="RooRealVarSharedProperties" targetClass="RooRealVarSharedProperties" version="[1]" \

@@ -58,6 +58,7 @@ ROOT_STANDARD_LIBRARY_PACKAGE(RooFitCore
     RooBinnedGenContext.h
     RooBinningCategory.h
     RooBinning.h
+    RooBinWidthFunction.h
     RooBrentRootFinder.h
     RooCachedPdf.h
     RooCachedReal.h
