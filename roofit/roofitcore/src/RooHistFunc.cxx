@@ -607,3 +607,26 @@ void RooHistFunc::ioStreamerPass2()
   }
 }
 
+
+////////////////////////////////////////////////////////////////////////////////
+/// Compute bin number corresponding to current coordinates.
+/// \return A valid bin number or -1 if out of range.
+Int_t RooHistFunc::getBin() const {
+  // Transfer values from
+  if (_depList.getSize()>0) {
+    for (auto i = 0u; i < _histObsList.size(); ++i) {
+      const auto harg = _histObsList[i];
+      const auto parg = _depList[i];
+
+      if (harg != parg) {
+        parg->syncCache() ;
+        harg->copyCache(parg,kTRUE) ;
+        if (!harg->inRange(0)) {
+          return -1;
+        }
+      }
+    }
+  }
+
+  return _dataHist->getIndex(_histObsList, false);
+}

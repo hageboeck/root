@@ -46,6 +46,10 @@ public:
     return *_dataHist ; 
   }
   
+  /// Get total bin volume spanned by this hist function.
+  /// In 1-d, this is e.g. the range spanned on the x-axis.
+  Double_t totVolume() const;
+
   /// Set histogram interpolation order.
   void setInterpolationOrder(Int_t order) { 
 
@@ -79,15 +83,15 @@ public:
   virtual std::list<Double_t>* plotSamplingHint(RooAbsRealLValue& obs, Double_t xlo, Double_t xhi) const ; 
   virtual Bool_t isBinnedDistribution(const RooArgSet&) const { return _intOrder==0 ; }
 
+  Int_t getBin() const;
+
 protected:
 
   Bool_t importWorkspaceHook(RooWorkspace& ws) ;
   Bool_t areIdentical(const RooDataHist& dh1, const RooDataHist& dh2) ;
 
   Double_t evaluate() const;
-  Double_t totalVolume() const ;
   friend class RooAbsCachedReal ;
-  Double_t totVolume() const ;
 
   virtual void ioStreamerPass2() ;
 
