@@ -95,7 +95,7 @@ TEST(HistFactory, Read_ROOT6_16_Combined_Model) {
 }
 
 
-enum MakeModelMode {kEquidistantBinning, kCustomBinning};
+enum MakeModelMode {kEquidistant_customBins, kCustom_customBins};
 class MakeModel : public testing::TestWithParam<MakeModelMode> {
 public:
   void SetUp() {
@@ -103,19 +103,18 @@ public:
 
     TFile example(_inputFile.c_str(), "RECREATE");
     TH1F *data, *signal, *bkg1, *bkg2, *statUnc = nullptr;
-    if (GetParam() == kEquidistantBinning) {
+    if (GetParam() == kEquidistant_customBins) {
       data = new TH1F("data","data", 2,1,2);
       signal = new TH1F("signal","signal histogram (pb)", 2,1,2);
       bkg1 = new TH1F("background1","background 1 histogram (pb)", 2,1,2);
       bkg2 = new TH1F("background2","background 2 histogram (pb)", 2,1,2);
       statUnc = new TH1F("background1_statUncert", "statUncert", 2,1,2);
-    } else if (GetParam() == kCustomBinning) {
-      double binning[3] = {0., 1.8, 2.};
-      data = new TH1F("data","data", 3, binning);
-      signal = new TH1F("signal","signal histogram (pb)", 2, binning);
-      bkg1 = new TH1F("background1","background 1 histogram (pb)", 2, binning);
-      bkg2 = new TH1F("background2","background 2 histogram (pb)", 2, binning);
-      statUnc = new TH1F("background1_statUncert", "statUncert", 2, binning);
+    } else if (GetParam() == kCustom_customBins) {
+      data = new TH1F("data","data", 3, _customBins);
+      signal = new TH1F("signal","signal histogram (pb)", 2, _customBins);
+      bkg1 = new TH1F("background1","background 1 histogram (pb)", 2, _customBins);
+      bkg2 = new TH1F("background2","background 2 histogram (pb)", 2, _customBins);
+      statUnc = new TH1F("background1_statUncert", "statUncert", 2, _customBins);
     } else {
       throw std::logic_error("Test suite set up wrongly");
     }
@@ -143,7 +142,10 @@ public:
   }
 
   std::string _inputFile;
+  double _customBins[3] = {0., 1.8, 2.};
 };
+
+
 
 TEST_P(MakeModel, MakingModels) {
   // Create the measurement
@@ -211,13 +213,13 @@ TEST_P(MakeModel, MakingModels) {
 
   auto obs = dynamic_cast<RooRealVar*>(ws->var("obs_x_channel1"));
   ASSERT_NE(obs, nullptr);
-  if (GetParam() == kEquidistantBinning) {
+  if (GetParam() == kEquidistant_customBins) {
     EXPECT_DOUBLE_EQ(obs->getBinWidth(0), 0.5);
     EXPECT_DOUBLE_EQ(obs->getBinWidth(1), 0.5);
     EXPECT_EQ(obs->numBins(), 2);
   } else {
-    EXPECT_DOUBLE_EQ(obs->getBinWidth(0), 0.8);
-    EXPECT_DOUBLE_EQ(obs->getBinWidth(1), 0.2);
+    EXPECT_DOUBLE_EQ(obs->getBinWidth(0), _customBins[1] - _customBins[0]);
+    EXPECT_DOUBLE_EQ(obs->getBinWidth(1), _customBins[2] - _customBins[1]);
     EXPECT_EQ(obs->numBins(), 2);
   }
 
@@ -234,24 +236,37 @@ TEST_P(MakeModel, MakingModels) {
 
   EXPECT_EQ(*mc->GetParametersOfInterest()->begin(), ws->var("SigXsecOverSM"));
 
+  double unnorm[2];
+  double norm[2];
+  const double desired[2] = {120, 110};
   obs->setBin(0);
-  EXPECT_NEAR(channelPdf->getVal(/*mc->GetObservables()*/), 120, 1.E-4);
+  unnorm[0] = channelPdf->getVal();
+  norm[0]   = channelPdf->getVal(mc->GetObservables());
+  channelPdf->Print("T");
   obs->setBin(1);
-  EXPECT_NEAR(channelPdf->getVal(mc->GetObservables()), 110, 1.E-4);
+  unnorm[1] = channelPdf->getVal();
+  norm[1]   = channelPdf->getVal(mc->GetObservables());
+
+  for (unsigned int i=0; i < 2; ++i) {
+    EXPECT_NEAR(unnorm[i], desired[i]*obs->getBinWidth(i), 1.E-6);
+    EXPECT_NEAR(norm[i], unnorm[i]/(unnorm[0]*obs->getBinWidth(0)+unnorm[1]*obs->getBinWidth(1)), 1.E-6);
+  }
 
   RooAbsData* data = dynamic_cast<RooAbsData*>(ws->data("obsData"));
   ASSERT_NE(data, nullptr);
-  data->Print("V");
-  std::cout << data->IsA()->GetName() << std::endl;
 
-  auto fitResult = simPdf->fitTo(*data, RooFit::GlobalObservables(*mc->GetGlobalObservables()), RooFit::Save(), RooFit::PrintLevel(0));
+  auto fitResult = simPdf->fitTo(*data, RooFit::GlobalObservables(*mc->GetGlobalObservables()), RooFit::Save(), RooFit::PrintLevel(-1));
   ASSERT_NE(fitResult, nullptr);
+  fitResult->Print();
   EXPECT_EQ(fitResult->status(), 0);
 
-  // Model is set up such that both backgrounds should be close to 1, and signal = 2
-  EXPECT_NEAR(dynamic_cast<RooRealVar*>(fitResult->floatParsFinal().find("SigXsecOverSM"))->getVal(), 2., 0.001);
-  EXPECT_NEAR(dynamic_cast<RooRealVar*>(fitResult->floatParsFinal().find("alpha_syst2"))->getVal(), 0., 0.001);
-  EXPECT_NEAR(dynamic_cast<RooRealVar*>(fitResult->floatParsFinal().find("alpha_syst3"))->getVal(), 0., 0.001);
+  // Model is set up such that both background scale factors should be close to 1, and signal == 2
+  auto sig = dynamic_cast<const RooRealVar*>(fitResult->floatParsFinal().find("SigXsecOverSM"));
+  EXPECT_NEAR(sig->getVal(), 2., sig->getError());
+  auto bkg1 = dynamic_cast<RooRealVar*>(fitResult->floatParsFinal().find("alpha_syst2"));
+  EXPECT_NEAR(bkg1->getVal(), 0., bkg1->getError());
+  auto bkg2 = dynamic_cast<RooRealVar*>(fitResult->floatParsFinal().find("alpha_syst3"));
+  EXPECT_NEAR(bkg2->getVal(), 0., bkg2->getError());
 
   auto frame = obs->frame();
   data->plotOn(frame);
@@ -260,11 +275,11 @@ TEST_P(MakeModel, MakingModels) {
   TCanvas canv;
   frame->Draw();
   canv.Draw();
-  canv.SaveAs("/tmp/HFTest.png");
+  canv.SaveAs(("/tmp/HFTest" + std::to_string(GetParam()) + ".png").c_str());
 }
 
 
 INSTANTIATE_TEST_SUITE_P(HistFactory,
     MakeModel,
-    testing::Values(kEquidistantBinning, kCustomBinning));
+    testing::Values(kEquidistant_customBins, kCustom_customBins));
 
