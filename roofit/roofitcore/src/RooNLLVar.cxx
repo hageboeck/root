@@ -51,6 +51,7 @@ In extended mode, a
 #include "Math/Util.h"
 
 #include <algorithm>
+#include <stdexcept>
 
 ClassImp(RooNLLVar)
 
@@ -482,7 +483,12 @@ std::tuple<double, double, double> RooNLLVar::computeBatched(std::size_t stepSiz
   _evalData->clear();
   _dataClone->getBatches(*_evalData, firstEvent, lastEvent-firstEvent);
 
-  auto results = pdfClone->getLogValBatch(*_evalData, _normSet);
+  RooSpan<const double> results;
+  if (_highGranularitySampling == 0) {
+    results = pdfClone->getLogValBatch(*_evalData, _normSet);
+  } else {
+    results = highGranularitySampling(*_evalData, firstEvent, lastEvent);
+  }
 #else
   auto results = pdfClone->getLogValBatch(firstEvent, lastEvent-firstEvent, _normSet);
 #endif
@@ -582,4 +588,64 @@ std::tuple<double, double, double> RooNLLVar::computeScalar(std::size_t stepSize
   }
 
   return std::tuple<double, double, double>{kahanProb.Sum(), kahanProb.Carry(), kahanWeight.Sum()};
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+/// Evaluate PDF in all bins with higher granularity. Use faster batch interface.
+/// \param[in] evalData Struct with data where PDF should be evaluated. The x values
+/// will be replaced by an array with higher granularity.
+RooSpan<const double> RooNLLVar::highGranularitySampling(BatchHelpers::RunContext& evalData) const {
+  if (_funcObsSet->size() != 1) {
+    coutF(Fitting) << "High-granularity sampling of the function is only implemented for 1D functions." << std::endl;
+    throw std::logic_error("RooNLLVar: High-granularity sampling of the function is only implemented for 1D functions.");
+  }
+
+  const RooRealVar* x = dynamic_cast<const RooRealVar*>((*_funcObsSet)[static_cast<std::size_t>(0u)]);
+  const RooRealVar* origX;
+  RooSpan<const double> xData;
+
+  for (auto& ptr_span : evalData.spans) {
+    if (ptr_span.first->GetName() == x->GetName()) {
+      origX = dynamic_cast<const RooRealVar*>(ptr_span.first);
+      xData = ptr_span.second;
+      break;
+    }
+  }
+
+  auto& binning = x->getBinning(_rangeName.c_str());
+  const unsigned int nBins = binning.numBins();
+  std::vector<double> newXValues;
+  newXValues.reserve(_highGranularitySampling * nBins);
+
+  for (unsigned int i=0; i < nBins; ++i) {
+    const double binLeft = binning.binLow(i);
+    const double width   = binning.binWidth(i);
+
+    for (unsigned int j=0; j < _highGranularitySampling + 1; ++j) {
+      newXValues.push_back(binLeft + width/_highGranularitySampling * j);
+    }
+  }
+
+  // Now overwrite the data that the evaluation function sees with new x values
+  evalData.spans[x] = RooSpan<const double>(newXValues);
+
+  // Evaluate
+  auto pdfClone = static_cast<const RooAbsPdf*>(_funcClone);
+  auto results = pdfClone->getValBatch(evalData, _normSet);
+
+  // Now approximate integral of PDF over bin by summing trapezoids:
+  std::vector<double>& logProbabilities = evalData.logProbabilities;
+  logProbabilities.resize(nBins);
+
+  for (unsigned int bin=0; bin < nBins; ++ bin) {
+    double prob = 0.;
+    const unsigned int offset = bin * (_highGranularitySampling+1);
+    for (unsigned int j=0; j < _highGranularitySampling; ++j) {
+      prob += 0.5 * (results[offset + j] + results[offset + j + 1]);
+    }
+    logProbabilities[bin] = std::log(prob);
+  }
+
+  return RooSpan<const double>(logProbabilities);
 }

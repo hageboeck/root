@@ -78,6 +78,8 @@ private:
   std::tuple<double, double, double> computeScalar(
         std::size_t stepSize, std::size_t firstEvent, std::size_t lastEvent) const;
 
+  RooSpan<const double> highGranularitySampling(BatchHelpers::RunContext& evalData) const;
+
   Bool_t _extended{false};
   bool _batchEvaluations{false};
   Bool_t _weightSq{false}; // Apply weights squared?
@@ -88,8 +90,9 @@ private:
   mutable std::vector<Double_t> _binw ; //!
   mutable RooRealSumPdf* _binnedPdf{nullptr}; //!
   mutable std::unique_ptr<BatchHelpers::RunContext> _evalData; //! Struct to store function evaluation workspaces.
+  unsigned int _highGranularitySampling{0u};
    
-  ClassDef(RooNLLVar,3) // Function representing (extended) -log(L) of p.d.f and dataset
+  ClassDef(RooNLLVar, 4) // Function representing (extended) -log(L) of p.d.f and dataset
 };
 
 #endif
