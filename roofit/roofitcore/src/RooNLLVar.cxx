@@ -212,9 +212,9 @@ RooNLLVar::RooNLLVar(const RooNLLVar& other, const char* name) :
   _weightSq(other._weightSq),
   _first(kTRUE), _offsetSaveW2(other._offsetSaveW2),
   _offsetCarrySaveW2(other._offsetCarrySaveW2),
-  _binw(other._binw) {
-  _binnedPdf = other._binnedPdf ? (RooRealSumPdf*)_funcClone : 0 ;
-}
+  _binw(other._binw),
+  _binnedPdf(other._binnedPdf ? (RooRealSumPdf*)_funcClone : nullptr),
+  _highGranularitySampling(other._highGranularitySampling) { }
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -227,6 +227,7 @@ RooAbsTestStatistic* RooNLLVar::create(const char *name, const char *title, RooA
       dynamic_cast<RooAbsPdf&>(pdf), adata,
       projDeps, _extended, rangeName, addCoefRangeName, nCPU, interleave, verbose, splitRange, false, binnedL);
   testStat->batchMode(_batchEvaluations);
+  testStat->highResolutionSampling(_highGranularitySampling);
   return testStat;
 }
 
