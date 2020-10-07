@@ -484,7 +484,6 @@ std::tuple<double, double, double> RooNLLVar::computeBatched(std::size_t stepSiz
   _evalData->clear();
   _dataClone->getBatches(*_evalData, firstEvent, lastEvent-firstEvent);
 
-
   auto results = pdfClone->getLogValBatch(evalData, _normSet);
 
   // andrea
