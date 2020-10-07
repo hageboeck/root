@@ -480,8 +480,9 @@ std::tuple<double, double, double> RooNLLVar::computeBatched(std::size_t stepSiz
   // retrieve data points and enhance granularity
   // choose factor
   int granFactor(500);
+  std::vector<double> newXValues;
+  std::vector<double> newlogValues;
   if (granFactor>1) {
-    std::vector<double> newXValues;
     TString obsName("obs_x_srl");
     auto observables = pdfClone->getObservables(_dataClone);
 //    std::cout << "observables size:\t" << observables->size() << std::endl; 
@@ -518,7 +519,6 @@ std::tuple<double, double, double> RooNLLVar::computeBatched(std::size_t stepSiz
     results = pdfClone->getValBatch(my_evalData, _normSet);
     // andrea, use more granular set of points to
     // estimate function integral within a 'wide' bin
-    std::vector<double> newlogValues;
     int count_f(0);
     double sum_f(0.), a_f(-99.), b_f(-99.);
     for (int itR=0; itR<(int)results.size(); itR++) {
