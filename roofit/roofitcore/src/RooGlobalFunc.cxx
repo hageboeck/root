@@ -156,7 +156,10 @@ namespace RooFit {
   RooCmdArg Extended(Bool_t flag) { return RooCmdArg("Extended",flag,0,0,0,0,0,0,0) ; }
   RooCmdArg DataError(Int_t etype) { return RooCmdArg("DataError",(Int_t)etype,0,0,0,0,0,0,0) ; }
   RooCmdArg NumCPU(Int_t nCPU, Int_t interleave)   { return RooCmdArg("NumCPU",nCPU,interleave,0,0,0,0,0,0) ; }
+  /// Use the faster batch computations in log-likelihood computations. \see RooAbsPdf::fitTo().
   RooCmdArg BatchMode(bool flag) { return RooCmdArg("BatchMode", flag); }
+  /// Sample the PDF with `samplesPerBin` trapezoids. \see RooAbsPdf::fitTo().
+  RooCmdArg HighResolutionSampling(unsigned int samplesPerBin) { return RooCmdArg("HighResolutionSampling", samplesPerBin); }
   
   // RooAbsCollection::printLatex arguments
   RooCmdArg Columns(Int_t ncol)                           { return RooCmdArg("Columns",ncol,0,0,0,0,0,0,0) ; }

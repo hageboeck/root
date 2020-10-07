@@ -73,7 +73,7 @@ RooNLLVar::RooNLLVar()
 ///  Verbose()                | Verbose output of GOF framework classes
 ///  CloneData()              | Clone input dataset for internal use (default is kTRUE)
 ///  BatchMode()              | Evaluate batches of data events (faster if PDFs support it)
-
+///  HighResolutionSampling() | Sample PDF with `N` trapezoids per bin. Only useful for binned fits.
 RooNLLVar::RooNLLVar(const char *name, const char* title, RooAbsPdf& pdf, RooAbsData& indata,
 		     const RooCmdArg& arg1, const RooCmdArg& arg2,const RooCmdArg& arg3,
 		     const RooCmdArg& arg4, const RooCmdArg& arg5,const RooCmdArg& arg6,
@@ -93,6 +93,7 @@ RooNLLVar::RooNLLVar(const char *name, const char* title, RooAbsPdf& pdf, RooAbs
   pc.allowUndefined() ;
   pc.defineInt("extended","Extended",0,kFALSE) ;
   pc.defineInt("BatchMode", "BatchMode", 0, false);
+  pc.defineInt("HighResolutionSampling", "HighResolutionSampling", 0, false);
 
   pc.process(arg1) ;  pc.process(arg2) ;  pc.process(arg3) ;
   pc.process(arg4) ;  pc.process(arg5) ;  pc.process(arg6) ;
@@ -100,6 +101,7 @@ RooNLLVar::RooNLLVar(const char *name, const char* title, RooAbsPdf& pdf, RooAbs
 
   _extended = pc.getInt("extended") ;
   _batchEvaluations = pc.getInt("BatchMode");
+  _highGranularitySampling = pc.getInt("HighResolutionSampling");
   _weightSq = kFALSE ;
   _first = kTRUE ;
   _offset = 0.;
@@ -209,9 +211,9 @@ RooNLLVar::RooNLLVar(const RooNLLVar& other, const char* name) :
   _weightSq(other._weightSq),
   _first(kTRUE), _offsetSaveW2(other._offsetSaveW2),
   _offsetCarrySaveW2(other._offsetCarrySaveW2),
-  _binw(other._binw) {
-  _binnedPdf = other._binnedPdf ? (RooRealSumPdf*)_funcClone : 0 ;
-}
+  _binw(other._binw),
+  _binnedPdf(other._binnedPdf ? (RooRealSumPdf*)_funcClone : nullptr),
+  _highGranularitySampling(other._highGranularitySampling) { }
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -224,6 +226,7 @@ RooAbsTestStatistic* RooNLLVar::create(const char *name, const char *title, RooA
       dynamic_cast<RooAbsPdf&>(pdf), adata,
       projDeps, _extended, rangeName, addCoefRangeName, nCPU, interleave, verbose, splitRange, false, binnedL);
   testStat->batchMode(_batchEvaluations);
+  testStat->highResolutionSampling(_highGranularitySampling);
   return testStat;
 }
 

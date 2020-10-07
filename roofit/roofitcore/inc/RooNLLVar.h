@@ -60,8 +60,18 @@ public:
 
   virtual Double_t defaultErrorLevel() const { return 0.5 ; }
 
+  /// Use faster batch evaluations. This uses RooAbsPdf::getValBatch() instead of RooAbsPdf::getVal().
   void batchMode(bool on = true) {
     _batchEvaluations = on;
+  }
+
+  /// Sample PDF with higher resolution for binned data.
+  /// If data are binned, sample the PDF using `nSamples` trapezoids inside a bin.
+  /// By default, RooFit will only evaluate the PDF in the bin centre.
+  /// This can dramatically improve the accuracy when continuous functions are fit
+  /// with binned data. This only works in conjunction with the `BatchMode`.
+  void highResolutionSampling(unsigned int nSamples) {
+    _highGranularitySampling = nSamples;
   }
 
 protected:
