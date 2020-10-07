@@ -490,7 +490,7 @@ std::tuple<double, double, double> RooNLLVar::computeBatched(std::size_t stepSiz
   if (_highGranularitySampling == 0) {
     results = pdfClone->getLogValBatch(*_evalData, _normSet);
   } else {
-    results = highGranularitySampling(*_evalData, firstEvent, lastEvent);
+    results = highGranularitySampling(*_evalData);
   }
 #else
   auto results = pdfClone->getLogValBatch(firstEvent, lastEvent-firstEvent, _normSet);
