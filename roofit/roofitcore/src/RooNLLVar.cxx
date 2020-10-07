@@ -74,7 +74,7 @@ RooNLLVar::RooNLLVar()
 ///  Verbose()                | Verbose output of GOF framework classes
 ///  CloneData()              | Clone input dataset for internal use (default is kTRUE)
 ///  BatchMode()              | Evaluate batches of data events (faster if PDFs support it)
-
+///  HighResolutionSampling() | Sample PDF with `N` trapezoids per bin. Only useful for binned fits.
 RooNLLVar::RooNLLVar(const char *name, const char* title, RooAbsPdf& pdf, RooAbsData& indata,
 		     const RooCmdArg& arg1, const RooCmdArg& arg2,const RooCmdArg& arg3,
 		     const RooCmdArg& arg4, const RooCmdArg& arg5,const RooCmdArg& arg6,
@@ -94,6 +94,7 @@ RooNLLVar::RooNLLVar(const char *name, const char* title, RooAbsPdf& pdf, RooAbs
   pc.allowUndefined() ;
   pc.defineInt("extended","Extended",0,kFALSE) ;
   pc.defineInt("BatchMode", "BatchMode", 0, false);
+  pc.defineInt("HighResolutionSampling", "HighResolutionSampling", 0, false);
 
   pc.process(arg1) ;  pc.process(arg2) ;  pc.process(arg3) ;
   pc.process(arg4) ;  pc.process(arg5) ;  pc.process(arg6) ;
@@ -101,6 +102,7 @@ RooNLLVar::RooNLLVar(const char *name, const char* title, RooAbsPdf& pdf, RooAbs
 
   _extended = pc.getInt("extended") ;
   _batchEvaluations = pc.getInt("BatchMode");
+  _highGranularitySampling = pc.getInt("HighResolutionSampling");
   _weightSq = kFALSE ;
   _first = kTRUE ;
   _offset = 0.;
