@@ -21,6 +21,7 @@
 #include "RooAbsPdf.h"
 #include <vector>
 #include <utility>
+#include <map>
 
 class RooRealSumPdf ;
 namespace BatchHelpers {
@@ -71,7 +72,7 @@ public:
   /// This can dramatically improve the accuracy when continuous functions are fit
   /// with binned data. This only works in conjunction with the `BatchMode`.
   void highResolutionSampling(unsigned int nSamples) {
-    _highGranularitySampling = nSamples;
+    _highResolutionSampling = nSamples;
   }
 
 protected:
@@ -88,6 +89,9 @@ private:
   std::tuple<double, double, double> computeScalar(
         std::size_t stepSize, std::size_t firstEvent, std::size_t lastEvent) const;
 
+  RooSpan<const double> highResolutionSampling(BatchHelpers::RunContext& evalData, std::size_t firstEvent, std::size_t lastEvent) const;
+  RooSpan<const double> highResolutionSamplingXValues(std::size_t firstEvent, std::size_t lastEvent) const;
+
   Bool_t _extended{false};
   bool _batchEvaluations{false};
   Bool_t _weightSq{false}; // Apply weights squared?
@@ -98,7 +102,9 @@ private:
   mutable std::vector<Double_t> _binw ; //!
   mutable RooRealSumPdf* _binnedPdf{nullptr}; //!
   mutable std::unique_ptr<BatchHelpers::RunContext> _evalData; //! Struct to store function evaluation workspaces.
-   
+  unsigned int _highResolutionSampling{0u};
+  mutable std::map<std::pair<std::size_t, std::size_t>, std::vector<double>> _highResolutionSampling_xValues; //! cache for x values for high-resolution sampling
+
   ClassDef(RooNLLVar,3) // Function representing (extended) -log(L) of p.d.f and dataset
 };
 
