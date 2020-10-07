@@ -474,50 +474,52 @@ std::tuple<double, double, double> RooNLLVar::computeBatched(std::size_t stepSiz
   auto pdfClone = static_cast<const RooAbsPdf*>(_funcClone);
   BatchHelpers::RunContext evalData = _dataClone->getBatches(firstEvent, lastEvent-firstEvent);
 
+
+  auto results = pdfClone->getLogValBatch(evalData, _normSet);
+
   // andrea
   // retrieve data points and enhance granularity
   // choose factor
   int granFactor(500);
-  std::vector<double> newXValues;
-  TString obsName("obs_x_srl");
-  auto observables = pdfClone->getObservables(_dataClone);
-//  std::cout << "observables size:\t" << observables->size() << std::endl; 
-  RooRealVar* x = dynamic_cast<RooRealVar*>(observables->find(obsName));
-  if (x==NULL) std::cout << "Obs pointer is NULL" << std::endl;
-  std::unordered_map<const RooAbsReal*, RooSpan<const double>> span = evalData.spans;
-//  std::cout << "span size: " << span.size() << std::endl;
-  std::unordered_map<const RooAbsReal*, RooSpan<const double>>::iterator It = span.begin();
-  double newStepSize(0.);
-  while(It != span.end()) {
-    RooSpan<const double> rooSpan = It->second;
-//    std::cout << "rooSpan name:\t" << It->first->GetName() << "\tsize:\t" << rooSpan.size() << std::endl; 
-    if (It->first->GetName()!=obsName) continue;
-    const double firstCenter = rooSpan[0];
-    const double lastCenter = rooSpan[rooSpan.size()-1];
-    const double stepSize = rooSpan.size()>1 ? rooSpan[1]-rooSpan[0] : 0;
-    unsigned int nPoints(granFactor*rooSpan.size());
-    const double rangeL(lastCenter-firstCenter+stepSize);
-    newStepSize = rangeL/nPoints;
-//    std::cout << "firstCenter: " << firstCenter << " lastCenter: " << lastCenter << " stepSize: " << stepSize << std::endl;
-    for (unsigned int rs=0; rs<=nPoints; rs++) {
-//      newXValues.push_back((firstCenter-stepSize/2+newStepSize/2) + newStepSize*rs);
-      // andrea, for trapezoids you need bin edges, not centers
-      newXValues.push_back((firstCenter-stepSize/2) + newStepSize*rs);
-//      std::cout << "bin " << rs << " center:\t" << newXValues[rs] << std::endl;
-    }
-    break;
-  }
-  //  std::cout << "newXValues.size() = " << newXValues.size() << std::endl;
-  auto my_evalData = evalData;
-  my_evalData.spans[x] = RooSpan<const double>(newXValues);
-
-  //auto results = pdfClone->getLogValBatch(evalData, _normSet);
-    // andrea, want to get pdf values and not logs
-  auto results = pdfClone->getValBatch(my_evalData, _normSet);
-  // andrea, use more granular set of points to
-  // estimate function integral within a 'wide' bin
-  std::vector<double> newlogValues;
   if (granFactor>1) {
+    std::vector<double> newXValues;
+    TString obsName("obs_x_srl");
+    auto observables = pdfClone->getObservables(_dataClone);
+//    std::cout << "observables size:\t" << observables->size() << std::endl; 
+    RooRealVar* x = dynamic_cast<RooRealVar*>(observables->find(obsName));
+    if (x==NULL) std::cout << "Obs pointer is NULL" << std::endl;
+    std::unordered_map<const RooAbsReal*, RooSpan<const double>> span = evalData.spans;
+//    std::cout << "span size: " << span.size() << std::endl;
+    std::unordered_map<const RooAbsReal*, RooSpan<const double>>::iterator It = span.begin();
+    double newStepSize(0.);
+    while(It != span.end()) {
+      RooSpan<const double> rooSpan = It->second;
+//      std::cout << "rooSpan name:\t" << It->first->GetName() << "\tsize:\t" << rooSpan.size() << std::endl; 
+      if (It->first->GetName()!=obsName) continue;
+      const double firstCenter = rooSpan[0];
+      const double lastCenter = rooSpan[rooSpan.size()-1];
+      const double stepSize = rooSpan.size()>1 ? rooSpan[1]-rooSpan[0] : 0;
+      unsigned int nPoints(granFactor*rooSpan.size());
+      const double rangeL(lastCenter-firstCenter+stepSize);
+      newStepSize = rangeL/nPoints;
+//      std::cout << "firstCenter: " << firstCenter << " lastCenter: " << lastCenter << " stepSize: " << stepSize << std::endl;
+      for (unsigned int rs=0; rs<=nPoints; rs++) {
+//        newXValues.push_back((firstCenter-stepSize/2+newStepSize/2) + newStepSize*rs);
+        // andrea, for trapezoids you need bin edges, not centers
+        newXValues.push_back((firstCenter-stepSize/2) + newStepSize*rs);
+//        std::cout << "bin " << rs << " center:\t" << newXValues[rs] << std::endl;
+      }
+      break;
+    }
+    //  std::cout << "newXValues.size() = " << newXValues.size() << std::endl;
+    auto my_evalData = evalData;
+    my_evalData.spans[x] = RooSpan<const double>(newXValues);
+
+      // andrea, want to get pdf values and not logs
+    results = pdfClone->getValBatch(my_evalData, _normSet);
+    // andrea, use more granular set of points to
+    // estimate function integral within a 'wide' bin
+    std::vector<double> newlogValues;
     int count_f(0);
     double sum_f(0.), a_f(-99.), b_f(-99.);
     for (int itR=0; itR<(int)results.size(); itR++) {
@@ -538,8 +540,8 @@ std::tuple<double, double, double> RooNLLVar::computeBatched(std::size_t stepSiz
         sum_f=0.;
       }
     }
-  }
-  results = RooSpan<const double>(newlogValues);
+    results = RooSpan<const double>(newlogValues);
+  }  
 #else
   auto pdfClone = static_cast<const RooAbsPdf*>(_funcClone);
 
