@@ -1026,6 +1026,7 @@ RooAbsReal* RooAbsPdf::createNLL(RooAbsData& data, const RooLinkedList& cmdList)
   pc.defineInt("doOffset","OffsetLikelihood",0,0) ;
   pc.defineSet("extCons","ExternalConstraints",0,0) ;
   pc.defineInt("BatchMode", "BatchMode", 0, 0);
+  pc.defineInt("HighResolutionSampling", "HighResolutionSampling", 0, 0);
   pc.defineMutex("Range","RangeWithName") ;
 //  pc.defineMutex("Constrain","Constrained") ;
   pc.defineMutex("GlobalObservables","GlobalObservablesTag") ;
@@ -1140,6 +1141,7 @@ RooAbsReal* RooAbsPdf::createNLL(RooAbsData& data, const RooLinkedList& cmdList)
         *this,data,projDeps,ext,rangeName,addCoefRangeName,numcpu,interl,
         verbose,splitr,cloneData);
     theNLL->batchMode(pc.getInt("BatchMode"));
+    theNLL->highResolutionSampling(pc.getInt("HighResolutionSampling"));
     nll = theNLL;
   } else {
     // Composite case: multiple ranges
@@ -1150,6 +1152,7 @@ RooAbsReal* RooAbsPdf::createNLL(RooAbsData& data, const RooLinkedList& cmdList)
           *this,data,projDeps,ext,token.c_str(),addCoefRangeName,numcpu,interl,
           verbose,splitr,cloneData);
       nllComp->batchMode(pc.getInt("BatchMode"));
+      nllComp->highResolutionSampling(pc.getInt("HighResolutionSampling"));
       nllList.add(*nllComp) ;
     }
     nll = new RooAddition(baseName.c_str(),"-log(likelihood)",nllList,kTRUE) ;
@@ -1377,7 +1380,7 @@ RooFitResult* RooAbsPdf::fitTo(RooAbsData& data, const RooLinkedList& cmdList)
   RooLinkedList fitCmdList(cmdList) ;
   RooLinkedList nllCmdList = pc.filterCmdList(fitCmdList,"ProjectedObservables,Extended,Range,"
       "RangeWithName,SumCoefRange,NumCPU,SplitRange,Constrained,Constrain,ExternalConstraints,"
-      "CloneData,GlobalObservables,GlobalObservablesTag,OffsetLikelihood,BatchMode");
+      "CloneData,GlobalObservables,GlobalObservablesTag,OffsetLikelihood,BatchMode,HighResolutionSampling");
 
   pc.defineDouble("prefit", "Prefit",0,0);
   pc.defineDouble("RecoverFromUndefinedRegions", "RecoverFromUndefinedRegions",0,10.);
