@@ -474,7 +474,6 @@ std::tuple<double, double, double> RooNLLVar::computeBatched(std::size_t stepSiz
   auto pdfClone = static_cast<const RooAbsPdf*>(_funcClone);
   BatchHelpers::RunContext evalData = _dataClone->getBatches(firstEvent, lastEvent-firstEvent);
 
-
   auto results = pdfClone->getLogValBatch(evalData, _normSet);
 
   // andrea
