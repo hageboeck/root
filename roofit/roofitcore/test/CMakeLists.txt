@@ -31,4 +31,5 @@ if(NOT MSVC OR win_broken_tests)
 endif()
 ROOT_ADD_GTEST(testRooProductPdf testRooProductPdf.cxx LIBRARIES RooFitCore)
 ROOT_ADD_GTEST(testNumericIntAndRooRealBinding testNumericIntAndRooRealBinding.cxx LIBRARIES MathCore RooFitCore)
+ROOT_ADD_GTEST(testRooNLLVar testRooNLLVar.cxx LIBRARIES RooFitCore)
 
