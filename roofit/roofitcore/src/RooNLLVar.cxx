@@ -30,10 +30,6 @@ In extended mode, a
 
 #include "RooNLLVar.h"
 
-#include "RooFit.h"
-#include "Riostream.h"
-#include "TMath.h"
-
 #include "RooAbsData.h"
 #include "RooAbsPdf.h"
 #include "RooCmdConfig.h"
@@ -48,7 +44,9 @@ In extended mode, a
 #include "BatchHelpers.h"
 #endif
 
+#include "TMath.h"
 #include "Math/Util.h"
+#include "ROOT/RMakeUnique.hxx"
 
 #include <algorithm>
 #include <stdexcept>
@@ -102,7 +100,7 @@ RooNLLVar::RooNLLVar(const char *name, const char* title, RooAbsPdf& pdf, RooAbs
 
   _extended = pc.getInt("extended") ;
   _batchEvaluations = pc.getInt("BatchMode");
-  _highGranularitySampling = pc.getInt("HighResolutionSampling");
+  _highResolutionSampling = pc.getInt("HighResolutionSampling");
   _weightSq = kFALSE ;
   _first = kTRUE ;
   _offset = 0.;
@@ -214,7 +212,7 @@ RooNLLVar::RooNLLVar(const RooNLLVar& other, const char* name) :
   _offsetCarrySaveW2(other._offsetCarrySaveW2),
   _binw(other._binw),
   _binnedPdf(other._binnedPdf ? (RooRealSumPdf*)_funcClone : nullptr),
-  _highGranularitySampling(other._highGranularitySampling) { }
+  _highResolutionSampling(other._highResolutionSampling) { }
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -227,7 +225,7 @@ RooAbsTestStatistic* RooNLLVar::create(const char *name, const char *title, RooA
       dynamic_cast<RooAbsPdf&>(pdf), adata,
       projDeps, _extended, rangeName, addCoefRangeName, nCPU, interleave, verbose, splitRange, false, binnedL);
   testStat->batchMode(_batchEvaluations);
-  testStat->highResolutionSampling(_highGranularitySampling);
+  testStat->highResolutionSampling(_highResolutionSampling);
   return testStat;
 }
 
@@ -287,8 +285,6 @@ Double_t RooNLLVar::evaluatePartition(std::size_t firstEvent, std::size_t lastEv
 
   _dataClone->store()->recalculateCache( _projDeps, firstEvent, lastEvent, stepSize, (_binnedPdf?kFALSE:kTRUE) ) ;
 
-
-
   // If pdf is marked as binned - do a binned likelihood calculation here (sum of log-Poisson for each bin)
   if (_binnedPdf) {
     double sumWeightCarry = 0.;
@@ -341,30 +337,34 @@ Double_t RooNLLVar::evaluatePartition(std::size_t firstEvent, std::size_t lastEv
     if (_batchEvaluations) {
       std::tie(result, carry, sumWeight) = computeBatched(stepSize, firstEvent, lastEvent);
 #ifdef ROOFIT_CHECK_CACHED_VALUES
+      if (_highResolutionSampling == 0) {
+        // We can only cross check results if we go bin-by-bin. This doesn't work with high-resolution sampling.
+        double resultScalar, carryScalar, sumWeightScalar;
+        std::tie(resultScalar, carryScalar, sumWeightScalar) =
+            computeScalar(stepSize, firstEvent, lastEvent);
 
-      double resultScalar, carryScalar, sumWeightScalar;
-      std::tie(resultScalar, carryScalar, sumWeightScalar) =
-          computeScalar(stepSize, firstEvent, lastEvent);
+        constexpr bool alwaysPrint = false;
 
-      constexpr bool alwaysPrint = false;
+        if (alwaysPrint || fabs(result - resultScalar)/resultScalar > 1.E-15) {
+          std::cerr << "RooNLLVar: result is off\n\t" << std::setprecision(15) << result
+              << "\n\t" << resultScalar << std::endl;
+        }
 
-      if (alwaysPrint || fabs(result - resultScalar)/resultScalar > 1.E-15) {
-        std::cerr << "RooNLLVar: result is off\n\t" << std::setprecision(15) << result
-            << "\n\t" << resultScalar << std::endl;
+        if (alwaysPrint || fabs(carry - carryScalar)/carryScalar > 10.) {
+          std::cerr << "RooNLLVar: carry is far off\n\t" << std::setprecision(15) << carry
+              << "\n\t" << carryScalar << std::endl;
+        }
+
+        if (alwaysPrint || fabs(sumWeight - sumWeightScalar)/sumWeightScalar > 1.E-15) {
+          std::cerr << "RooNLLVar: sumWeight is off\n\t" << std::setprecision(15) << sumWeight
+              << "\n\t" << sumWeightScalar << std::endl;
+        }
       }
-
-      if (alwaysPrint || fabs(carry - carryScalar)/carryScalar > 10.) {
-        std::cerr << "RooNLLVar: carry is far off\n\t" << std::setprecision(15) << carry
-            << "\n\t" << carryScalar << std::endl;
-      }
-
-      if (alwaysPrint || fabs(sumWeight - sumWeightScalar)/sumWeightScalar > 1.E-15) {
-        std::cerr << "RooNLLVar: sumWeight is off\n\t" << std::setprecision(15) << sumWeight
-            << "\n\t" << sumWeightScalar << std::endl;
-      }
-
 #endif
     } else { //scalar mode
+      if (_highResolutionSampling > 0) {
+        coutE(Fitting) << "High-resolution sampling of the PDF requires BatchMode(true)." << std::endl;
+      }
       std::tie(result, carry, sumWeight) = computeScalar(stepSize, firstEvent, lastEvent);
     }
 
@@ -487,44 +487,44 @@ std::tuple<double, double, double> RooNLLVar::computeBatched(std::size_t stepSiz
   _dataClone->getBatches(*_evalData, firstEvent, lastEvent-firstEvent);
 
   RooSpan<const double> results;
-  if (_highGranularitySampling == 0) {
+  if (_highResolutionSampling == 0) {
     results = pdfClone->getLogValBatch(*_evalData, _normSet);
   } else {
-    results = highGranularitySampling(*_evalData);
+    results = highResolutionSampling(*_evalData, firstEvent, lastEvent);
   }
 #else
   auto results = pdfClone->getLogValBatch(firstEvent, lastEvent-firstEvent, _normSet);
 #endif
 
 #ifdef ROOFIT_CHECK_CACHED_VALUES
-
+  if (_highResolutionSampling == 0) {
 #ifdef ROOFIT_NEW_BATCH_INTERFACE
-  for (std::size_t evtNo = firstEvent; evtNo < lastEvent; evtNo += (lastEvent-firstEvent)/100) {
-    _dataClone->get(evtNo);
-    assert(_dataClone->valid());
-    pdfClone->getValV(_normSet);
-    try {
-      BatchHelpers::BatchInterfaceAccessor::checkBatchComputation(*pdfClone, *_evalData, evtNo, _normSet);
-    } catch (std::exception& e) {
-      std::cerr << "ERROR when checking batch computation for event " << evtNo << ":\n"
-          << e.what() << std::endl;
+    for (std::size_t evtNo = firstEvent; evtNo < lastEvent; evtNo += (lastEvent-firstEvent)/100) {
+      _dataClone->get(evtNo);
+      assert(_dataClone->valid());
+      pdfClone->getValV(_normSet);
+      try {
+        BatchHelpers::BatchInterfaceAccessor::checkBatchComputation(*pdfClone, *_evalData, evtNo, _normSet);
+      } catch (std::exception& e) {
+        std::cerr << "ERROR when checking batch computation for event " << evtNo << ":\n"
+            << e.what() << std::endl;
+      }
     }
-  }
 
 #else
-  for (std::size_t evtNo = firstEvent; evtNo < lastEvent; ++evtNo) {
-    _dataClone->get(evtNo);
-    assert(_dataClone->valid());
-    pdfClone->getValV(_normSet);
-    try {
-      BatchHelpers::BatchInterfaceAccessor::checkBatchComputation(*pdfClone, evtNo, _normSet);
-    } catch (std::exception& e) {
-      std::cerr << "ERROR when checking batch computation for event " << evtNo << ":\n"
-          << e.what() << std::endl;
+    for (std::size_t evtNo = firstEvent; evtNo < lastEvent; ++evtNo) {
+      _dataClone->get(evtNo);
+      assert(_dataClone->valid());
+      pdfClone->getValV(_normSet);
+      try {
+        BatchHelpers::BatchInterfaceAccessor::checkBatchComputation(*pdfClone, evtNo, _normSet);
+      } catch (std::exception& e) {
+        std::cerr << "ERROR when checking batch computation for event " << evtNo << ":\n"
+            << e.what() << std::endl;
+      }
     }
-  }
 #endif
-
+  }
 #endif
 
 
@@ -595,60 +595,96 @@ std::tuple<double, double, double> RooNLLVar::computeScalar(std::size_t stepSize
 
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Evaluate PDF in all bins with higher granularity. Use faster batch interface.
-/// \param[in] evalData Struct with data where PDF should be evaluated. The x values
-/// will be replaced by an array with higher granularity.
-RooSpan<const double> RooNLLVar::highGranularitySampling(BatchHelpers::RunContext& evalData) const {
-  if (_funcObsSet->size() != 1) {
-    coutF(Fitting) << "High-granularity sampling of the function is only implemented for 1D functions." << std::endl;
-    throw std::logic_error("RooNLLVar: High-granularity sampling of the function is only implemented for 1D functions.");
-  }
+/// Evaluate PDF in requested bins with higher granularity. Use faster batch interface.
+/// For each bin, a number of `_highResolutionSampling` trapezoid surfaces will be computed
+/// to sample the PDF with higher resolution. Since more evaluations of the PDF are required,
+/// the getVals() batch interface is used.
+/// The `_highResolutionSampling` trapezoid surfaces are summed, and the log probabilities are computed.
+/// \param[in/out] evalData Struct with data where PDF should be evaluated. The x values
+/// in this struct will be replaced by many more points for better sampling.
+/// \param[in] firstEvent First bin to be sampled.
+/// \param[in] lastEvent  Last bin to be sampled.
+RooSpan<const double> RooNLLVar::highResolutionSampling(BatchHelpers::RunContext& evalData, std::size_t firstEvent, std::size_t lastEvent) const {
+  // Retrieve x values where we need to compute the probability
+  auto newXValues = highResolutionSamplingXValues(firstEvent, lastEvent);
+  const RooRealVar* x = static_cast<const RooRealVar*>((*_funcObsSet)[static_cast<std::size_t>(0u)]);
 
-  const RooRealVar* x = dynamic_cast<const RooRealVar*>((*_funcObsSet)[static_cast<std::size_t>(0u)]);
-  const RooRealVar* origX;
-  RooSpan<const double> xData;
-
-  for (auto& ptr_span : evalData.spans) {
-    if (ptr_span.first->GetName() == x->GetName()) {
-      origX = dynamic_cast<const RooRealVar*>(ptr_span.first);
-      xData = ptr_span.second;
-      break;
-    }
-  }
-
-  auto& binning = x->getBinning(_rangeName.c_str());
-  const unsigned int nBins = binning.numBins();
-  std::vector<double> newXValues;
-  newXValues.reserve(_highGranularitySampling * nBins);
-
-  for (unsigned int i=0; i < nBins; ++i) {
-    const double binLeft = binning.binLow(i);
-    const double width   = binning.binWidth(i);
-
-    for (unsigned int j=0; j < _highGranularitySampling + 1; ++j) {
-      newXValues.push_back(binLeft + width/_highGranularitySampling * j);
-    }
-  }
-
-  // Now overwrite the data that the evaluation function sees with new x values
+  // Now overwrite the old x values to get finer sampling
   evalData.spans[x] = RooSpan<const double>(newXValues);
 
   // Evaluate
   auto pdfClone = static_cast<const RooAbsPdf*>(_funcClone);
   auto results = pdfClone->getValBatch(evalData, _normSet);
+  const unsigned int nBins = lastEvent - firstEvent;
 
-  // Now approximate integral of PDF over bin by summing trapezoids:
+  // Now approximate integral of PDF over bin by summing trapezoids. Then compute logs:
   std::vector<double>& logProbabilities = evalData.logProbabilities;
   logProbabilities.resize(nBins);
 
-  for (unsigned int bin=0; bin < nBins; ++ bin) {
+  for (unsigned int bin=0; bin < nBins; ++bin) {
     double prob = 0.;
-    const unsigned int offset = bin * (_highGranularitySampling+1);
-    for (unsigned int j=0; j < _highGranularitySampling; ++j) {
+    const unsigned int offset = bin * (_highResolutionSampling+1);
+    const double width = newXValues[offset+_highResolutionSampling] - newXValues[offset];
+
+    for (unsigned int j=0; j < _highResolutionSampling; ++j) {
       prob += 0.5 * (results[offset + j] + results[offset + j + 1]);
     }
+    prob *= width / _highResolutionSampling;
+
     logProbabilities[bin] = std::log(prob);
   }
 
   return RooSpan<const double>(logProbabilities);
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+/// Compute and cache values of x where PDF should be sampled to achieve higher resolution.
+/// \param[in] firstEvent First bin to be sampled.
+/// \param[in] lastEvent  Last bin to be sampled.
+RooSpan<const double> RooNLLVar::highResolutionSamplingXValues(std::size_t firstEvent, std::size_t lastEvent) const {
+  auto item = _highResolutionSampling_xValues.find({firstEvent, lastEvent});
+  if (item != _highResolutionSampling_xValues.end())
+    return {item->second};
+
+
+  if (_funcObsSet->size() != 1) {
+    coutF(Fitting) << "High-resolution sampling of the function is only implemented for 1D functions." << std::endl;
+    throw std::logic_error("RooNLLVar: High-resolution sampling of the function is only implemented for 1D functions.");
+  }
+
+  const RooRealVar* x = dynamic_cast<const RooRealVar*>((*_funcObsSet)[static_cast<std::size_t>(0u)]);
+  assert(x);
+
+  auto& binning = x->getBinning(_rangeName.c_str());
+  const unsigned int nBins = lastEvent - firstEvent;
+  if (static_cast<unsigned int>(binning.numBins()) < nBins) {
+    coutE(InputArguments) << "For high-resolution sampling, the variable " << x->GetName() << " needs to provide "
+        << "a suitable binning for the range '" << _rangeName << "'.\n"
+        << "While the PDF should be evaluated in " << nBins << " bins, the binning only has " << binning.numBins()
+        << " bins. This has to be fixed by <variable>.setBins(nBin, <rangeName>).\nThe current binning is " << std::endl;
+    binning.Print();
+    throw std::invalid_argument("RooNLLVar: Invalid binning for high-resolution sampling.");
+  }
+
+  BatchHelpers::RunContext evalData;
+  _dataClone->getBatches(evalData, firstEvent, nBins);
+  RooSpan<const double> origX = x->getValBatch(evalData, nullptr);
+  assert(origX.size() == nBins);
+
+  std::vector<double>& newXValues = _highResolutionSampling_xValues[{firstEvent, lastEvent}];
+  newXValues.reserve((_highResolutionSampling+1) * nBins);
+
+  for (unsigned int i=0; i < nBins; ++i) {
+    const double xVal = origX[i];
+    const int binNumber = binning.binNumber(xVal);
+    const double binLeft = binning.binLow(binNumber);
+    const double width   = binning.binWidth(binNumber);
+
+    for (unsigned int j=0; j < _highResolutionSampling + 1; ++j) {
+      newXValues.push_back(binLeft + width/_highResolutionSampling * j);
+    }
+  }
+
+  return {newXValues};
 }
