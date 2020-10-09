@@ -2076,7 +2076,7 @@ void RooDataHist::Streamer(TBuffer &R__b)
 /// If no contiguous structure of weights is stored, an empty batch can be returned.
 /// This indicates that the weight is constant. Use weight() to retrieve it.
 RooSpan<const double> RooDataHist::getWeightBatch(std::size_t first, std::size_t len) const {
-  if (first > _arrSize)
+  if (first > static_cast<std::size_t>(_arrSize))
     return {};
 
   return {&_wgt[first], std::min(_arrSize - first + len, len)};
