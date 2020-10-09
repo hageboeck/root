@@ -459,8 +459,6 @@ Double_t RooNLLVar::evaluatePartition(std::size_t firstEvent, std::size_t lastEv
   return result ;
 }
 
-// andrea's hack
-#define ROOFIT_NEW_BATCH_INTERFACE
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Compute probabilites of all data events. Use faster batch interface.
