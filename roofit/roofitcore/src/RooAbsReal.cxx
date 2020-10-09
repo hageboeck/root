@@ -4969,8 +4969,9 @@ RooSpan<double> RooAbsReal::evaluateBatch(std::size_t begin, std::size_t maxSize
 /// Evaluate function for a batch of data points. If not overridden by
 /// derived classes, this will call the slow, single-valued evaluate() in a loop.
 /// \param[in/out]  evalData Object holding data that should be used in computations.
-/// Each array of data is identified by the pointer to the RooFit object that this data belongs to.
-/// The object that this function is called on will store its results here as well.
+/// If data of a specific object is needed, it is looked up in `evalData.spans[&object]`.
+/// If such a span exists, no computation will be triggered.
+/// When the `this` object is done computing its values, it registers the results under `evalData.spans[this]`.
 /// \param[in]  normSet  Optional normalisation set for computations in terms this one depends on.
 /// \return     Span pointing to the results. The memory is owned by `evalData`.
 RooSpan<double> RooAbsReal::evaluateBatch(BatchHelpers::RunContext& evalData, const RooArgSet* normSet) const {
