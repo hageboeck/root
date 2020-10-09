@@ -204,7 +204,7 @@ TEST(RooNLLVar, HighResolutionSampling_CustomBinning) {
 
 
 /// TODO implement RooDataHist::getValBatch
-TEST(RooNLLVar, DISABLED_HighResolutionSampling_RooDataHist) {
+TEST(RooNLLVar, HighResolutionSampling_RooDataHist) {
   RooRealVar x("x", "x", 0.1, 5.);
   x.setBins(10);
 
