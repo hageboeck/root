@@ -48,6 +48,7 @@ or RooStringVar objects, thus data can be binned in real and/or discrete dimensi
 #include "RooFormulaVar.h"
 #include "RooFormula.h"
 #include "RooUniformBinning.h"
+#include "RooSpan.h"
 
 #include "TH1.h"
 #include "TTree.h"
@@ -2069,4 +2070,31 @@ void RooDataHist::Streamer(TBuffer &R__b)
    }
 }
 
+
+////////////////////////////////////////////////////////////////////////////////
+/// Return event weights of all events in range [first, first+len).
+/// If no contiguous structure of weights is stored, an empty batch can be returned.
+/// This indicates that the weight is constant. Use weight() to retrieve it.
+RooSpan<const double> RooDataHist::getWeightBatch(std::size_t first, std::size_t len) const {
+  if (first > _arrSize)
+    return {};
+
+  return {&_wgt[first], std::min(_arrSize - first + len, len)};
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+/// Retrieve the coordinates of all bins in the histogram.
+/// \param[out] evalData Store references to all coordinates in this struct's `spans`.
+/// The key to retrieve an item is the pointer of the variable that owns the data.
+/// \param first Index of first bin that ends up in the batch.
+/// \param len   Number of bins to copy write into the batches.
+void RooDataHist::getBatches(BatchHelpers::RunContext& evalData, std::size_t begin, std::size_t len) const {
+  std::vector<RooSpan<const double>> batches = store()->getBatch(begin, len);
+
+  for (unsigned int i=0; i < _realVars.size(); ++i) {
+    auto var = static_cast<RooRealVar*>(_realVars[i]);
+    evalData.spans[var] = batches[i];
+  }
+}
 
