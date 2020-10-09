@@ -26,6 +26,7 @@ RooSpan<const double> RunContext::getBatch(const RooArgProxy& proxy) const {
   return getBatch(static_cast<const RooAbsReal*>(proxy.absArg()));
 }
 
+
 /// Check if there is a span of data corresponding to the object passed as owner.
 RooSpan<const double> RunContext::getBatch(const RooAbsReal* owner) const {
   const auto item = spans.find(owner);
@@ -35,17 +36,22 @@ RooSpan<const double> RunContext::getBatch(const RooAbsReal* owner) const {
   return {};
 }
 
+
 /// Check if there is a writable span of data corresponding to the object passed as owner.
 RooSpan<double> RunContext::getWritableBatch(const RooAbsReal* owner) {
   auto item = ownedMemory.find(owner);
-  if (item != ownedMemory.end())
+  if (item != ownedMemory.end()) {
+    assert(spans.count(owner) > 0); // If we can write, the span must also be registered for reading
     return RooSpan<double>(item->second);
+  }
 
   return {};
 }
 
+
 /// Create a writable batch. If the RunContext already owns memory for the object
 /// `owner`, just resize the memory. If it doesn't exist yet, allocate it.
+/// A read-only reference to the memory will be stored in `spans`.
 /// \param owner RooFit object whose value should be written into the memory.
 /// \param size Requested size of the span.
 /// \return A writeable RooSpan of the requested size, whose memory is owned by
@@ -59,6 +65,7 @@ RooSpan<double> RunContext::makeBatch(const RooAbsReal* owner, std::size_t size)
     return {data};
   }
 
+  spans[owner] = RooSpan<const double>(item->second);
   return {item->second};
 }
 
