@@ -660,10 +660,12 @@ RooSpan<const double> RooNLLVar::highResolutionSamplingXValues(std::size_t first
   auto& binning = x->getBinning(_rangeName.c_str());
   const unsigned int nBins = lastEvent - firstEvent;
   if (static_cast<unsigned int>(binning.numBins()) < nBins) {
-    coutE(InputArguments) << "For high-resolution sampling, the variable " << x->GetName() << " needs to provide "
+    coutE(InputArguments) << "For high-resolution sampling in binned fits, the variable " << x->GetName() << " needs to provide "
         << "a suitable binning for the range '" << _rangeName << "'.\n"
-        << "While the PDF should be evaluated in " << nBins << " bins, the binning only has " << binning.numBins()
-        << " bins. This has to be fixed by <variable>.setBins(nBin, <rangeName>).\nThe current binning is " << std::endl;
+        << "If this was meant to be an unbinned fit, deactivate HighResolutionSampling().\n"
+        << "While the PDF was requested to be evaluated in " << nBins << " bins, the binning only has " << binning.numBins()
+        << " bins. This has to be fixed by setting a suitable binning, e.g. <variable>.setBins(nBin, <rangeName>).\n"
+        << "The current binning is:" << std::endl;
     binning.Print();
     throw std::invalid_argument("RooNLLVar: Invalid binning for high-resolution sampling.");
   }
