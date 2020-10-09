@@ -49,6 +49,7 @@ the names of the arguments are not hard coded.
 #include "RooStreamParser.h"
 #include "RooMsgService.h"
 #include "RooArgList.h"
+#include "RunContext.h"
 
 
 
@@ -132,7 +133,10 @@ RooSpan<double> RooGenericPdf::evaluateBatch(BatchHelpers::RunContext& inputData
   if (normSet != nullptr && normSet != _normSet)
     throw std::logic_error("Got conflicting normSets");
 
-  return formula().evaluateBatch(this, inputData, _normSet);
+  auto results = formula().evaluateBatch(this, inputData, _normSet);
+  inputData.spans[this] = results;
+
+  return results;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
