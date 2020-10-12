@@ -90,6 +90,7 @@ private:
         std::size_t stepSize, std::size_t firstEvent, std::size_t lastEvent) const;
 
   RooSpan<const double> highResolutionSampling(BatchHelpers::RunContext& evalData, std::size_t firstEvent, std::size_t lastEvent) const;
+  RooSpan<const double> highResolutionSampling2(BatchHelpers::RunContext& evalData, std::size_t firstEvent, std::size_t lastEvent) const;
   RooSpan<const double> highResolutionSamplingXValues(std::size_t firstEvent, std::size_t lastEvent) const;
 
   Bool_t _extended{false};

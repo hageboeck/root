@@ -492,7 +492,14 @@ std::tuple<double, double, double> RooNLLVar::computeBatched(std::size_t stepSiz
   if (_highResolutionSampling == 0) {
     results = pdfClone->getLogProbabilities(*_evalData, _normSet);
   } else {
-    results = highResolutionSampling(*_evalData, firstEvent, lastEvent);
+    if (_highResolutionSampling == 1) {
+      // Use integrator for each bin to decide how much sampling is needed.
+      results = highResolutionSampling2(*_evalData, firstEvent, lastEvent);
+    }
+    else {
+      // Run fixed number of points per bin.
+      results = highResolutionSampling(*_evalData, firstEvent, lastEvent);
+    }
   }
 #else
   auto results = pdfClone->getLogValBatch(firstEvent, lastEvent-firstEvent, _normSet);
@@ -642,6 +649,45 @@ RooSpan<const double> RooNLLVar::highResolutionSampling(BatchHelpers::RunContext
       prob += 0.5 * (results[offset + j] + results[offset + j + 1]);
     }
     prob *= width / _highResolutionSampling;
+
+    logProbabilities[bin] = std::log(prob);
+  }
+
+  return RooSpan<const double>(logProbabilities);
+}
+
+#include <RooRealBinding.h>
+#include <RooIntegrator1D.h>
+////////////////////////////////////////////////////////////////////////////////
+/// Evaluate PDF in requested bins with higher granularity. Use faster batch interface.
+/// For each bin, a number of `_highResolutionSampling` trapezoid surfaces will be computed
+/// to sample the PDF with higher resolution. Since more evaluations of the PDF are required,
+/// the getVals() batch interface is used.
+/// The `_highResolutionSampling` trapezoid surfaces are summed, and the log probabilities are computed.
+/// \param[in/out] evalData Struct with data where PDF should be evaluated. The x values
+/// in this struct will be replaced by many more points for better sampling.
+/// \param[in] firstEvent First bin to be sampled.
+/// \param[in] lastEvent  Last bin to be sampled.
+RooSpan<const double> RooNLLVar::highResolutionSampling2(BatchHelpers::RunContext& evalData, std::size_t firstEvent, std::size_t lastEvent) const {
+  assert(_highResolutionSampling == 1u);
+
+  // Retrieve x values where we need to compute the probability
+  auto newXValues = highResolutionSamplingXValues(firstEvent, lastEvent);
+
+  RooRealBinding binding(*_funcClone, *_funcObsSet, _normSet);
+  RooIntegrator1D integrator(binding, RooIntegrator1D::Trapezoid, 6, 1.E-3);
+  integrator.setUseIntegrandLimits(false);
+
+  const unsigned int nBins = lastEvent - firstEvent;
+
+  // Now approximate integral of PDF over bin by summing trapezoids. Then compute logs:
+  std::vector<double>& logProbabilities = evalData.logProbabilities;
+  logProbabilities.resize(nBins);
+
+  for (unsigned int bin=0; bin < nBins; ++bin) {
+    const auto offset = bin*2;
+    integrator.setLimits(newXValues[offset], newXValues[offset+1]);
+    const double prob = integrator.integral();
 
     logProbabilities[bin] = std::log(prob);
   }
