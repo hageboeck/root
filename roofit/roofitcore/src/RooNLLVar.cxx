@@ -675,7 +675,7 @@ RooSpan<const double> RooNLLVar::highResolutionSampling2(BatchHelpers::RunContex
   auto newXValues = highResolutionSamplingXValues(firstEvent, lastEvent);
 
   RooRealBinding binding(*_funcClone, *_funcObsSet, _normSet);
-  RooIntegrator1D integrator(binding, RooIntegrator1D::Trapezoid, 6, 1.E-3);
+  RooIntegrator1D integrator(binding, RooIntegrator1D::Trapezoid, 15, 1.E-5);
   integrator.setUseIntegrandLimits(false);
 
   const unsigned int nBins = lastEvent - firstEvent;
