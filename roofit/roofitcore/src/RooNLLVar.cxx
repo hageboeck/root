@@ -462,6 +462,7 @@ Double_t RooNLLVar::evaluatePartition(std::size_t firstEvent, std::size_t lastEv
   return result ;
 }
 
+#include "RooBinSamplingPdf.h"
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Compute probabilites of all data events. Use faster batch interface.
@@ -493,8 +494,10 @@ std::tuple<double, double, double> RooNLLVar::computeBatched(std::size_t stepSiz
     results = pdfClone->getLogProbabilities(*_evalData, _normSet);
   } else {
     if (_highResolutionSampling == 1) {
+      RooRealVar* x = static_cast<RooRealVar*>((*_funcObsSet)[static_cast<std::size_t>(0u)]);
+      RooBinSamplingPdf bsPdf("binSamplingPdf", "Bin sampling Pdf", *x, static_cast<RooAbsPdf&>(*_funcClone));
       // Use integrator for each bin to decide how much sampling is needed.
-      results = highResolutionSampling2(*_evalData, firstEvent, lastEvent);
+      results = bsPdf.getLogProbabilities(*_evalData, _normSet);
     }
     else {
       // Run fixed number of points per bin.
