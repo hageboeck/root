@@ -49,6 +49,7 @@ integration is performed in the various implementations of the RooAbsIntegrator 
 #include "RooTrace.h"
 #include "BatchHelpers.h"
 #include "RunContext.h"
+#include "RooHelpers.h"
 
 #include "TClass.h"
 
@@ -798,13 +799,6 @@ RooSpan<const double> RooRealIntegral::getValues(BatchHelpers::RunContext& evalD
 /// Perform the integration and return the result.
 Double_t RooRealIntegral::evaluate() const {
   GlobalSelectComponentRAII selCompRAII(_globalSelectComp || !_respectCompSelect);
-  struct InhibitDirtyRAII {
-    InhibitDirtyRAII(const RooAbsArg* owner) : _oldState(owner->inhibitDirty()) {
-      RooAbsArg::setDirtyInhibit(true);
-    }
-    ~InhibitDirtyRAII() { RooAbsArg::setDirtyInhibit(_oldState); }
-    bool _oldState;
-  };
   
   Double_t retVal(0) ;
   if (_intOperMode == Hybrid) {
@@ -820,7 +814,7 @@ Double_t RooRealIntegral::evaluate() const {
       {
         // Globally set RooAbsArg's inhibitDirty. All components will act as
         // if they were dirty, and no dirty-state propagation happens.
-        InhibitDirtyRAII inhibDirty(this);
+        RooHelpers::DisableCachingRAII dirtyInhibitor(inhibitDirty());
 
         // try to initialize our numerical integration engine
         if(!(_valid= initNumIntegrator())) {
