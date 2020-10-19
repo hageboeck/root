@@ -43,7 +43,7 @@ RooBinSamplingPdf::RooBinSamplingPdf(const char *name, const char *title, RooAbs
       RooAbsPdf(name, title),
       _pdf("inputPdf", "Function to be converted into a PDF", this, inputPdf),
       _observable("observable", "Observable to integrator over", this, observable, true, true),
-      _integrator(new ROOT::Math::IntegratorOneDim(ROOT::Math::IntegrationOneDim::kADAPTIVE, 1.E-20, epsilon, 100)) {
+      _integrator(new ROOT::Math::IntegratorOneDim(ROOT::Math::IntegrationOneDim::kADAPTIVE, -1., epsilon)) {
   if (!_pdf->dependsOn(*_observable)) {
     throw std::invalid_argument(std::string("RooBinSamplingPDF(") + GetName()
         + "): The PDF " + _pdf->GetName() + " needs to depend on the observable "
