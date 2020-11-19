@@ -311,7 +311,7 @@ RooNDKeysPdf::RooNDKeysPdf(const RooNDKeysPdf &other, const char *name)
    _weights0 = other._weights0;
    _weights1 = other._weights1;
    _weights = _options.Contains("a") ? &_weights1 : &_weights0;
-   _sortTVIdcs = other._sortTVIdcs;
+   _sortTVIdcs.clear(); // These are iterators they need to be regenerated!
    _varName = other._varName;
    _rho = other._rho;
    _x = other._x;
@@ -341,7 +341,7 @@ RooNDKeysPdf::RooNDKeysPdf(const RooNDKeysPdf &other, const char *name)
    _bIdcs = other._bIdcs;
    _bmsIdcs = other._bmsIdcs;
 
-   _rangeBoxInfo = other._rangeBoxInfo;
+   _rangeBoxInfo.clear(); // Pointers. Not copying!
    _fullBoxInfo = other._fullBoxInfo;
 
    _idx = other._idx;
@@ -1045,6 +1045,8 @@ void RooNDKeysPdf::loopRange(vector<Double_t>& x, map<Int_t,Bool_t>& ibMap) cons
   for (Int_t j=0; j<_nDim; j++) {
     ibMap.clear();
     auto comp = [=](const itPair& a, const itPair& b) {
+      assert(j < a.second->GetNoElements());
+      assert(j < b.second->GetNoElements());
       return (*a.second)[j] < (*b.second)[j];
     };
 
