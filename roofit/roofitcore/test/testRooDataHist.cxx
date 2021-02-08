@@ -6,6 +6,7 @@
 #include "RooRealVar.h"
 #include "RooHelpers.h"
 #include "RooCategory.h"
+#include "RunContext.h"
 
 #include "TH1D.h"
 #include "TH2D.h"
@@ -260,9 +261,14 @@ TEST(RooDataHist, BatchDataAccess) {
   ASSERT_STREQ(xp->GetName(), "x");
   ASSERT_STREQ(yp->GetName(), "y");
 
-  auto xBatchShort = xp->getValBatch(0, 100);
-  auto xBatch = xp->getValBatch(0, numEntries);
-  auto yBatch = yp->getValBatch(0, numEntries);
+  RooBatchCompute::RunContext evalDataShort{};
+  dataHist.getBatches(evalDataShort, 0, 100);
+  RooBatchCompute::RunContext evalData{};
+  dataHist.getBatches(evalData, 0, numEntries);
+
+  auto xBatchShort = xp->getValues(evalDataShort);
+  auto xBatch = xp->getValues(evalData);
+  auto yBatch = yp->getValues(evalData);
 
   ASSERT_FALSE(xBatchShort.empty());
   ASSERT_FALSE(xBatch.empty());
@@ -312,8 +318,13 @@ TEST(RooDataHist, BatchDataAccessWithCategories) {
   ASSERT_STREQ(catp->GetName(), "cat");
   ASSERT_STREQ(xp->GetName(), "x");
 
-  auto xBatchShort = xp->getValBatch(0, 10);
-  auto xBatch      = xp->getValBatch(0, numEntries);
+  RooBatchCompute::RunContext evalDataShort{};
+  dataHist.getBatches(evalDataShort, 0, 10);
+  RooBatchCompute::RunContext evalData{};
+  dataHist.getBatches(evalData, 0, numEntries);
+
+  auto xBatchShort = xp->getValues(evalDataShort);
+  auto xBatch      = xp->getValues(evalData);
 
   ASSERT_FALSE(xBatchShort.empty());
   ASSERT_FALSE(xBatch.empty());
@@ -358,8 +369,13 @@ TEST(RooDataHist, BatchDataAccessWithCategoriesAndFitRange) {
   ASSERT_STREQ(catp->GetName(), "cat");
   ASSERT_STREQ(xp->GetName(), "x");
 
-  auto xBatchShort = xp->getValBatch(0, 10);
-  auto xBatch      = xp->getValBatch(0, numEntries);
+  RooBatchCompute::RunContext evalDataShort{};
+  dataHist.getBatches(evalDataShort, 0, 10);
+  RooBatchCompute::RunContext evalData{};
+  dataHist.getBatches(evalData, 0, numEntries);
+
+  auto xBatchShort = xp->getValues(evalDataShort);
+  auto xBatch      = xp->getValues(evalData);
 
   ASSERT_FALSE(xBatchShort.empty());
   ASSERT_FALSE(xBatch.empty());
@@ -407,8 +423,13 @@ TEST(RooDataHist, BatchDataAccessWithCategoriesAndFitRangeWithMasking) {
   const std::size_t numEntries = (std::size_t)dataHist.numEntries();
   ASSERT_EQ(numEntries, 40ul);
 
-  auto xBatchShort = xp->getValBatch(0, 10);
-  auto xBatch      = xp->getValBatch(0, numEntries);
+  RooBatchCompute::RunContext evalDataShort{};
+  dataHist.getBatches(evalDataShort, 0, 10);
+  RooBatchCompute::RunContext evalData{};
+  dataHist.getBatches(evalData, 0, numEntries);
+
+  auto xBatchShort = xp->getValues(evalDataShort);
+  auto xBatch      = xp->getValues(evalData);
 
   ASSERT_FALSE(xBatchShort.empty());
   ASSERT_FALSE(xBatch.empty());
