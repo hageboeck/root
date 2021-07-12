@@ -978,11 +978,18 @@ if(monalisa)
   endif()
 endif()
 
-#---Check for Xrootd support---------------------------------------------------------
+#---Configure Xrootd support---------------------------------------------------------
 
 foreach(suffix FOUND INCLUDE_DIR INCLUDE_DIRS LIBRARY LIBRARIES)
   unset(XROOTD_${suffix} CACHE)
 endforeach()
+
+if(xrootd OR builtin_xrootd)
+  # Use this library as a ROOT-internal target to connect to XRootD. We will set it up such that it works
+  # irrespective of whether XRD comes via builtin or external. All targets should only link to ROOT::XRootD
+  add_library(XRootD INTERFACE)
+  add_library(ROOT::XRootD ALIAS XRootD)
+endif()
 
 if(xrootd AND NOT builtin_xrootd)
   message(STATUS "Looking for XROOTD")
@@ -992,48 +999,48 @@ if(xrootd AND NOT builtin_xrootd)
       message(FATAL_ERROR "XROOTD not found. Set environment variable XRDSYS to point to your XROOTD installation, "
                           "or include the installation of XROOTD in the CMAKE_PREFIX_PATH. "
                           "Alternatively, you can also enable the option 'builtin_xrootd' to build XROOTD internally")
+    elseif(NO_CONNECTION)
+      message(FATAL_ERROR "No internet connection. Please check your connection, or either disable the 'builtin_xrootd'"
+        " option or the 'fail-on-missing' to automatically disable options requiring internet access")
     else()
       message(STATUS "XROOTD not found, enabling 'builtin_xrootd' option")
       set(builtin_xrootd ON CACHE BOOL "Enabled because xrootd is enabled, but external xrootd was not found (${xrootd_description})" FORCE)
     endif()
-  else()
-    set(XROOTD_VERSIONNUM ${xrdversnum})  # variable used internally
   endif()
 endif()
 
-if(builtin_xrootd AND NO_CONNECTION)
-  if(fail-on-missing)
-    message(FATAL_ERROR "No internet connection. Please check your connection, or either disable the 'builtin_xrootd' option or the 'fail-on-missing' to automatically disable options requiring internet access")
-  else()
-    message(STATUS "No internet connection, disabling 'builtin_xrootd' option")
-    set(builtin_xrootd OFF CACHE BOOL "Disabled because there is no internet connection" FORCE)
-    set(xrootd OFF CACHE BOOL "Disabled because there is no internet connection" FORCE)
-  endif()
-endif()
 if(builtin_xrootd)
-  list(APPEND ROOT_BUILTINS XROOTD)
+  if(NO_CONNECTION)
+    message(FATAL_ERROR "No internet connection. Please check your connection, or either disable the 'builtin_xrootd'"
+      " option or the 'fail-on-missing' to automatically disable options requiring internet access")
+  endif()
+  list(APPEND ROOT_BUILTINS BUILTIN_XROOTD)
   add_subdirectory(builtins/xrootd)
   set(xrootd ON CACHE BOOL "Enabled because builtin_xrootd requested (${xrootd_description})" FORCE)
 endif()
 
-if(xrootd AND XROOTD_VERSIONNUM VERSION_GREATER_EQUAL 500000000)
-  if(xproofd)
-    if(fail-on-missing)
-      message(FATAL_ERROR "XROOTD is version 5 or greater. The legacy xproofd servers can not be built with this version. Use -Dxproofd:BOOL=OFF to disable.")
-    else()
-      message(STATUS "XROOTD is version 5 or greater. The legacy xproofd servers can not be built with this version. Disabling 'xproofd' option.")
-      set(xproofd OFF CACHE BOOL "Disabled because xrootd version is 5 or greater" FORCE)
-    endif()
+if(xrootd AND XROOTD_VERSION VERSION_GREATER_EQUAL 5 AND xproofd)
+  if(fail-on-missing)
+    message(FATAL_ERROR "XROOTD is version 5 or greater. The legacy xproofd servers can not be built with this version. Use -Dxproofd:BOOL=OFF to disable.")
+  else()
+    message(STATUS "XROOTD is version 5 or greater. The legacy xproofd servers can not be built with this version. Disabling 'xproofd' option.")
+    set(xproofd OFF CACHE BOOL "Disabled because xrootd version is 5 or greater" FORCE)
   endif()
 endif()
 
+if(TARGET XRootD)
+  target_include_directories(XRootD SYSTEM INTERFACE $<BUILD_INTERFACE:${XROOTD_INCLUDE_DIRS}>)
+  target_link_libraries(XRootD INTERFACE $<BUILD_INTERFACE:${XROOTD_LIBRARIES}>)
+  target_compile_definitions(XRootD INTERFACE $<BUILD_INTERFACE:ROOTXRDVERS=${XROOTD_VERSIONNUM}>)
+endif()
+
 #---check if netxng and netx can be built-------------------------------
-if(xrootd AND XROOTD_VERSIONNUM VERSION_GREATER 300030005)
+if(xrootd AND XROOTD_VERSION VERSION_GREATER 3.3.5)
   set(netxng ON)
 else()
   set(netxng OFF)
 endif()
-if(xrootd AND XROOTD_VERSIONNUM VERSION_LESS 500000000)
+if(xrootd AND XROOTD_VERSION VERSION_LESS 5)
   set(netx ON)
 else()
   set(netx OFF)
