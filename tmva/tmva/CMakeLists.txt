@@ -442,7 +442,7 @@ if(MSVC)
 endif()
 
 if(vdt OR builtin_vdt)
-  target_include_directories(TMVA PRIVATE ${VDT_INCLUDE_DIRS})
+  target_link_libraries(TMVA PRIVATE VDT)
 endif()
 
 if(tmva-cpu)

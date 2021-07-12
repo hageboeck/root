@@ -8,10 +8,6 @@
 # CMakeLists.txt file for building ROOT math/vecops package
 ############################################################################
 
-if(builtin_vdt)
-  link_directories(${CMAKE_LIBRARY_OUTPUT_DIRECTORY})
-endif()
-
 ROOT_STANDARD_LIBRARY_PACKAGE(ROOTVecOps
   HEADERS
     ROOT/RVec.hxx
@@ -24,13 +20,7 @@ ROOT_STANDARD_LIBRARY_PACKAGE(ROOTVecOps
 )
 
 if(builtin_vdt OR vdt)
-   target_include_directories(ROOTVecOps PRIVATE ${VDT_INCLUDE_DIRS} INTERFACE $<BUILD_INTERFACE:${VDT_INCLUDE_DIRS}>)
-endif()
-
-if(builtin_vdt)
-  target_link_libraries(ROOTVecOps PRIVATE ${VDT_LIBRARIES})
-elseif(vdt)
-  target_link_libraries(ROOTVecOps PUBLIC ${VDT_LIBRARIES})
+  target_link_libraries(ROOTVecOps PUBLIC VDT)
 endif()
 
 include(CheckCXXSymbolExists)
