@@ -21,6 +21,8 @@
 #include "RooAICRegistry.h"
 #include "RooObjCacheManager.h"
 
+class TStopwatch;
+
 class RooRealSumPdf : public RooAbsPdf {
 public:
 
@@ -82,6 +84,7 @@ protected:
 
   RooListProxy _funcList ;  //  List of component FUNCs
   RooListProxy _coefList ;  //  List of coefficients
+  std::unique_ptr<TStopwatch> _stopwatch; //!
   Bool_t _extended ;        // Allow use as extended p.d.f.
 
   Bool_t _doFloor = false; // Introduce floor at zero in pdf

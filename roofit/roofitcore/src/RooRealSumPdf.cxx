@@ -54,6 +54,7 @@ to the fractions of the various functions. **This requires setting the last argu
 #include "RunContext.h"
 
 #include <TError.h>
+#include <TStopwatch.h>
 
 #include <algorithm>
 #include <memory>
@@ -71,7 +72,8 @@ Bool_t RooRealSumPdf::_doFloorGlobal = kFALSE ;
 
 RooRealSumPdf::RooRealSumPdf() : _normIntMgr(this,10)
 {
-
+  _stopwatch.reset(new TStopwatch());
+  _stopwatch->Stop(); _stopwatch->Reset();
 }
 
 
@@ -87,7 +89,8 @@ RooRealSumPdf::RooRealSumPdf(const char *name, const char *title) :
   _extended(false),
   _doFloor(false)
 {
-
+  _stopwatch.reset(new TStopwatch());
+  _stopwatch->Stop(); _stopwatch->Reset();
 }
 
 
@@ -199,7 +202,9 @@ RooRealSumPdf::RooRealSumPdf(const RooRealSumPdf& other, const char* name) :
 
 RooRealSumPdf::~RooRealSumPdf()
 {
-
+  if (_stopwatch) {
+    std::cout << GetName() << " " << GetTitle() << "\tCPUTime=" << _stopwatch->CpuTime() << "\tWalltime=" << _stopwatch->RealTime() << "\n";
+  }
 }
 
 
@@ -221,6 +226,8 @@ RooAbsPdf::ExtendMode RooRealSumPdf::extendMode() const
 
 Double_t RooRealSumPdf::evaluate() const 
 {
+  if (_stopwatch) _stopwatch->Start(/*reset=*/false);
+
   // Do running sum of coef/func pairs, calculate lastCoef.
   double value = 0;
   double sumCoeff = 0.;
@@ -253,6 +260,8 @@ Double_t RooRealSumPdf::evaluate() const
     value = 0 ;
   }
   
+  if (_stopwatch) _stopwatch->Stop();
+
   return value ;
 }
 
@@ -260,6 +269,8 @@ Double_t RooRealSumPdf::evaluate() const
 ////////////////////////////////////////////////////////////////////////////////
 /// Calculate the value for all values of the observable in `evalData`.
 RooSpan<double> RooRealSumPdf::evaluateSpan(RooBatchCompute::RunContext& evalData, const RooArgSet* /*normSet*/) const {
+  if (_stopwatch) _stopwatch->Start(/*reset=*/false);
+
   // Do running sum of coef/func pairs, calculate lastCoef.
   RooSpan<double> values;
   double sumCoeff = 0.;
@@ -305,6 +316,8 @@ RooSpan<double> RooRealSumPdf::evaluateSpan(RooBatchCompute::RunContext& evalDat
       values[j] += std::max(0., values[j]);
     }
   }
+
+  if (_stopwatch) _stopwatch->Stop();
 
   return values;
 }
