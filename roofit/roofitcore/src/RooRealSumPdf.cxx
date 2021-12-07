@@ -69,10 +69,10 @@ Bool_t RooRealSumPdf::_doFloorGlobal = kFALSE ;
 /// Default constructor
 /// coverity[UNINIT_CTOR]
 
-RooRealSumPdf::RooRealSumPdf() : _normIntMgr(this,10)
+RooRealSumPdf::RooRealSumPdf() :
+  RooRealSumPdf(nullptr, nullptr)
 {
-  _extended = kFALSE ;
-  _doFloor = kFALSE ;
+
 }
 
 
@@ -81,12 +81,12 @@ RooRealSumPdf::RooRealSumPdf() : _normIntMgr(this,10)
 /// Constructor with name and title
 
 RooRealSumPdf::RooRealSumPdf(const char *name, const char *title) :
-  RooAbsPdf(name,title), 
+  RooAbsPdf(name,title),
   _normIntMgr(this,10),
   _funcList("!funcList","List of functions",this),
   _coefList("!coefList","List of coefficients",this),
-  _extended(kFALSE),
-  _doFloor(kFALSE)
+  _extended(false),
+  _doFloor(false)
 {
 
 }
@@ -100,12 +100,7 @@ RooRealSumPdf::RooRealSumPdf(const char *name, const char *title) :
 
 RooRealSumPdf::RooRealSumPdf(const char *name, const char *title,
 		     RooAbsReal& func1, RooAbsReal& func2, RooAbsReal& coef1) : 
-  RooAbsPdf(name,title),
-  _normIntMgr(this,10),
-  _funcList("!funcList","List of functions",this),
-  _coefList("!coefList","List of coefficients",this),
-  _extended(kFALSE),
-  _doFloor(kFALSE)
+  RooRealSumPdf(name, title)
 {
   // Special constructor with two functions and one coefficient
 
@@ -143,13 +138,10 @@ RooRealSumPdf::RooRealSumPdf(const char *name, const char *title,
 
 RooRealSumPdf::RooRealSumPdf(const char *name, const char *title,
     const RooArgList& inFuncList, const RooArgList& inCoefList, Bool_t extended) :
-  RooAbsPdf(name,title),
-  _normIntMgr(this,10),
-  _funcList("!funcList","List of functions",this),
-  _coefList("!coefList","List of coefficients",this),
-  _extended(extended),
-  _doFloor(kFALSE)
-{ 
+  RooRealSumPdf(name, title)
+{
+  _extended = extended;
+
   if (!(inFuncList.getSize()==inCoefList.getSize()+1 || inFuncList.getSize()==inCoefList.getSize())) {
     coutE(InputArguments) << "RooRealSumPdf::RooRealSumPdf(" << GetName() 
 			  << ") number of pdfs and coefficients inconsistent, must have Nfunc=Ncoef or Nfunc=Ncoef+1" << endl ;
