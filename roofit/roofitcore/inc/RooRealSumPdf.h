@@ -82,12 +82,12 @@ protected:
   mutable RooObjCacheManager _normIntMgr ; //! The integration cache manager
 
 
-  RooListProxy _funcList ;   //  List of component FUNCs
+  RooListProxy _funcList ;  //  List of component FUNCs
   RooListProxy _coefList ;  //  List of coefficients
   std::unique_ptr<TStopwatch> _stopwatch; //!
-  Bool_t _extended ;        // Allow use as extended p.d.f.
+  Bool_t _extended = false; // Allow use as extended p.d.f.
 
-  Bool_t _doFloor ; // Introduce floor at zero in pdf
+  Bool_t _doFloor = false; // Introduce floor at zero in pdf
   mutable bool _haveWarned{false}; //!
   static Bool_t _doFloorGlobal ; // Global flag for introducing floor at zero in pdf
   
