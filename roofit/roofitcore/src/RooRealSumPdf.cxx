@@ -72,7 +72,8 @@ Bool_t RooRealSumPdf::_doFloorGlobal = kFALSE ;
 
 RooRealSumPdf::RooRealSumPdf() : _normIntMgr(this,10)
 {
-
+  _stopwatch.reset(new TStopwatch());
+  _stopwatch->Stop(); _stopwatch->Reset();
 }
 
 
