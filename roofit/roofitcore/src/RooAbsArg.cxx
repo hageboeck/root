@@ -582,25 +582,29 @@ RooArgSet* RooAbsArg::getParameters(const RooAbsData* set, Bool_t stripDisconnec
 
 
 ////////////////////////////////////////////////////////////////////////////////
-/// INTERNAL helper function for getParameters()
+/// Add all parameters of the function and its daughters to `params`.
+/// \param[in] params Collection that stores all parameters. Add all new parameters to this.
+/// \param[in] nset Normalisation set (optional). If a value depends on this set, it's not a parameter.
+/// \param[in] stripDisconnected Passed on to getParametersHook().
 
-void RooAbsArg::addParameters(RooArgSet& params, const RooArgSet* nset,Bool_t stripDisconnected) const
+void RooAbsArg::addParameters(RooAbsCollection& params, const RooArgSet* nset, bool stripDisconnected) const
 {
-  // INTERNAL helper function for getParameters()
 
-  RooArgSet nodeParamServers ;
-  RooArgSet nodeBranchServers ;
+  std::vector<RooAbsArg*> paramList;
+  std::vector<RooAbsArg*> branchList;
   for (const auto server : _serverList) {
     if (server->isValueServer(*this)) {
       if (server->isFundamental()) {
         if (!nset || !server->dependsOn(*nset)) {
-          nodeParamServers.add(*server) ;
+          paramList.push_back(server);
         }
       } else {
-        nodeBranchServers.add(*server) ;
+        branchList.push_back(server);
       }
     }
   }
+
+  RooArgSet nodeParamServers(paramList.begin(), paramList.end());
 
   // Allow pdf to strip parameters from list before adding it
   getParametersHook(nset,&nodeParamServers,stripDisconnected) ;
@@ -609,8 +613,10 @@ void RooAbsArg::addParameters(RooArgSet& params, const RooArgSet* nset,Bool_t st
   params.add(nodeParamServers,kTRUE) ;
 
   // Now recurse into branch servers
-  for (const auto server : nodeBranchServers) {
-    server->addParameters(params,nset) ;
+  std::sort(branchList.begin(), branchList.end());
+  const auto last = std::unique(branchList.begin(), branchList.end());
+  for (auto serverIt = branchList.begin(); serverIt < last; ++serverIt) {
+    (*serverIt)->addParameters(params, nset);
   }
 }
 
@@ -655,15 +661,17 @@ bool RooAbsArg::getParameters(const RooArgSet* observables, RooArgSet& outputSet
    outputSet.clear();
    outputSet.setName("parameters");
 
-   addParameters(outputSet, observables, stripDisconnected);
+   RooArgList tempList;
 
-   outputSet.sort();
+   addParameters(tempList, observables, stripDisconnected);
+
+   tempList.sort();
+   outputSet.add(tempList);
 
    // Cache parameter set
    if (_myws && outputSet.size() > 10) {
       auto nsetObs = getColonSeparatedNameString(observables ? *observables : RooArgSet());
       _myws->defineSetInternal(Form("CACHE_PARAMS_OF_PDF_%s_FOR_OBS_%s", GetName(), nsetObs.c_str()), outputSet);
-      // cout << " caching parameters in workspace for pdf " << IsA()->GetName() << "::" << GetName() << endl ;
    }
 
    return false;
