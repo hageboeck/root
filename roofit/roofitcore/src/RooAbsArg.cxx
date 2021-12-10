@@ -590,21 +590,19 @@ RooArgSet* RooAbsArg::getParameters(const RooAbsData* set, Bool_t stripDisconnec
 void RooAbsArg::addParameters(RooAbsCollection& params, const RooArgSet* nset, bool stripDisconnected) const
 {
 
-  std::vector<RooAbsArg*> paramList;
+  RooArgSet nodeParamServers;
   std::vector<RooAbsArg*> branchList;
   for (const auto server : _serverList) {
     if (server->isValueServer(*this)) {
       if (server->isFundamental()) {
         if (!nset || !server->dependsOn(*nset)) {
-          paramList.push_back(server);
+          nodeParamServers.add(*server);
         }
       } else {
         branchList.push_back(server);
       }
     }
   }
-
-  RooArgSet nodeParamServers(paramList.begin(), paramList.end());
 
   // Allow pdf to strip parameters from list before adding it
   getParametersHook(nset,&nodeParamServers,stripDisconnected) ;
