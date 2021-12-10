@@ -615,7 +615,6 @@ private:
     bool isDirty = true;
   };
   RooRefArray _proxyList        ; // list of proxies
-  ProxyListCache _proxyListCache; //! cache of the list of proxies
 
   std::vector<RooAbsCache*> _cacheList ; //! list of caches
 
@@ -679,6 +678,7 @@ private:
  protected:
 
 
+  ProxyListCache _proxyListCache; //! cache of the list of proxies
   mutable Bool_t _valueDirty ;  // Flag set if value needs recalculating because input values modified
   mutable Bool_t _shapeDirty ;  // Flag set if value needs recalculating because input shapes modified
   mutable bool _allBatchesDirty{true}; //! Mark batches as dirty (only meaningful for RooAbsReal).
