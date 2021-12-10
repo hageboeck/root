@@ -411,6 +411,7 @@ const RooArgSet* RooVectorDataStore::get(Int_t index) const
   _currentWeightIndex = index;
 
   if (_cache) {
+    //_cache->dump();
     _cache->get(index) ;
   }
 

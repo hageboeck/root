@@ -290,6 +290,10 @@ Double_t RooNLLVar::evaluatePartition(std::size_t firstEvent, std::size_t lastEv
 
   _dataClone->store()->recalculateCache( _projDeps, firstEvent, lastEvent, stepSize, (_binnedPdf?kFALSE:kTRUE) ) ;
 
+  //_dataClone->Print();
+  //_dataClone->Print("V");
+  //_dataClone->store()->dump();
+
 
 
   // If pdf is marked as binned - do a binned likelihood calculation here (sum of log-Poisson for each bin)
