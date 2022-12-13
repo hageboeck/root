@@ -7,6 +7,8 @@ ROOT_LINKER_LIBRARY(RooBatchCompute
     Imt
 )
 
+target_include_directories(RooBatchCompute INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/res>)
+
 if(vdt OR builtin_vdt)
   target_link_libraries(RooBatchCompute PUBLIC VDT)
 endif()
