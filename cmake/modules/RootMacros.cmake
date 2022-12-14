@@ -703,7 +703,9 @@ function(ROOT_GENERATE_DICTIONARY dictionary)
     # Above we are copying all include directories of the module, irrespective of whether they are system includes.
     # CMake copies them as -I even when they should be -isystem.
     # We can fix this for INTERFACE includes by also copying the respective property.
-    # For PRIVATE includes this doesn't work, but since all ROOT includes are prepended, it didn't do harm yet.
+    # For PRIVATE includes this doesn't work. In that case, one needs to link both the library as well as the dictionary explicitly:
+    #   target_link_libraries(MODULE PRIVATE dependency)
+    #   target_link_libraries(G__MODULE PRIVATE dependency)
     set_property(TARGET ${dictionary} APPEND PROPERTY
       INTERFACE_SYSTEM_INCLUDE_DIRECTORIES $<TARGET_PROPERTY:${ARG_MODULE},INTERFACE_SYSTEM_INCLUDE_DIRECTORIES>)
   else()
