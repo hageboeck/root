@@ -40,21 +40,21 @@ if(WIN32)
   ROOT_LINKER_LIBRARY(XrdProofd
     XProofProtUtils.cxx
     LIBRARIES
-      xrootd
+      ROOT::XRootD
   )
 else()
   if (NOT XROOTD_NOMAIN)
     ROOT_EXECUTABLE(xproofd
       ${PROOFD_SOURCES}
       LIBRARIES
-        xrootd
+        ROOT::XRootD
     )
   endif()
 
   ROOT_LINKER_LIBRARY(XrdProofd
     ${PROOFD_SOURCES}
     LIBRARIES
-      xrootd
+      ROOT::XRootD
       rpdutil
       ${CMAKE_THREAD_LIBS_INIT}
       ${CMAKE_DL_LIBS}

@@ -40,7 +40,7 @@ ROOT_STANDARD_LIBRARY_PACKAGE(Proofx
     src/TXSocketHandler.cxx
     ${PROOFX_EXTRA_SOURCES}
   LIBRARIES
-    xrootd
+    ROOT::XRootD
     XrdProofd
   DEPENDENCIES
     Net
