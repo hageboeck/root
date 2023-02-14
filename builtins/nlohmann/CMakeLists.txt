@@ -3,7 +3,7 @@
 #   nlohmann_json
 # and the alias
 #   nlohmann_json::nlohmann_json
-# with proper #defines and includes. Use this target to get access to JSON.
+# with proper #defines and includes. Use the alias target with the full prefix for access to JSON.
 
 # The installed files are only used when ACLiC or ROOT macros will include REve headers,
 # they are not used for ROOT compilation, as this happens directly from the source directory.
