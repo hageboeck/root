@@ -62,7 +62,7 @@ if(XROOTD_FOUND)
     if (${xrdvers} STREQUAL "\"unknown\"")
        message(STATUS "Found untagged Xrootd version: assuming very recent (setting -DROOTXRDVERS=${xrdversnum})")
     else ()
-       message(STATUS "Found Xrootd version num: ${xrdvers} (setting -DROOTXRDVERS=${xrdversnum})")
+       message(STATUS "Found Xrootd version num: ${xrdvers} (setting -DROOTXRDVERS=${xrdversnum} include dir=${XROOTD_INCLUDE_DIR})")
     endif()
   endif()
 
@@ -141,16 +141,22 @@ if(XROOTD_FOUND)
 
     # libXrdCl
     if(${xrdversnum} GREATER 300030000)
-       find_library(XROOTD_XrdCl_LIBRARY
-          NAMES XrdCl
-          HINTS ${searchpath}
-          PATH_SUFFIXES lib)
-       if (XROOTD_XrdCl_LIBRARY)
-          list(APPEND XROOTD_LIBRARIES ${XROOTD_XrdCl_LIBRARY})
-       endif ()
-       message(WARNING "Check that XrdCl/ includes can be found (xrootd-client-devel installed")
+      find_library(XROOTD_XrdCl_LIBRARY
+        NAMES XrdCl
+        HINTS ${searchpath}
+        PATH_SUFFIXES lib)
+      if (XROOTD_XrdCl_LIBRARY)
+        list(APPEND XROOTD_LIBRARIES ${XROOTD_XrdCl_LIBRARY})
+        # Check for the presence of XRootD client headers
+        find_path(XROOTD_XrdCl_INCLUDE_DIR
+          NAME XrdClFileSystem.hh
+          PATHS ${XROOTD_INCLUDE_DIRS}
+          PATH_SUFFIXES XrdCl)
+        if(NOT XROOTD_XrdCl_INCLUDE_DIR)
+          message(WARNING "${XROOTD_XrdCl_LIBRARY} was found, but headers such as 'XrdCl/XrdClFileSystem.hh' are missing. The package xrootd-client-devel might be missing.")
+        endif()
+      endif ()
     endif ()
-
   endif()
 
   if(XROOTD_LIBRARIES)
