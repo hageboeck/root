@@ -1039,7 +1039,7 @@ if(xrootd AND XROOTD_VERSION VERSION_GREATER_EQUAL 5 AND xproofd)
 endif()
 
 if(TARGET XRootD)
-  target_include_directories(XRootD SYSTEM INTERFACE $<BUILD_INTERFACE:${XROOTD_INCLUDE_DIRS}>)
+  target_include_directories(XRootD SYSTEM INTERFACE "$<BUILD_INTERFACE:${XROOTD_INCLUDE_DIRS}>")
   target_link_libraries(XRootD INTERFACE $<BUILD_INTERFACE:${XROOTD_LIBRARIES}>)
   target_compile_definitions(XRootD INTERFACE $<BUILD_INTERFACE:ROOTXRDVERS=${XROOTD_VERSIONNUM}>)
 endif()
