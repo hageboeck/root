@@ -18,5 +18,3 @@ add_custom_command(
 add_custom_target(builtin_nlohmann_json_incl ALL DEPENDS ${CMAKE_BINARY_DIR}/include/nlohmann/json.hpp)
 
 install(FILES ${CMAKE_SOURCE_DIR}/builtins/nlohmann/json.hpp DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/nlohmann/)
-
-
