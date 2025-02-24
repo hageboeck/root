@@ -1577,26 +1577,19 @@ public:
       // associated to those is re-allocated. As a result the value of the pointer can change therewith
       // leaving associated to the branch of the output tree an invalid pointer.
       // With this code, we set the value of the pointer in the output branch anew when needed.
-      // Nota bene: the extra ",0" after the invocation of SetAddress, is because that method returns void and
-      // we need an int for the expander list.
-      int expander[] = {(fBranches[S] && fBranchAddresses[S] != GetData(values)
+      ((fBranches[S] && fBranchAddresses[S] != GetData(values)
                          ? fBranches[S]->SetAddress(GetData(values)),
-                         fBranchAddresses[S] = GetData(values), 0 : 0, 0)...,
-                        0};
-      (void)expander; // avoid unused variable warnings for older compilers such as gcc 4.9
+                         fBranchAddresses[S] = GetData(values) : 0), ...);
    }
 
    template <std::size_t... S>
    void SetBranches(ColTypes &... values, std::index_sequence<S...> /*dummy*/)
    {
       // create branches in output tree
-      int expander[] = {
-         (SetBranchesHelper(fInputTree, *fOutputTree, fInputBranchNames[S], fOutputBranchNames[S], fBranches[S],
-                            fBranchAddresses[S], &values, fOutputBranches, fIsDefine[S], fOptions.fBasketSize),
-          0)...,
-         0};
+      (SetBranchesHelper(fInputTree, *fOutputTree, fInputBranchNames[S], fOutputBranchNames[S], fBranches[S],
+                         fBranchAddresses[S], &values, fOutputBranches, fIsDefine[S], fOptions.fBasketSize),
+       ...);
       fOutputBranches.AssertNoNullBranchAddresses();
-      (void)expander; // avoid unused variable warnings for older compilers such as gcc 4.9
    }
 
    void Initialize()
@@ -1790,14 +1783,12 @@ public:
    template <std::size_t... S>
    void SetBranches(unsigned int slot, ColTypes &... values, std::index_sequence<S...> /*dummy*/)
    {
-      // hack to call TTree::Branch on all variadic template arguments
-      int expander[] = {(SetBranchesHelper(fInputTrees[slot], *fOutputTrees[slot], fInputBranchNames[S],
-                                           fOutputBranchNames[S], fBranches[slot][S], fBranchAddresses[slot][S],
-                                           &values, fOutputBranches[slot], fIsDefine[S], fOptions.fBasketSize),
-                         0)...,
-                        0};
+      // call TTree::Branch on all variadic template arguments
+      (SetBranchesHelper(fInputTrees[slot], *fOutputTrees[slot], fInputBranchNames[S], fOutputBranchNames[S],
+                         fBranches[slot][S], fBranchAddresses[slot][S], &values, fOutputBranches[slot], fIsDefine[S],
+                         fOptions.fBasketSize),
+       ...);
       fOutputBranches[slot].AssertNoNullBranchAddresses();
-      (void)expander; // avoid unused parameter warnings (gcc 12.1)
    }
 
    void Initialize()
