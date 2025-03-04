@@ -266,8 +266,8 @@ RResultMap<T> VariationsFor(RResultPtr<T> resPtr)
                                         *resPtr.fLoopManager, std::move(nominalAction), std::move(variedAction));
 }
 
-using SnapshotPtr_t = ROOT::RDF::RResultPtr<ROOT::RDF::RInterface<ROOT::Detail::RDF::RLoopManager, void>>;
-SnapshotPtr_t VariationsFor(SnapshotPtr_t resPtr);
+using SnapshotResult_t = ROOT::RDF::RInterface<ROOT::Detail::RDF::RLoopManager, void>;
+RResultPtr<SnapshotResult_t> VariationsFor(RResultPtr<SnapshotResult_t> resPtr);
 
 /// \brief Add ProgressBar to a ROOT::RDF::RNode
 /// \param[in] df RDataFrame node at which ProgressBar is called.

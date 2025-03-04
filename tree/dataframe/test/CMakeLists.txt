@@ -49,6 +49,7 @@ endif()
 if(NOT (MSVC OR (APPLE AND CMAKE_SYSTEM_PROCESSOR MATCHES arm64)) OR win_broken_tests OR M1_BROKEN_TESTS)
   ROOT_ADD_GTEST(dataframe_snapshot dataframe_snapshot.cxx LIBRARIES ROOTDataFrame)
 endif()
+ROOT_ADD_GTEST(dataframe_snapshotWithVariations dataframe_snapshotWithVariations.cxx LIBRARIES ROOTDataFrame)
 
 ROOT_ADD_GTEST(dataframe_datasetspec dataframe_datasetspec.cxx LIBRARIES ROOTDataFrame)
 if(builtin_nlohmannjson)

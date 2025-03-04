@@ -25,6 +25,8 @@ namespace ROOT {
 namespace RDF {
 template <typename T>
 class RResultPtr;
+template <typename T, typename V>
+class RInterface;
 
 namespace Experimental {
 template <typename T>
@@ -32,6 +34,8 @@ class RResultMap;
 
 template <typename T>
 RResultMap<T> VariationsFor(RResultPtr<T> resPtr);
+using SnapshotResult_t = ROOT::RDF::RInterface<ROOT::Detail::RDF::RLoopManager, void>;
+RResultPtr<SnapshotResult_t> VariationsFor(RResultPtr<SnapshotResult_t> resPtr);
 } // namespace Experimental
 
 template <typename Proxied, typename DataSource>
@@ -130,6 +134,7 @@ class RResultPtr {
 
    template <typename T1>
    friend ROOT::RDF::Experimental::RResultMap<T1> ROOT::RDF::Experimental::VariationsFor(RResultPtr<T1> resPtr);
+   friend RResultPtr<Experimental::SnapshotResult_t> ROOT::RDF::Experimental::VariationsFor(RResultPtr<Experimental::SnapshotResult_t> resPtr);
 
    template <class T1, class T2>
    friend bool operator==(const RResultPtr<T1> &lhs, const RResultPtr<T2> &rhs);

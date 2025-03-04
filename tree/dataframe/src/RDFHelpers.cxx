@@ -130,15 +130,38 @@ unsigned int ROOT::RDF::RunGraphs(std::vector<RResultHandle> handles)
    return uniqueLoops.size();
 }
 
-ROOT::RDF::Experimental::SnapshotPtr_t ROOT::RDF::Experimental::VariationsFor(ROOT::RDF::Experimental::SnapshotPtr_t)
+namespace ROOT::RDF::Experimental {
+
+/// Add systematic variations to a snapshot.
+/// \param[in] resPtr The snapshot instance for which variations should be produced.
+/// \return A \ref ROOT::RDF::RResultPtr to a new dataframe that has nominal and varied columns.
+///
+/// VariationsFor does not trigger the event loop. The event loop is only triggered
+/// upon first access to a valid key, similarly to what happens with RResultPtr.
+///
+/// See RDataFrame's \ref ROOT::RDF::RInterface::Vary() "Vary" method for more information and example usages.
+RResultPtr<SnapshotResult_t> VariationsFor(RResultPtr<SnapshotResult_t> resPtr)
 {
-   throw std::logic_error("Varying a Snapshot result is not implemented yet.");
+   R__ASSERT(resPtr != nullptr && "Calling VariationsFor on an empty RResultPtr");
+
+   // populate parts of the computation graph for which we only have "empty shells", e.g. RJittedActions and
+   // RJittedFilters
+   resPtr.fLoopManager->Jit();
+
+   std::unique_ptr<RDFInternal::RActionBase> variedAction;
+
+   std::shared_ptr<RDFInternal::RActionBase> nominalAction = resPtr.fActionPtr;
+   std::vector<std::string> variations = nominalAction->GetVariations();
+   const auto nVariations = variations.size();
+
+   if (nVariations > 0) {
+      // Create the RVariedAction and inject it in the computation graph.
+      // This recursively creates all the required varied column readers and upstream nodes of the computation graph.
+      variedAction = nominalAction->MakeVariedAction(std::vector<void*>(nVariations));
+   }
+
+   return ROOT::Detail::RDF::MakeResultPtr<SnapshotResult_t>(resPtr.fObjPtr, *resPtr.fLoopManager, std::move(variedAction));
 }
-
-namespace ROOT {
-namespace RDF {
-
-namespace Experimental {
 
 ProgressHelper::ProgressHelper(std::size_t increment, unsigned int totalFiles, unsigned int progressBarWidth,
                                unsigned int printInterval, bool useColors)
@@ -382,6 +405,5 @@ void AddProgressBar(ROOT::RDataFrame dataframe)
    auto node = ROOT::RDF::AsRNode(dataframe);
    ROOT::RDF::Experimental::AddProgressBar(node);
 }
-} // namespace Experimental
-} // namespace RDF
+
 } // namespace ROOT
