@@ -14,6 +14,7 @@
 #include "RColumnRegister.hxx"
 #include <ROOT/RDF/RAction.hxx>
 #include <ROOT/RDF/ActionHelpers.hxx> // for BuildAction
+#include <ROOT/RDF/Snapshot.hxx>
 #include <ROOT/RDF/RColumnRegister.hxx>
 #include <ROOT/RDF/RDefine.hxx>
 #include <ROOT/RDF/RDefinePerSample.hxx>
@@ -316,11 +317,15 @@ BuildAction(const ColumnNames_t &colNames, const std::shared_ptr<SnapshotHelperA
    } else {
       if (!ROOT::IsImplicitMTEnabled()) {
          // single-thread snapshot
-         using Helper_t = SnapshotTTreeHelper<ColTypes...>;
+         // TODO: Don't unconditionally activate this snapshot type?
+         using Helper_t = SnapshotHelperWithVariations<ColTypes...>;
          using Action_t = RAction<Helper_t, PrevNodeType>;
          actionPtr.reset(new Action_t(Helper_t(filename, dirname, treename, colNames, outputColNames, options,
                                                std::move(isDefine), lmPtr, inputLM),
                                       colNames, prevNode, colRegister));
+
+         // Install a callback to trigger tree filling at the end of each event:
+         prevNode->GetLoopManagerUnchecked()->RegisterCallback(1, [action = actionPtr.get()](unsigned int slot){ action->PartialUpdate(slot); });
       } else {
          // multi-thread snapshot
          using Helper_t = SnapshotTTreeHelperMT<ColTypes...>;

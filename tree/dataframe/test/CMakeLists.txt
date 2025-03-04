@@ -58,6 +58,7 @@ ROOT_GENERATE_DICTIONARY(DummyDict ${CMAKE_CURRENT_SOURCE_DIR}/DummyHeader.hxx
                          MODULE dataframe_snapshot_emptyoutput LINKDEF DummyHeaderLinkDef.hxx OPTIONS -inlineInputHeader
                          DEPENDENCIES ROOTVecOps GenVector)
 endif()
+ROOT_ADD_GTEST(dataframe_snapshotWithVariations dataframe_snapshotWithVariations.cxx LIBRARIES ROOTDataFrame)
 
 ROOT_ADD_GTEST(dataframe_datasetspec dataframe_datasetspec.cxx LIBRARIES ROOTDataFrame)
 if(builtin_nlohmannjson)
