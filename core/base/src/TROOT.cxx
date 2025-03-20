@@ -470,12 +470,17 @@ namespace Internal {
    /// Test if ROOT-7-style memory management should be used. This can be used to
    /// take decisions such as whether histograms should register themselves to
    /// directories and similar.
+   /// A default can be set in .rootrc using "Root.ROOT7Mode: 1"
    static bool &ROOT7Mode()
    {
       static bool root7Mode = false;
+      static bool readEnvironment = false;
+      if (gEnv && !readEnvironment) {
+         readEnvironment = true;
+         root7Mode = gEnv->GetValue("Root.ROOT7Mode", 0);
+      }
       return root7Mode;
    }
-
 } // end of Internal sub namespace
 // back to ROOT namespace
 
@@ -601,6 +606,7 @@ namespace Internal {
    /// In ROOT 6, a growing list of objects will respect this setting, and not be
    /// added to global lists or not react to global variables.
    /// This will aid the transition to ROOT 7.
+   /// A default can also be set in .rootrc using "Root.ROOT7Mode: 1".
    void ROOT7MemoryManagement(bool enable)
    {
       Internal::ROOT7Mode() = enable;
