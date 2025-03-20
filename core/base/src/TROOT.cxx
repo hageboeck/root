@@ -473,7 +473,7 @@ namespace Internal {
    /// A default can be set in .rootrc using "Root.ROOT7Mode: 1"
    static bool &ROOT7Mode()
    {
-      static bool root7Mode = false;
+      static bool root7Mode = true;
       static bool readEnvironment = false;
       if (gEnv && !readEnvironment) {
          readEnvironment = true;
