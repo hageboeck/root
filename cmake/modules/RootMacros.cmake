@@ -585,12 +585,10 @@ function(ROOT_GENERATE_DICTIONARY dictionary)
   endif()
 
   #---Get the library and module dependencies-----------------
+  set(PCM_DEPENDENCIES)
   if(ARG_DEPENDENCIES)
     foreach(dep ${ARG_DEPENDENCIES})
-      if(NOT TARGET G__${dep})
-        # This is a library that doesn't come with dictionary/pcm
-        continue()
-      endif()
+      list(APPEND PCM_DEPENDENCIES G__${dep})
 
       set(dependent_pcm ${libprefix}${dep}_rdict.pcm)
       if (runtime_cxxmodules AND NOT dep IN_LIST local_no_cxxmodules)
@@ -647,8 +645,6 @@ function(ROOT_GENERATE_DICTIONARY dictionary)
   endforeach()
 
   if(ARG_MODULE)
-    set(MODULE_LIB_DEPENDENCY ${ARG_DEPENDENCIES})
-
     # get target properties added after call to ROOT_GENERATE_DICTIONARY()
     if(TARGET ${ARG_MODULE})
       # NOTE that module_sysincs is already part of ${module_sysincs}. But -isystem "wins",
@@ -689,7 +685,7 @@ function(ROOT_GENERATE_DICTIONARY dictionary)
                                         ${headerfiles} ${_linkdef}
                      IMPLICIT_DEPENDS ${_implicitdeps}
                      DEPENDS ${_list_of_header_dependencies} ${_linkdef} ${ROOTCINTDEP}
-                             ${MODULE_LIB_DEPENDENCY} ${ARG_EXTRA_DEPENDENCIES}
+                             ${PCM_DEPENDENCIES} ${ARG_EXTRA_DEPENDENCIES}
                              ${runtime_cxxmodule_dependencies}
                      COMMAND_EXPAND_LISTS)
 
