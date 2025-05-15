@@ -80,3 +80,9 @@ TEST(TClass, ConsistentSTLLookup)
    auto second = first->GetActualClass(&map);
    EXPECT_EQ(first, second);
 }
+
+// https://its.cern.ch/jira/browse/ROOT-10311
+TEST(TClass, ConstructorName)
+{
+   EXPECT_EQ(TClass::GetClass("TTree::TTree"), nullptr);
+}
