@@ -23,8 +23,9 @@
 
 #include "ROOT/RDF/ActionHelpers.hxx" // TODO: Get rid of this include?
 
-#include "TFile.h"
 #include "TError.h"
+#include "TFile.h"
+#include "TClass.h"
 
 #include <algorithm>
 #include <memory>
@@ -37,13 +38,129 @@ namespace ROOT::Internal::RDF {
 struct FileHandle {
    std::unique_ptr<TFile> fFile;
    std::unique_ptr<TTree> fTree;
+   std::string fDirectoryName;
+   RLoopManager * fOutputLoopManager;
 
    FileHandle(TFile * file, TTree * tree) : fFile{file}, fTree{tree} { }
    ~FileHandle() {
       // use AutoSave to flush TTree contents because TTree::Write writes in gDirectory, not in fDirectory
-      if (fTree) fTree->AutoSave("flushbaskets");
+      if (fTree) {
+         fTree->AutoSave("flushbaskets");
+
+         // Now connect the data source to the loop manager so it can be used for further processing
+         std::string tree = fTree->GetName();
+         if (!fDirectoryName.empty()) tree = fDirectoryName + '/' + tree;
+         std::string file = fFile->GetName();
+
+         fTree.reset();
+         fFile.reset();
+
+         if (fOutputLoopManager)
+            fOutputLoopManager->SetDataSource(std::make_unique<ROOT::Internal::RDF::RTTreeDS>(tree, file));
+      }
    }
 };
+
+struct BranchData {
+   TBranch * fOutputBranch = nullptr;
+   std::function<void(void*)> fDeleterOfEmptyInstance;
+   void * fEmptyInstance;
+   TBranch * fInputBranch = nullptr;
+
+   BranchData(TBranch * branch, void* emptyInstance, std::function<void(void*)> deleter) :
+      fOutputBranch{branch},
+      fDeleterOfEmptyInstance{std::move(deleter)},
+      fEmptyInstance{emptyInstance}
+   {
+
+   }
+   BranchData(const BranchData&) = delete;
+   BranchData(BranchData && other)
+   {
+      *this = std::move(other);
+   }
+   ~BranchData() {
+      if (fEmptyInstance && fDeleterOfEmptyInstance)
+         fDeleterOfEmptyInstance(fEmptyInstance);
+   }
+   BranchData& operator=(const BranchData&) = delete;
+   BranchData& operator=(BranchData && other) {
+      fOutputBranch = other.fOutputBranch;
+      fDeleterOfEmptyInstance = std::move(other.fDeleterOfEmptyInstance);
+      fEmptyInstance = other.fEmptyInstance;
+      fInputBranch = other.fInputBranch;
+      other.fEmptyInstance = nullptr;
+      return *this;
+   }
+
+   /// Point the branch address to an empty instance of the type represented by this branch.
+   /// This is used in case of variations, when certain defines/actions don't execute. We
+   /// nevertheless need to write something, so we point the branch to an empty instance.
+   void ResetBranchAddressToEmtpyInstance() {
+      assert(fEmptyInstance);
+      fOutputBranch->SetAddress(fEmptyInstance);
+   }
+};
+
+template <typename T>
+void SetBranchesHelper(TTree *inputTree, TTree &outputTree, const std::string &inName, const std::string &name,
+      T *address, BranchData & bd, bool /*isDefine*/, int basketSize)
+{
+   static const TClassRef TBOClRef("TBranchObject");
+
+   if (!bd.fOutputBranch) {
+      if (!bd.fInputBranch && inputTree) {
+         bd.fInputBranch = inputTree->GetBranch(inName.c_str());
+         if (!bd.fInputBranch) // try harder
+            bd.fInputBranch = inputTree->FindBranch(inName.c_str());
+      }
+
+      if (bd.fInputBranch) {
+         // Respect the original bufsize and splitlevel arguments
+         // In particular, by keeping splitlevel equal to 0 if this was the case for `inputBranch`, we avoid
+         // writing garbage when unsplit objects cannot be written as split objects (e.g. in case of a polymorphic
+         // TObject branch, see https://bit.ly/2EjLMId ).
+         // A user-provided basket size value takes precedence.
+         const auto bufSize = (basketSize > 0) ? basketSize : bd.fInputBranch->GetBasketSize();
+         const auto splitLevel = bd.fInputBranch->GetSplitLevel();
+
+         if (bd.fInputBranch->IsA() == TBOClRef) {
+            // Need to pass a pointer to pointer
+            bd.fOutputBranch =
+               outputTree.Branch(name.c_str(), reinterpret_cast<T **>(bd.fInputBranch->GetAddress()), bufSize, splitLevel);
+         } else {
+            bd.fOutputBranch = outputTree.Branch(name.c_str(), address, bufSize, splitLevel);
+         }
+      } else {
+         // Set Custom basket size for new branches.
+         const auto buffSize = (basketSize > 0) ? basketSize : 32000;
+         bd.fOutputBranch = outputTree.Branch(name.c_str(), address, buffSize);
+      }
+
+      // Create an empty instance of this type. This will be written to the tree if a systematic
+      // uncertainty didn't pass the cuts, but another did.
+      auto const dict = TDictionary::GetDictionary(typeid(T));
+      if (auto dataType = dynamic_cast<TDataType const*>(dict); dataType) {
+         bd.fEmptyInstance = new T{}; // replace by TDataType if the template goes away
+         bd.fDeleterOfEmptyInstance = [](void * ptr){ std::default_delete<T>{}(static_cast<T*>(ptr)); };
+      } else if (auto tClass = dynamic_cast<TClass const*>(dict); tClass) {
+         bd.fEmptyInstance = tClass->New();
+         bd.fDeleterOfEmptyInstance = [tClass](void* ptr) {
+            tClass->GetDestructor()(ptr);
+            tClass->GetDelete()(ptr);
+         };
+      }
+   }
+
+   // the output branch was already created, we just need to (re)set its address
+   if (bd.fInputBranch && bd.fInputBranch->IsA() == TBOClRef) {
+      bd.fOutputBranch->SetAddress(reinterpret_cast<T **>(bd.fInputBranch->GetAddress()));
+   } else if (bd.fOutputBranch->IsA() != TBranch::Class()) {
+      bd.fOutputBranch->SetAddress(&address);
+   } else {
+      bd.fOutputBranch->SetAddress(address);
+   }
+}
 
 /// Helper object for a single-thread Snapshot action
 template <typename... ColTypes>
@@ -52,83 +169,71 @@ class R__CLING_PTRCHECK(off) SnapshotHelperWithVariations : public ROOT::Detail:
    std::shared_ptr<FileHandle> fOutputHandle;
    // ColumnNames_t fInputBranchNames; // This contains the resolved aliases
    ColumnNames_t fOutputBranchNames;
-   // TODO we might be able to unify fBranches, fBranchAddresses and fOutputBranches
-   // std::vector<TBranch *> fBranches; // Addresses of branches in output, non-null only for the ones holding C arrays
-   // std::vector<void *> fBranchAddresses; // Addresses of objects associated to output branches
-   // RBranchSet fOutputBranches;
-   // std::vector<bool> fIsDefine;
+   std::unique_ptr<std::vector<BranchData>> fBranchData;
+   std::vector<std::vector<BranchData>*> fBranchDataToClear;
+   ROOT::Detail::RDF::RLoopManager *fInputLoopManager = nullptr;
+   ROOT::Detail::RDF::RLoopManager *fOutputLoopManager = nullptr;
 
-   // Local buffers for writing nominal or systematics.
-   // These need to be stable in memory because TBranch only has the address, so storing them by pointer.
-   using BranchBufferTuple_t = std::tuple<ColTypes...>;
-   using BranchBufferTupleWithVariations_t = std::tuple<std::vector<ColTypes>...>;
-   std::unique_ptr<BranchBufferTuple_t> fBranchBuffers;
-   std::unique_ptr<BranchBufferTupleWithVariations_t> fBranchBuffersWithVariations;
-   std::vector<BranchBufferTupleWithVariations_t*> fBranchBuffersToClear; /// Branch buffers that must be cleared at the end of the event.
 
-   template<size_t N>
-   void CreateOutputBranch(std::string const & name, int bufSize, int splitLevel)
+   template<typename T>
+   void CreateOutputBranch(std::string const & name)
    {
-      // TODO: Deal with TBOClRef in original snapshot implementation
-      if (fOutputHandle->fTree->GetBranch(name.c_str()))
-         throw std::logic_error(std::string{"Snapshot: Output branch "} + name + " already present in tree.");
-      if (fBranchBuffers)
-         fOutputHandle->fTree->Branch(name.c_str(), &std::get<N>(*fBranchBuffers), bufSize, splitLevel);
-      else
-         fOutputHandle->fTree->Branch(name.c_str(), &std::get<N>(*fBranchBuffersWithVariations), bufSize, splitLevel);
+      // TODO: Review
+      std::string name_noColon{name};
+      std::replace(name_noColon.begin(), name_noColon.end(), ':', '_');
+
+      fBranchData->emplace_back(nullptr, nullptr, nullptr);
+      // TODO: Review the dummy arguments
+      SetBranchesHelper(nullptr, *fOutputHandle->fTree, "", name_noColon, static_cast<T*>(nullptr), fBranchData->back(), /*isDefine*/false, fOptions.fBasketSize);
    }
 
    template <std::size_t... S>
-   void CreateOutputBranches(std::index_sequence<S...>)
+   void CreateOutputBranches(std::vector<std::string> const & branchNames, std::index_sequence<S...>)
    {
-      (CreateOutputBranch<S>(fOutputBranchNames[S], fOptions.fBasketSize.value_or(32000), fOptions.fSplitLevel), ...);
+      // TODO: Check basket size of equivalent input branches?
+      (CreateOutputBranch<ColTypes>(branchNames[S]), ...);
    }
 
    template <std::size_t... S>
-   void WriteValuesToBuffers(ColTypes &... values, std::index_sequence<S...>)
+   void SetBranches(ColTypes &... values, std::index_sequence<S...> /*dummy*/)
    {
-      assert((fBranchBuffers || fBranchBuffersWithVariations) && !(fBranchBuffers && fBranchBuffersWithVariations));
-
-      if (fBranchBuffers)
-         ((std::get<S>(*fBranchBuffers) = values),...);
-      else
-         (std::get<S>(*fBranchBuffersWithVariations).push_back(values),...);
-   }
-   template <std::size_t... S>
-   void ClearBranchBuffers(std::index_sequence<S...>)
-   {
-      for (auto branchBuffer : fBranchBuffersToClear) {
-         (std::get<S>(*branchBuffer).clear(),...);
-      }
+      // TODO: Review empty arguments
+      (SetBranchesHelper(nullptr,
+            *fOutputHandle->fTree, "", fOutputBranchNames[S], &values, (*fBranchData)[S], /*fIsDefine[S]*/false, fOptions.fBasketSize),
+       ...);
+      // TODO: Review:
+      // fOutputBranches.AssertNoNullBranchAddresses();
    }
 
    SnapshotHelperWithVariations(SnapshotHelperWithVariations & other, std::string const & variationPrefix)
-   : fOptions{other.fOptions}, fOutputHandle{other.fOutputHandle},
-   // fInputBranchNames{other.fInputBranchNames},
-   fOutputBranchNames{},
-   // fBranches{}, fBranchAddresses{}, fOutputBranches{}, fIsDefine{other.fIsDefine},
-   fBranchBuffersWithVariations{new BranchBufferTupleWithVariations_t}
+   : fOptions{other.fOptions}, fOutputHandle{other.fOutputHandle}, fBranchData{new std::vector<BranchData>{}}
    {
       fOutputBranchNames.resize(other.fOutputBranchNames.size());
       std::transform(other.fOutputBranchNames.begin(), other.fOutputBranchNames.end(), fOutputBranchNames.begin(),
-      [&variationPrefix](std::string const & originalName){ return variationPrefix + originalName;});
-      other.fBranchBuffersToClear.push_back(fBranchBuffersWithVariations.get());
+      [&variationPrefix](std::string const & originalName){ return originalName + variationPrefix;});
+
+      fOutputBranchNames = ReplaceDotWithUnderscore(fOutputBranchNames);
+      using ind_t = std::index_sequence_for<ColTypes...>;
+      CreateOutputBranches<>(fOutputBranchNames, ind_t{});
+
+      other.fBranchDataToClear.push_back(fBranchData.get());
    }
 
 public:
    using ColumnTypes_t = TypeList<ColTypes...>;
    SnapshotHelperWithVariations(std::string_view filename, std::string_view dirname, std::string_view treename,
                   const ColumnNames_t &/*vbnames*/, const ColumnNames_t &bnames, const RSnapshotOptions &options,
-                  std::vector<bool> &&/*isDefine*/)
+                  std::vector<bool> &&/*isDefine*/, ROOT::Detail::RDF::RLoopManager * outputLoopMgr, ROOT::Detail::RDF::RLoopManager * inputLoopMgr)
       : fOptions(options),
-      // fInputBranchNames(vbnames),
-        fOutputBranchNames(ReplaceDotWithUnderscore(bnames)),
-      //   fBranches(vbnames.size(), nullptr),
-      //   fBranchAddresses(vbnames.size(), nullptr), fIsDefine(std::move(isDefine)),
-        fBranchBuffers{new BranchBufferTuple_t}
+      fOutputBranchNames{ReplaceDotWithUnderscore(bnames)},
+      fBranchData{new std::vector<BranchData>{}},
+      fBranchDataToClear{fBranchData.get()},
+      fInputLoopManager{inputLoopMgr},
+      fOutputLoopManager{outputLoopMgr}
    {
-      ValidateSnapshotOutput(fOptions, std::string(treename), std::string(filename));
+      EnsureValidSnapshotTTreeOutput(fOptions, std::string(treename), std::string(filename));
 
+      TFile::TContext fileCtxt;
       fOutputHandle = std::make_shared<FileHandle>(TFile::Open(filename.data(), fOptions.fMode.c_str(), /*ftitle=*/"",
       ROOT::CompressionSettings(fOptions.fCompressionAlgorithm, fOptions.fCompressionLevel)), nullptr);
       if(!fOutputHandle->fFile)
@@ -136,6 +241,7 @@ public:
 
       TDirectory *outputDir = fOutputHandle->fFile.get();
       if (!dirname.empty()) {
+         fOutputHandle->fDirectoryName = dirname;
          TString checkupdate = fOptions.fMode;
          checkupdate.ToLower();
          if (checkupdate == "update")
@@ -146,9 +252,12 @@ public:
 
       fOutputHandle->fTree =
          std::make_unique<TTree>(std::string{treename}.c_str(), std::string{treename}.c_str(), fOptions.fSplitLevel, /*dir=*/outputDir);
-
+      fOutputHandle->fOutputLoopManager = fOutputLoopManager;
       if (fOptions.fAutoFlush)
          fOutputHandle->fTree->SetAutoFlush(fOptions.fAutoFlush);
+
+      using ind_t = std::index_sequence_for<ColTypes...>;
+      CreateOutputBranches<>(fOutputBranchNames, ind_t{});
    }
 
    SnapshotHelperWithVariations(SnapshotHelperWithVariations &&) = default;
@@ -176,30 +285,31 @@ public:
    void Exec(unsigned int /* slot */, ColTypes &... values)
    {
       using ind_t = std::index_sequence_for<ColTypes...>;
-      WriteValuesToBuffers(values..., ind_t{});
+      SetBranches(values..., ind_t{});
    }
 
-   /// Call the Fill of the output tree.
-   /// This function must be called from one callback defined for a single snapshot action.
+   /// Call the Fill of the output tree, and reset all braches to empty values.
+   /// This function must be called from exactly one snapshot action.
    /// It triggers the fill of the shared tree at the end of each event.
    TTree& PartialUpdate(unsigned int /*slot*/) {
       if (!fOutputHandle->fTree)
          throw std::runtime_error("The TTree associated to the Snapshot action doesn't exist, any more.");
 
       fOutputHandle->fTree->Fill();
-      ClearBranchBuffers(std::index_sequence_for<ColTypes...>{});
+
+      for (auto vecPtr : fBranchDataToClear) {
+         for (auto & branchData : *vecPtr) branchData.ResetBranchAddressToEmtpyInstance();
+      }
       return *fOutputHandle->fTree;
    }
 
    void Initialize()
    {
-      using ind_t = std::index_sequence_for<ColTypes...>;
-      CreateOutputBranches(ind_t{});
+
    }
 
    void Finalize()
    {
-      // TODO: Reset here or in destructor?
       fOutputHandle.reset();
    }
 
@@ -213,14 +323,7 @@ public:
 
    SnapshotHelperWithVariations MakeNew(void * /*newName*/, std::string_view variation = "nominal")
    {
-      // We enter systematics mode, so now write vectors instead of bare values
-      if (fBranchBuffers) fBranchBuffers.reset();
-      if (!fBranchBuffersWithVariations) {
-         fBranchBuffersWithVariations.reset(new BranchBufferTupleWithVariations_t{});
-         fBranchBuffersToClear.push_back(fBranchBuffersWithVariations.get());
-      }
-
-      return SnapshotHelperWithVariations{*this, std::string{variation} + ":"};
+      return SnapshotHelperWithVariations{*this, "__" + std::string{variation}};
    }
 };
 
