@@ -28,3 +28,6 @@
 #pragma create TClass unordered_map<string,float>;
 #pragma create TClass unordered_map<string,double>;
 #pragma create TClass unordered_map<string,void*>;
+
+// For snapshot with systematic variations in RDF:
+#pragma create TClass unordered_map<string,pair<string,unsigned int>>;

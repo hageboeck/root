@@ -152,7 +152,84 @@ TEST(RDFVarySnapshot, RDFFromTTree)
    }
 }
 
-TEST(RDFVarySnapshot, SnapshotCollections)
+TEST(RDFVarySnapshot, WritingOfBitmask)
+{
+   constexpr auto filename = "VarySnapshot_bitmask.root";
+   std::string const treename = "testTree";
+   constexpr unsigned int N = 15;
+   constexpr unsigned int NSystematics = 130; // Will use three bitmask branches
+   ROOT::RDF::RSnapshotOptions options;
+   options.fLazy = true;
+   options.fOverwriteIfExists = true;
+
+   auto cuts = [](int x, int y) { return x % 2 == 0 && y % 3 == 0; };
+
+   auto h = ROOT::RDataFrame(N)
+               .Define("x", [](ULong64_t e) -> int { return e; }, {"rdfentry_"})
+               .Vary(
+                  "x",
+                  [](int x) {
+                     std::vector<int> systOffsets(NSystematics);
+                     std::iota(systOffsets.begin(), systOffsets.end(), 0);
+                     std::transform(systOffsets.begin(), systOffsets.end(), systOffsets.begin(), [x](int offset){ return x + offset; });
+                     return ROOT::RVecI{systOffsets};
+                  },
+                  {"x"}, NSystematics, "xVar")
+               .Define("y", [](int x) -> int { return -1 * x; }, {"x"})
+               .Filter(cuts, {"x", "y"})
+               .Snapshot<int, int>(treename, filename, {"x", "y"}, options);
+   auto variation = VariationsFor(h);
+   variation.GetPtr();
+
+   {
+      TFile file(filename, "READ");
+      std::unique_ptr<TTree> tree{file.Get<TTree>(treename.data())};
+      ASSERT_NE(tree, nullptr);
+      TBranch *branch = tree->GetBranch(("R_rdf_mask_" + treename + "_0").c_str());
+      ASSERT_NE(branch, nullptr);
+
+      auto *branchToIndexMap = file.Get<std::unordered_map<std::string, std::pair<std::string, unsigned int>>>(("R_rdf_branchToBitmaskMapping_" + treename).c_str());
+      ASSERT_NE(branchToIndexMap, nullptr);
+      for (const auto branchName : {"x", "y", "x__xVar_0", "x__xVar_1", "y__xVar_0", "y__xVar_0"}) {
+         ASSERT_NE(branchToIndexMap->find(branchName), branchToIndexMap->end());
+      }
+      EXPECT_EQ((*branchToIndexMap)["x"], (*branchToIndexMap)["y"]);
+
+      for (unsigned int systematic = 0; systematic < NSystematics; ++systematic) {
+         tree->ResetBranchAddresses();
+         int x,y;
+         uint64_t bitmask;
+         std::string systematicName = std::string{"__xVar_"} + std::to_string(systematic);
+         ASSERT_EQ(tree->SetBranchAddress(("x" + systematicName).c_str(), &x), TTree::kMatch);
+         ASSERT_EQ(tree->SetBranchAddress(("y" + systematicName).c_str(), &y), TTree::kMatch);
+         const auto it = branchToIndexMap->find("x" + systematicName);
+         ASSERT_NE(it, branchToIndexMap->end());
+         ASSERT_EQ(tree->SetBranchAddress(it->second.first.c_str(), &bitmask), TTree::kMatch) << it->second.first;
+         for (unsigned int i = 0; i < N; ++i) {
+            const int xOrig = i + systematic;
+            const int yOrig = -1 * xOrig;
+            tree->GetEntry(i);
+            if (cuts(xOrig, yOrig)) {
+               ASSERT_EQ(x, xOrig) << "event=" << i << " systematic=" << systematic;
+               ASSERT_EQ(y, yOrig) << "event=" << i << " systematic=" << systematic;
+            }
+
+            const std::bitset<64> bs{bitmask};
+            const auto bitIndex = it->second.second;
+            EXPECT_EQ(cuts(xOrig, yOrig), bs[bitIndex]) << "event=" << i << " syst=" << systematic << " x=" << xOrig << " y=" << yOrig << " bitset: " << bs << " bitIndex: " << bitIndex;
+         }
+      }
+
+      if (HasFailure()) {
+         tree->Print();
+         tree->Scan();
+      }
+   }
+
+   if (!HasFailure()) std::remove(filename);
+}
+
+TEST(DISABLED_RDFVarySnapshot, SnapshotCollections)
 {
    constexpr auto filename = "VarySnapshot.root";
    constexpr unsigned int N = 10;

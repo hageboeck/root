@@ -28,23 +28,42 @@
 #include "TClass.h"
 
 #include <algorithm>
+#include <bitset>
 #include <memory>
+#include <unordered_map>
 
 namespace ROOT::Internal::RDF {
    using namespace ROOT::TypeTraits;
    using namespace ROOT::RDF;
 
 /// Store file and tree in one common place to share them between instances.
-struct FileHandle {
+struct OutputWriter {
    std::unique_ptr<TFile> fFile;
    std::unique_ptr<TTree> fTree;
    std::string fDirectoryName;
    RLoopManager * fOutputLoopManager;
 
-   FileHandle(TFile * file, TTree * tree) : fFile{file}, fTree{tree} { }
-   ~FileHandle() {
-      // use AutoSave to flush TTree contents because TTree::Write writes in gDirectory, not in fDirectory
+   // Bitmasks to indicate whether syst. uncertainties have been computed. Bound to TBranches, so need to be stable in memory.
+   struct Bitmask {
+      std::string branchName;
+      std::bitset<64> bitset{};
+      std::unique_ptr<uint64_t> branchBuffer{new uint64_t{}};
+   };
+   std::vector<Bitmask> fBitMasks;
+
+   std::unordered_map<std::string, std::size_t> fBranchToGlobalIndexMapping;
+   std::unordered_map<std::string, std::size_t> fSystematicToGlobalIndexMapping;
+   // For the dictionary, see core/clingutils/src
+   std::unordered_map<std::string, std::pair<std::string,unsigned int>> fBranchToBitmaskMapping;
+   std::size_t fSystematicCounter = 0;
+
+   OutputWriter(TFile * file, TTree * tree) : fFile{file}, fTree{tree} { }
+   ~OutputWriter() {
+      if (!fBranchToBitmaskMapping.empty()) {
+         fFile->WriteObject(&fBranchToBitmaskMapping, (std::string{"R_rdf_branchToBitmaskMapping_"} + fTree->GetName()).c_str());
+      }
       if (fTree) {
+         // use AutoSave to flush TTree contents because TTree::Write writes in gDirectory, not in fDirectory
          fTree->AutoSave("flushbaskets");
 
          // Now connect the data source to the loop manager so it can be used for further processing
@@ -58,6 +77,55 @@ struct FileHandle {
          if (fOutputLoopManager)
             fOutputLoopManager->SetDataSource(std::make_unique<ROOT::Internal::RDF::RTTreeDS>(tree, file));
       }
+   }
+
+   /// Register a branch and corresponding systematic uncertainty. The index returned is the global index of this systematic.
+   std::size_t RegisterBranch(std::string const & branchName, std::string const & systematicName) {
+      if (auto it = fBranchToGlobalIndexMapping.find(branchName); it != fBranchToGlobalIndexMapping.end()) {
+         return it->second;
+      } else if (it = fSystematicToGlobalIndexMapping.find(systematicName); it != fSystematicToGlobalIndexMapping.end()) {
+         // This systematic is known, but not the branch name
+         const auto branchIndex = it->second / 64;
+         const auto bitIndex = it->second % 64;
+         fBranchToGlobalIndexMapping[branchName] = it->second;
+         fBranchToBitmaskMapping[branchName] = std::make_pair(fBitMasks[branchIndex].branchName, bitIndex);
+         return it->second;
+      }
+
+      // Neither branch nor systematic are known, so a new entry needs to be created
+      const std::size_t globalBitIndex = fSystematicCounter++;
+      const auto vectorIndex = globalBitIndex / 64;
+      const auto bitIndex = globalBitIndex % 64;
+
+      if (vectorIndex == fBitMasks.size()) {
+         std::string bitmaskBranchName = std::string{"R_rdf_mask_"} + fTree->GetName() + '_' + std::to_string(fBitMasks.size());
+         fBitMasks.push_back(Bitmask{bitmaskBranchName});
+         fTree->Branch(bitmaskBranchName.c_str(), fBitMasks.back().branchBuffer.get());
+      }
+
+      fBranchToGlobalIndexMapping[branchName] = globalBitIndex;
+      fSystematicToGlobalIndexMapping[systematicName] = globalBitIndex;
+      fBranchToBitmaskMapping[branchName] = std::make_pair(fBitMasks[vectorIndex].branchName, bitIndex);
+
+      return globalBitIndex;
+   }
+
+   void ClearMaskBits() {
+      for (auto & mask : fBitMasks) mask.bitset.reset();
+   }
+
+   void SetMaskBit(std::size_t index) {
+      const auto vectorIndex = index / 64;
+      const auto bitIndex = index % 64;
+      fBitMasks[vectorIndex].bitset.set(bitIndex, true);
+   }
+
+   void Write() const {
+      for (auto const & mask : fBitMasks) {
+         *mask.branchBuffer = mask.bitset.to_ullong();
+      }
+
+      fTree->Fill();
    }
 };
 
@@ -166,13 +234,15 @@ void SetBranchesHelper(TTree *inputTree, TTree &outputTree, const std::string &i
 template <typename... ColTypes>
 class R__CLING_PTRCHECK(off) SnapshotHelperWithVariations : public ROOT::Detail::RDF::RActionImpl<SnapshotHelperWithVariations<ColTypes...>> {
    RSnapshotOptions fOptions;
-   std::shared_ptr<FileHandle> fOutputHandle;
+   std::shared_ptr<OutputWriter> fOutputHandle;
    // ColumnNames_t fInputBranchNames; // This contains the resolved aliases
    ColumnNames_t fOutputBranchNames;
    std::unique_ptr<std::vector<BranchData>> fBranchData;
    std::vector<std::vector<BranchData>*> fBranchDataToClear;
    ROOT::Detail::RDF::RLoopManager *fInputLoopManager = nullptr;
    ROOT::Detail::RDF::RLoopManager *fOutputLoopManager = nullptr;
+   std::size_t fIndexForSystematicBitmask = std::numeric_limits<std::size_t>::max();
+   std::string fSystematicName;
 
 
    template<typename T>
@@ -185,6 +255,12 @@ class R__CLING_PTRCHECK(off) SnapshotHelperWithVariations : public ROOT::Detail:
       fBranchData->emplace_back(nullptr, nullptr, nullptr);
       // TODO: Review the dummy arguments
       SetBranchesHelper(nullptr, *fOutputHandle->fTree, "", name_noColon, static_cast<T*>(nullptr), fBranchData->back(), /*isDefine*/false, fOptions.fBasketSize);
+
+      const auto index = fOutputHandle->RegisterBranch(name_noColon, fSystematicName.empty() ? "nominal" : fSystematicName);
+      if (fIndexForSystematicBitmask == std::numeric_limits<std::size_t>::max()) {
+         fIndexForSystematicBitmask = index;
+      }
+      assert(fIndexForSystematicBitmask == index);
    }
 
    template <std::size_t... S>
@@ -206,7 +282,7 @@ class R__CLING_PTRCHECK(off) SnapshotHelperWithVariations : public ROOT::Detail:
    }
 
    SnapshotHelperWithVariations(SnapshotHelperWithVariations & other, std::string const & variationPrefix)
-   : fOptions{other.fOptions}, fOutputHandle{other.fOutputHandle}, fBranchData{new std::vector<BranchData>{}}
+   : fOptions{other.fOptions}, fOutputHandle{other.fOutputHandle}, fBranchData{new std::vector<BranchData>{}}, fSystematicName{variationPrefix}
    {
       fOutputBranchNames.resize(other.fOutputBranchNames.size());
       std::transform(other.fOutputBranchNames.begin(), other.fOutputBranchNames.end(), fOutputBranchNames.begin(),
@@ -234,7 +310,7 @@ public:
       EnsureValidSnapshotTTreeOutput(fOptions, std::string(treename), std::string(filename));
 
       TFile::TContext fileCtxt;
-      fOutputHandle = std::make_shared<FileHandle>(TFile::Open(filename.data(), fOptions.fMode.c_str(), /*ftitle=*/"",
+      fOutputHandle = std::make_shared<OutputWriter>(TFile::Open(filename.data(), fOptions.fMode.c_str(), /*ftitle=*/"",
       ROOT::CompressionSettings(fOptions.fCompressionAlgorithm, fOptions.fCompressionLevel)), nullptr);
       if(!fOutputHandle->fFile)
          throw std::runtime_error(std::string{"Snapshot: could not create output file "} + std::string{filename});
@@ -286,6 +362,9 @@ public:
    {
       using ind_t = std::index_sequence_for<ColTypes...>;
       SetBranches(values..., ind_t{});
+
+      assert(fIndexForSystematicBitmask != std::numeric_limits<std::size_t>::max());
+      fOutputHandle->SetMaskBit(fIndexForSystematicBitmask);
    }
 
    /// Call the Fill of the output tree, and reset all braches to empty values.
@@ -295,11 +374,13 @@ public:
       if (!fOutputHandle->fTree)
          throw std::runtime_error("The TTree associated to the Snapshot action doesn't exist, any more.");
 
-      fOutputHandle->fTree->Fill();
+      fOutputHandle->Write();
 
       for (auto vecPtr : fBranchDataToClear) {
          for (auto & branchData : *vecPtr) branchData.ResetBranchAddressToEmtpyInstance();
       }
+      fOutputHandle->ClearMaskBits();
+
       return *fOutputHandle->fTree;
    }
 
