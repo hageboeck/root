@@ -188,6 +188,8 @@ RNode AsRNode(NodeType node)
 // clang-format on
 unsigned int RunGraphs(std::vector<RResultHandle> handles);
 
+void Draw(std::string treename, std::string filenameglob, std::string columns = "", std::string selection = "", ULong64_t events = std::numeric_limits<ULong64_t>::max());
+
 namespace Experimental {
 
 /// \brief Produce all required systematic variations for the given result.

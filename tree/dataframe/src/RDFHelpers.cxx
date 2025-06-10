@@ -22,7 +22,11 @@
 #include "ROOT/TThreadExecutor.hxx"
 #endif // R__USE_IMT
 
+#include <TCanvas.h>
+#include <TPRegexp.h>
+
 #include <algorithm>
+#include <future>
 #include <iostream>
 #include <set>
 #include <cstdio>
@@ -132,6 +136,126 @@ unsigned int ROOT::RDF::RunGraphs(std::vector<RResultHandle> handles)
       << sw.RealTime() << "s elapsed).";
 
    return uniqueLoops.size();
+}
+
+/// Draw an interactive overview of a dataset using RDataFrame.
+/// \param treename Name of a tree or RNTuple containing the dataset.
+/// \param filenameglob Glob expression specifying the files of this dataset.
+/// \param columns Regular expression selecting the columns of the dataset to be drawn. Leaving empty draws all columns.
+/// \param selection Cuts to be applied when drawing the overview.
+/// \param events TODO: Implement event range
+void ROOT::RDF::Draw(std::string treename, std::string filenameglob, std::string columns, std::string selection, ULong64_t events) {
+   using namespace std::chrono_literals;
+
+   struct BranchData {
+      std::string name;
+      double min;
+      double max;
+      std::unique_ptr<TH1D> partial;
+      ROOT::RDF::RResultPtr<TH1D> resultPtr;
+      std::unique_ptr<std::mutex> mutex{new std::mutex};
+   };
+   std::vector<BranchData> histos;
+   static std::vector<std::shared_ptr<TH1D>> histoLifeline;
+   histoLifeline.clear();
+
+
+   {
+      // TODO: Don't use range, and use MT
+      auto rangedRdf = ROOT::RDataFrame{treename, filenameglob}.Range(10000);
+      auto colNameTmp = rangedRdf.GetColumnNames();
+      std::unique_ptr<TPRegexp> regex;
+      if (!columns.empty()) {
+        regex = std::make_unique<TPRegexp>(columns.c_str());
+      }
+      std::ostringstream buf;
+      buf << std::left;
+      const auto rows = (colNameTmp.size()+3) / 4;
+      std::vector<std::string> columnNames;
+
+      for (unsigned int row = 0; row < rows; ++row) {
+         for (auto index = row; index < colNameTmp.size(); index += rows) {
+            auto const & colName = colNameTmp[index];
+            bool match = regex ? regex->MatchB(colName.c_str()) : true;
+            if (match) columnNames.push_back(colName);
+            buf << (match ? "[x]" : "[ ]") << std::setw(30) << colName;
+         }
+         buf << "\n";
+      }
+      std::cout << buf.str();
+
+      std::vector<std::pair<ROOT::RDF::RResultPtr<double>,ROOT::RDF::RResultPtr<double>>> minMaxResPtrs;
+      minMaxResPtrs.reserve(columnNames.size());
+      for (auto const & colname : columnNames) {
+         minMaxResPtrs.emplace_back(rangedRdf.Min(colname), rangedRdf.Max(colname));
+      }
+      histos.reserve(columnNames.size());
+      for (unsigned int i = 0; i < columnNames.size(); ++i) {
+         const auto min = minMaxResPtrs[i].first.GetValue(), max = minMaxResPtrs[i].second.GetValue();
+         histos.emplace_back(columnNames[i], min, 1.1*max);
+      }
+   }
+
+   std::sort(histos.begin(), histos.end(), [](BranchData const & lhs, BranchData const & rhs){ return lhs.name < rhs.name; });
+
+   ROOT::EnableImplicitMT();
+   auto future = std::async(std::launch::async, [&]() -> void {
+      ROOT::RDataFrame rdf(treename, filenameglob);
+      ROOT::RDF::RNode rootNode{rdf};
+      if (!selection.empty()) {
+        rootNode = rdf.Filter(selection);
+      }
+
+      for (unsigned int i = 0; i < histos.size(); ++i) {
+         BranchData & hw = histos[i];
+         const bool validLimits = hw.min < hw.max;
+         const std::string col = hw.name;
+         hw.resultPtr = rootNode.Histo1D(TH1DModel{col.c_str(), (col + ";" + col + ";Events").c_str(), 100,
+               validLimits ? hw.min : 0., validLimits ? hw.max : 1.1}, col);
+         hw.resultPtr.OnPartialResult(50000, [&hw](TH1D const & partial){
+            std::scoped_lock lock{*hw.mutex};
+            if (!hw.partial) {
+               hw.partial.reset(new TH1D{partial});
+            } else {
+               hw.partial->Add(&partial);
+            }
+         });
+      }
+
+      histos.front().resultPtr.GetPtr();
+   });
+
+
+   TCanvas * c = new TCanvas{("RDF: " + treename).c_str(), ("RDataFrame overview of " + treename).c_str()};
+   c->SetCanvasSize(2048, 2048);
+   c->SetWindowSize(2048, 1024);
+
+   const unsigned int cols = std::sqrt(histos.size());
+   c->Divide(cols, histos.size()/cols);
+
+   while (future.wait_for(2s) == std::future_status::timeout) {
+      for (unsigned int i = 0; i < histos.size(); ++i) {
+         auto pad = c->cd(i+1);
+         BranchData & hw = histos[i];
+         std::scoped_lock lock{*hw.mutex};
+         if (hw.partial) {
+            hw.partial->DrawCopy();
+            pad->Modified();
+            pad->Update();
+         }
+      }
+      c->Update();
+   }
+
+   future.get();
+   for (unsigned int i = 0; i < histos.size(); ++i) {
+      c->cd(i+1)->Clear();
+      BranchData & hw = histos[i];
+      hw.partial = nullptr;
+      hw.resultPtr->Draw();
+      histoLifeline.push_back(hw.resultPtr.GetSharedPtr());
+   }
+   c->Draw();
 }
 
 namespace ROOT::RDF::Experimental {
