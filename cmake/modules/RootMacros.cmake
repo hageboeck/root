@@ -590,14 +590,14 @@ function(ROOT_GENERATE_DICTIONARY dictionary)
   set(pcm_dependencies)
   if(ARG_DEPENDENCIES)
     foreach(dep ${ARG_DEPENDENCIES})
-      list(APPEND pcm_dependencies G__${dep})
-
+      message(WARNING "Need to replace dependency to G__${dep} here")
       set(dependent_pcm ${libprefix}${dep}_rdict.pcm)
       if (runtime_cxxmodules AND NOT dep IN_LIST local_no_cxxmodules)
         set(dependent_pcm ${dep}.pcm)
         if(TARGET ${dep})
           get_target_property(_dep_pcm_filename ${dep} ROOT_PCM_FILENAME)
           if(_dep_pcm_filename)
+            message(STATUS "Found pcm property: ${_dep_pcm_filename}")
             list(APPEND pcm_dependencies ${_dep_pcm_filename})
           endif()
         endif()
@@ -686,6 +686,18 @@ function(ROOT_GENERATE_DICTIONARY dictionary)
     set_target_properties(${ARG_MODULE} PROPERTIES
       ROOT_PCM_FILENAME "${cpp_module_file}")
   endif()
+
+  if("${dictionary}" STREQUAL G__Core)
+    # This ensures a total order of Core+std+libc --> Other pcms
+    # Otherwise, multiple targets might try to rebuild std.pcm in parallel
+    set(pcm_name "${pcm_name} ${library_output_dir}/libc.pcm  ${library_output_dir}/std.pcm")
+  endif()
+
+  include(CMakePrintHelpers)
+  cmake_print_variables(ARG_MODULE _list_of_header_dependencies _linkdef ROOTCINTDEP
+                             pcm_dependencies
+                             ARG_EXTRA_DEPENDENCIES
+                             runtime_cxxmodule_dependencies)
 
   #---call rootcint------------------------------------------
   add_custom_command(OUTPUT ${dictionary}.cxx ${pcm_name} ${rootmap_name} ${cpp_module_file}
