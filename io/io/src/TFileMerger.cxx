@@ -830,7 +830,20 @@ Bool_t TFileMerger::MergeOne(TDirectory *target, TList *sourcelist, Int_t type, 
       } else {
          status = WriteOneAndDelete(oldkeyname, cl, obj, kTRUE, ownobj, target) && status;
       }
+   } else if (!target->GetList()->FindObject(keyname)) {
+      // An incremental merge where the first file (=target file) doesn't have the object,
+      // so it must be assigned from a subsequent file to the target.
+      current_sourcedir->GetList()->Print();
+      target->GetList()->Print();
+
+      current_sourcedir->RecursiveRemove(obj);
+      target->Append(obj);
+      obj->SetBit(kMustCleanup);
+
+      current_sourcedir->GetList()->Print();
+      target->GetList()->Print();
    }
+
    info.Reset();
    return kTRUE;
 }
