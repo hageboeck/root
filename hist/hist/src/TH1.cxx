@@ -792,6 +792,8 @@ void TH1::Build()
          fFunctions->UseRWLock();
          fDirectory->Append(this,kTRUE);
       }
+   } else {
+      // std::cerr << "Not adding " << GetName() << "\n";
    }
 }
 

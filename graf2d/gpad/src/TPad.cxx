@@ -3767,6 +3767,9 @@ void TPad::Paint(Option_t * /*option*/)
             began3DScene = kTRUE;
          }
 
+         if (auto tnamed = dynamic_cast<TNamed const*>(obj); tnamed) {
+            std::cout << "Painting " << tnamed->IsA()->GetName() << " " << tnamed->GetName() << " " << tnamed->GetTitle() << "\n";
+         }
          obj->Paint(lnk->GetOption());
          lnk = lnk->Next();
       }

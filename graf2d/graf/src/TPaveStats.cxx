@@ -345,6 +345,7 @@ void TPaveStats::SetDrawOption(Option_t *option)
 
 void TPaveStats::Paint(Option_t *option)
 {
+   std::cout << "Painting stats " << GetName() << " " << GetTitle() << "\n";
    TPave::ConvertNDCtoPad();
    TPave::PaintPave(fX1,fY1,fX2,fY2,GetBorderSize(),option);
 

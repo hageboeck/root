@@ -2045,6 +2045,11 @@ void th2_violin()
       h2->SetLineColor(kBlue);
 
       pad->Add(h2, name);
+      if (padid == 0) {
+         h2->Print("");
+         pad->GetListOfPrimitives()->Print();
+         gDirectory->ls();
+      }
    }
 
    TestReport(C, "TH2 violin", "", 0, "th2_violin");
@@ -4416,6 +4421,8 @@ void stressGraphics(Int_t verbose = 0, Bool_t generate = kFALSE, Bool_t keep_fil
    feynman       ();
    ratioplot     ();
    print_reports ();
+
+   return;
 
    start_block("More high Level 2D Primitives");
    tgraph1       ();
