@@ -4,6 +4,23 @@
 # For the licensing terms see $ROOTSYS/LICENSE.
 # For the list of contributors see $ROOTSYS/README/CREDITS.
 
+include(FetchContent)
+
+if(builtin_xrootd)
+  FetchContent_Declare(
+    XRootD
+    URL http://lcgpackages.web.cern.ch/lcgpackages/tarFiles/sources/xrootd-5.9.1.tar.gz
+    URL_HASH SHA256=39946509a50e790ab3fcc77ba0f4c9b66abef221262756aa8bb2494f00a0e321
+    EXCLUDE_FROM_ALL
+    SYSTEM
+    OVERRIDE_FIND_PACKAGE # Builtin was requested, so this acts like --force
+  )
+  list(APPEND FETCH_CONTENT_PACKAGES XRootD)
+  set(xrootd ON CACHE BOOL "Enabled because builtin_xrootd requested (${xrootd_description})" FORCE)
+endif()
+
+FetchContent_MakeAvailable(${FETCH_CONTENT_PACKAGESs})
+
 #----------------------------------------------------------------------------
 # macro ROOT_CHECK_CONNECTION(option)
 # Try to download a file to check internet connection.
@@ -988,27 +1005,15 @@ foreach(suffix FOUND INCLUDE_DIR INCLUDE_DIRS LIBRARY LIBRARIES)
   unset(XROOTD_${suffix} CACHE)
 endforeach()
 
-if(xrootd AND NOT builtin_xrootd)
+if(xrootd)
   message(STATUS "Looking for XROOTD")
-  find_package(XRootD)
-  if(NOT XROOTD_FOUND)
-    if(fail-on-missing)
-      message(SEND_ERROR "XROOTD not found. Set environment variable XRDSYS to point to your XROOTD installation, "
-                          "or include the installation of XROOTD in the CMAKE_PREFIX_PATH. "
-                          "Alternatively, you can also enable the option 'builtin_xrootd' to build XROOTD internally")
-    else()
-      ROOT_CHECK_CONNECTION("xrootd=OFF")
-      if(NO_CONNECTION)
-        message(FATAL_ERROR "No internet connection. Please check your connection, or either disable the 'builtin_xrootd'"
-          " option or the 'fail-on-missing' to automatically disable options requiring internet access")
-      else()
-        message(STATUS "XROOTD not found, enabling 'builtin_xrootd' option")
-        set(builtin_xrootd ON CACHE BOOL "Enabled because xrootd is enabled, but external xrootd was not found (${xrootd_description})" FORCE)
-      endif()
-    endif()
+  if(fail-on-missing)
+    find_package(XRootD REQUIRED)
+  else()
+    find_package(XRootD)
   endif()
 
-  if(XRootD_VERSION VERSION_LESS 5.8.4)
+  if(DEFINED XRootD_VERSION AND XRootD_VERSION VERSION_LESS 5.8.4)
     # Remove -D from XRootD's exported compile definitions. https://github.com/xrootd/xrootd/issues/2543
     foreach(XRDTarget XRootD::XrdCl XRootD::XrdUtils)
       if(TARGET ${XRDTarget})
@@ -1018,41 +1023,32 @@ if(xrootd AND NOT builtin_xrootd)
       endif()
     endforeach()
   endif()
-endif()
 
-if(builtin_xrootd)
-  ROOT_CHECK_CONNECTION("builtin_xrootd=OFF")
-  if(NO_CONNECTION)
-    message(FATAL_ERROR "No internet connection. Please check your connection, or either disable the 'builtin_xrootd'"
-      " option or the 'fail-on-missing' to automatically disable options requiring internet access")
+  if(DEFINED XRootD_VERSION AND NOT TARGET XRootD::XrdCl)
+    # Before v5.7.0, XROOTD_INCLUDE_DIRS includes private headers, like:
+    #   <xrootd_include_dir>;<xrootd_include_dir>/private
+    # The private headers are not always installed, so the configure step might fail.
+    # ROOT doesn't need these headers, so it's best to remove them.
+    list(FILTER XROOTD_INCLUDE_DIRS EXCLUDE REGEX .*/private)
+
+    add_library(XRootD::XrdCl SHARED IMPORTED)
+    set_target_properties(XRootD::XrdCl PROPERTIES IMPORTED_LOCATION ${XROOTD_CLIENT_LIBRARIES})
+    target_include_directories(XRootD::XrdCl SYSTEM INTERFACE $<BUILD_INTERFACE:${XROOTD_INCLUDE_DIRS}>)
+
+    add_library(XRootD::XrdUtils SHARED IMPORTED)
+    set_target_properties(XRootD::XrdUtils PROPERTIES IMPORTED_LOCATION ${XROOTD_UTILS_LIBRARIES})
   endif()
-  if(NOT ssl AND NOT builtin_openssl)
-    message(FATAL_ERROR "Building XRootD ('builtin_xrootd'=On) requires ssl support ('ssl' or 'builtin_openssl').")
+
+  if(builtin_xrootd)
+    # When these targets are built as part of ROOT, we need to ensure that they get installed and exported.
+    foreach(XRDTarget XrdCl XrdUtils XrdXml)
+      if(NOT TARGET XRootD::${XRDTarget})
+        add_library(XRootD::${XRDTarget} ALIAS ${XRDTarget})
+        install(TARGETS ${XRDTarget} EXPORT ROOTExports)
+        set_property(GLOBAL APPEND PROPERTY ROOT_EXPORTED_TARGETS ${XRDTarget})
+      endif()
+    endforeach()
   endif()
-  list(APPEND ROOT_BUILTINS BUILTIN_XROOTD)
-  add_subdirectory(builtins/xrootd)
-  set(xrootd ON CACHE BOOL "Enabled because builtin_xrootd requested (${xrootd_description})" FORCE)
-endif()
-
-# Backward compatibility for XRootD <v5.8 without CMake targets:
-if(xrootd AND NOT TARGET XRootD::XrdCl)
-  # Before v5.7.0, XROOTD_INCLUDE_DIRS includes private headers, like:
-  #   <xrootd_include_dir>;<xrootd_include_dir>/private
-  # The private headers are not always installed, so the configure step might fail.
-  # ROOT doesn't need these headers, so it's best to remove them.
-  list(FILTER XROOTD_INCLUDE_DIRS EXCLUDE REGEX .*/private)
-
-  add_library(XRootD::XrdCl SHARED IMPORTED)
-  set_target_properties(XRootD::XrdCl PROPERTIES IMPORTED_LOCATION ${XROOTD_CLIENT_LIBRARIES})
-  target_include_directories(XRootD::XrdCl SYSTEM INTERFACE $<BUILD_INTERFACE:${XROOTD_INCLUDE_DIRS}>)
-
-  add_library(XRootD::XrdUtils SHARED IMPORTED)
-  set_target_properties(XRootD::XrdUtils PROPERTIES IMPORTED_LOCATION ${XROOTD_UTILS_LIBRARIES})
-endif()
-
-#---check if netxng can be built-------------------------------
-if(xrootd)
-  set(netxng ON)
 endif()
 
 #---make sure non-builtin xrootd is not using builtin_openssl-----------
