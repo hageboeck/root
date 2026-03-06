@@ -343,7 +343,7 @@ macro(add_cling_library name)
   endif()
 
   # Set DISABLE_LLVM_LINK_LLVM_DYLIB to disable linking against shared LLVM
-  llvm_add_library(${name} ${ARG_ENABLE_SHARED} DISABLE_LLVM_LINK_LLVM_DYLIB ${ARG_UNPARSED_ARGUMENTS} ${srcs})
+  llvm_add_library(${name} ${ARG_ENABLE_SHARED} ${ARG_UNPARSED_ARGUMENTS} ${srcs})
 
   if (MSVC AND cling_ex_file_match)
     # /EHs because cling_runtime_internal_throwIfInvalidPointer is extern “C”

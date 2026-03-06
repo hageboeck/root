@@ -275,8 +275,8 @@ if(builtin_llvm)
     set(LLVM_TABLEGEN_EXE "${LLVM_BINARY_DIR}/bin/llvm-tblgen")
   endif()
 else()
-  find_package(LLVM REQUIRED CONFIG)
-  message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION} in ${LLVM_CMAKE_DIR}")
+  find_package(LLVM 20.1 REQUIRED CONFIG)
+  message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION} in ${LLVM_CMAKE_DIR}. bin dir: ${LLVM_TOOLS_BINARY_DIR}")
 
   separate_arguments(LLVM_DEFINITIONS_LIST NATIVE_COMMAND ${LLVM_DEFINITIONS})
   add_definitions(${LLVM_DEFINITIONS_LIST})
@@ -287,8 +287,7 @@ else()
   set(LLVM_LIBRARY_DIR ${LLVM_LIBRARY_DIR} CACHE PATH "Path to llvm/lib")
   set(LLVM_LIBDIR_SUFFIX ${LLVM_LIBDIR_SUFFIX} CACHE STRING "Suffix of library directory name")
 
-  find_program(LLVM_TABLEGEN_EXE "llvm-tblgen" ${LLVM_TOOLS_BINARY_DIR}
-    NO_DEFAULT_PATH)
+  find_program(LLVM_TABLEGEN_EXE "llvm-tblgen" HINTS ${LLVM_TOOLS_BINARY_DIR} NO_DEFAULT_PATH)
 
   # We already FORCE-d the CACHE value to OFF, but LLVMConfig.cmake might have
   # set the variable to ON again...
@@ -397,7 +396,7 @@ else()
     set(CLANG_LINKS_TO_CREATE clang++ clang-cl)
 
     # Disable linking against shared LLVM
-    set(LLVM_LINK_LLVM_DYLIB OFF)
+    set(LLVM_LINK_LLVM_DYLIB ON)
 
     # Always build LLVM with C++17. It is not necessary to compile with the same
     # C++ standard as the rest of ROOT and sometimes it doesn't even work.
