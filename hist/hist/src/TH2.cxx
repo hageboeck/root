@@ -666,7 +666,7 @@ void TH2::FillN(Int_t ntimes, const Double_t *x, const Double_t *y, const Double
 ////////////////////////////////////////////////////////////////////////////////
 /// Fill histogram following distribution in function fname.
 ///
-///  @param fname  : Function name used for filling the histogram
+///  @param f1     : Function name used for filling the histogram
 ///  @param ntimes : number of times the histogram is filled
 ///  @param rng    : (optional) Random number generator used to sample
 ///
@@ -681,7 +681,7 @@ void TH2::FillN(Int_t ntimes, const Double_t *x, const Double_t *y, const Double
 ///
 ///  One can also call TF2::GetRandom2 to get a random variate from a function.
 
-void TH2::FillRandom(TF1 *fobj, Int_t ntimes, TRandom * rng)
+void TH2::FillRandom(TF1 *f1, Int_t ntimes, TRandom * rng)
 {
    Int_t bin, binx, biny, ibin, loop;
    Double_t r1, x, y;
